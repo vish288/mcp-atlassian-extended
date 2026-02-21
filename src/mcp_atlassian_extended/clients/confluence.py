@@ -18,12 +18,10 @@ class ConfluenceExtendedClient:
 
     def __init__(self, config: ConfluenceConfig | None = None) -> None:
         self.config = config or ConfluenceConfig.from_env()
+        headers = {"Content-Type": "application/json", **self.config.auth_header}
         self._client = httpx.AsyncClient(
             base_url=self.config.url,
-            headers={
-                "Authorization": f"Bearer {self.config.token}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             timeout=self.config.timeout,
             verify=self.config.ssl_verify,
         )

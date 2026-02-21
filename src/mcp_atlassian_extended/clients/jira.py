@@ -24,12 +24,10 @@ class JiraExtendedClient:
 
     def __init__(self, config: JiraConfig | None = None) -> None:
         self.config = config or JiraConfig.from_env()
+        headers = {"Content-Type": "application/json", **self.config.auth_header}
         self._client = httpx.AsyncClient(
             base_url=self.config.url,
-            headers={
-                "Authorization": f"Bearer {self.config.token}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             timeout=self.config.timeout,
             verify=self.config.ssl_verify,
         )
