@@ -21,9 +21,11 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 
 ## Quick Install
 
+> Prerequisite: Install `uv` first (required for all `uvx` install flows, including one-click Cursor/VS Code buttons). [Install uv](https://docs.astral.sh/uv/getting-started/installation/).
+
 ### Cursor
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html)](cursor://anysphere.cursor-deeplink/mcp/install?name=mcp-atlassian-extended&config=eyJtY3BTZXJ2ZXJzIjogeyJhdGxhc3NpYW4tZXh0ZW5kZWQiOiB7ImNvbW1hbmQiOiAidXZ4IiwgImFyZ3MiOiBbIm1jcC1hdGxhc3NpYW4tZXh0ZW5kZWQiXSwgImVudiI6IHsiSklSQV9VUkwiOiAiaHR0cHM6Ly95b3VyLWNvbXBhbnkuYXRsYXNzaWFuLm5ldCIsICJKSVJBX1VTRVJOQU1FIjogInlvdXIuZW1haWxAY29tcGFueS5jb20iLCAiSklSQV9BUElfVE9LRU4iOiAieW91ci10b2tlbiJ9fX19)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html)
 
 ### Claude Code
 
