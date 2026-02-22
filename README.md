@@ -27,7 +27,7 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 
 ### Cursor
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html?install=cursor)
 
 ### Claude Code
 
@@ -37,7 +37,7 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
 
 ### VS Code
 
-[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-atlassian-extended&inputs=%5B%7B%22id%22%3A%22jira-url%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Jira%20URL%22%2C%22default%22%3A%22https%3A//your-company.atlassian.net%22%7D%2C%7B%22id%22%3A%22jira-username%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Jira%20Username%20/%20Email%22%7D%2C%7B%22id%22%3A%22jira-api-token%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Jira%20API%20Token%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-atlassian-extended%22%5D%2C%22env%22%3A%7B%22JIRA_URL%22%3A%22%24%7Binput%3Ajira-url%7D%22%2C%22JIRA_USERNAME%22%3A%22%24%7Binput%3Ajira-username%7D%22%2C%22JIRA_API_TOKEN%22%3A%22%24%7Binput%3Ajira-api-token%7D%22%7D%7D) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-atlassian-extended&inputs=%5B%7B%22id%22%3A%22jira-url%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Jira%20URL%22%2C%22default%22%3A%22https%3A//your-company.atlassian.net%22%7D%2C%7B%22id%22%3A%22jira-username%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Jira%20Username%20/%20Email%22%7D%2C%7B%22id%22%3A%22jira-api-token%22%2C%22type%22%3A%22promptString%22%2C%22description%22%3A%22Jira%20API%20Token%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-atlassian-extended%22%5D%2C%22env%22%3A%7B%22JIRA_URL%22%3A%22%24%7Binput%3Ajira-url%7D%22%2C%22JIRA_USERNAME%22%3A%22%24%7Binput%3Ajira-username%7D%22%2C%22JIRA_API_TOKEN%22%3A%22%24%7Binput%3Ajira-api-token%7D%22%7D%7D&quality=insiders)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html?install=vscode) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html?install=vscode-insiders)
 
 ### Windsurf & IntelliJ
 
