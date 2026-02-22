@@ -117,7 +117,7 @@ class JiraExtendedClient:
             files=files,
             headers={
                 "X-Atlassian-Token": "no-check",
-                "Authorization": f"Bearer {self.config.token}",
+                **self.config.auth_header,
             },
         )
         if not resp.is_success:
@@ -125,6 +125,14 @@ class JiraExtendedClient:
         return resp.json()
 
     async def download_attachment(self, content_url: str) -> bytes:
+        """Download attachment content. Handles both absolute and relative URLs."""
+        if content_url.startswith(("http://", "https://")):
+            resp = await self._client.request("GET", content_url, headers=self.config.auth_header)
+            if resp.status_code in (401, 403):
+                raise AtlassianAuthError(resp.status_code, resp.text)
+            if not resp.is_success:
+                raise AtlassianApiError(resp.status_code, resp.reason_phrase or "", resp.text)
+            return resp.content
         return await self.get(content_url, raw=True)
 
     async def delete_attachment(self, attachment_id: str) -> None:
@@ -170,3 +178,74 @@ class JiraExtendedClient:
             f"/rest/agile/1.0/sprint/{sprint_id}/issue",
             {"issues": issue_keys},
         )
+
+    # ── Issues ─────────────────────────────────────────────────────
+
+    async def create_issue(
+        self,
+        project_key: str,
+        summary: str,
+        issue_type: str = "Story",
+        *,
+        description: str | None = None,
+        labels: list[str] | None = None,
+        priority: str | None = None,
+        custom_fields: dict[str, Any] | None = None,
+    ) -> dict:
+        """Create a Jira issue. custom_fields are merged directly into the fields payload."""
+        fields: dict[str, Any] = {
+            "project": {"key": project_key},
+            "summary": summary,
+            "issuetype": {"name": issue_type},
+        }
+        if description is not None:
+            fields["description"] = description
+        if labels:
+            fields["labels"] = labels
+        if priority:
+            fields["priority"] = {"name": priority}
+        if custom_fields:
+            fields.update(custom_fields)
+        return await self.post("/rest/api/2/issue", {"fields": fields})
+
+    async def update_issue(
+        self,
+        issue_key: str,
+        *,
+        fields: dict[str, Any] | None = None,
+        custom_fields: dict[str, Any] | None = None,
+    ) -> None:
+        """Update a Jira issue. fields and custom_fields are merged into the payload."""
+        merged = {**(fields or {}), **(custom_fields or {})}
+        if merged:
+            await self.put(f"/rest/api/2/issue/{issue_key}", {"fields": merged})
+
+    async def create_issue_link(
+        self,
+        link_type: str,
+        inward_issue_key: str,
+        outward_issue_key: str,
+        *,
+        comment: str | None = None,
+    ) -> None:
+        """Create a link between two issues."""
+        body: dict[str, Any] = {
+            "type": {"name": link_type},
+            "inwardIssue": {"key": inward_issue_key},
+            "outwardIssue": {"key": outward_issue_key},
+        }
+        if comment:
+            body["comment"] = {"body": comment}
+        await self.post("/rest/api/2/issueLink", body)
+
+    async def delete_issue_link(self, link_id: str) -> None:
+        """Delete an issue link by ID."""
+        await self.delete(f"/rest/api/2/issueLink/{link_id}")
+
+    async def get_issue_links(self, issue_key: str) -> list[dict]:
+        """Get all links for an issue."""
+        data = await self.get(
+            f"/rest/api/2/issue/{issue_key}",
+            params={"fields": "issuelinks"},
+        )
+        return data.get("fields", {}).get("issuelinks", [])

@@ -42,7 +42,8 @@ mcp = FastMCP(
     name="Atlassian Extended MCP Server",
     instructions=(
         "Extended tools for Jira and Confluence that complement mcp-atlassian. "
-        "Provides attachments, agile boards/sprints, users, metadata, and calendar tools."
+        "Provides issue creation/update with custom fields, issue links, "
+        "attachments, agile boards/sprints, users, metadata, and calendar tools."
     ),
     lifespan=lifespan,
 )
@@ -52,6 +53,7 @@ def _register_tools() -> None:
     """Import tool modules so their @mcp.tool decorators execute."""
     importlib.import_module(".jira_extended", __package__)
     importlib.import_module(".jira_agile", __package__)
+    importlib.import_module(".jira_issues", __package__)
     importlib.import_module(".confluence_extended", __package__)
 
 

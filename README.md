@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/vish288/mcp-atlassian-extended/actions/workflows/tests.yml/badge.svg)](https://github.com/vish288/mcp-atlassian-extended/actions/workflows/tests.yml)
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **22 additional tools** for Jira and Confluence: attachments, agile boards, sprints, backlog management, user search, calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **23 additional tools** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
 
 Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.python-httpx.org/), and [Pydantic](https://docs.pydantic.dev/).
 
@@ -113,10 +113,12 @@ Also accepts: `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_TOKEN`
 | VS Code Copilot | Yes | `.vscode/mcp.json` |
 | Any MCP client | Yes | stdio or HTTP transport |
 
-## Tools (22)
+## Tools (23)
 
 | Category | Count | Tools |
 |----------|-------|-------|
+| **Jira Issues** | 3 | create (with custom fields), update (with custom fields), create epic |
+| **Jira Links** | 2 | create link, delete link |
 | **Jira Attachments** | 4 | get, upload, download, delete |
 | **Jira Users** | 1 | search by name/email |
 | **Jira Metadata** | 3 | list projects, list fields, backlog |
@@ -125,6 +127,19 @@ Also accepts: `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_TOKEN`
 
 <details>
 <summary>Full tool reference (click to expand)</summary>
+
+### Jira Issues
+| Tool | Description |
+|------|-------------|
+| `jira_create_issue` | Create issue with standard and custom fields |
+| `jira_update_issue` | Update issue fields and custom fields |
+| `jira_create_epic` | Create an epic (sets issue type automatically) |
+
+### Jira Links
+| Tool | Description |
+|------|-------------|
+| `jira_create_link` | Create a link between two issues (Relates, Blocks, etc.) |
+| `jira_delete_link` | Delete an issue link by ID |
 
 ### Jira Attachments
 | Tool | Description |

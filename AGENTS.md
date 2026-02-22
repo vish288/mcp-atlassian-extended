@@ -1,6 +1,6 @@
 # mcp-atlassian-extended — Agent Context
 
-Extended MCP tools for Jira and Confluence, complementing mcp-atlassian with 22 delta tools.
+Extended MCP tools for Jira and Confluence, complementing mcp-atlassian with 23 tools.
 
 ## Architecture
 
@@ -11,6 +11,8 @@ Extended MCP tools for Jira and Confluence, complementing mcp-atlassian with 22 
 
 ## Tool Categories
 
+- Jira Issues (3): create (with custom fields), update (with custom fields), create-epic
+- Jira Links (2): create-link, delete-link
 - Jira Attachments (4): get, upload, download, delete
 - Jira Users (1): search
 - Jira Metadata (3): list-projects, list-fields, backlog
@@ -19,6 +21,8 @@ Extended MCP tools for Jira and Confluence, complementing mcp-atlassian with 22 
 
 ## Environment Variables
 
-- `JIRA_URL`, `JIRA_PAT` — for Jira tools
-- `CONFLUENCE_URL`, `CONFLUENCE_PAT` — for Confluence tools
+- `JIRA_URL` + `JIRA_USERNAME` + `JIRA_API_TOKEN` — Jira Cloud (Basic auth)
+- `JIRA_URL` + `JIRA_PAT` — Jira Data Center (Bearer token)
+- `CONFLUENCE_URL` + `CONFLUENCE_USERNAME` + `CONFLUENCE_API_TOKEN` — Confluence Cloud
+- `CONFLUENCE_URL` + `CONFLUENCE_PAT` — Confluence Data Center
 - `ATLASSIAN_READ_ONLY` — disable mutations
