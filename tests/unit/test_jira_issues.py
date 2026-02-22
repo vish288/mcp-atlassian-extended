@@ -40,7 +40,7 @@ class TestJiraIssues:
             result = await client.create_issue(
                 "PROJ",
                 "Custom fields test",
-                custom_fields={"customfield_10004": 5, "customfield_17220": {"value": "SDM"}},
+                custom_fields={"customfield_10004": 5, "customfield_17220": {"value": "CustomValue"}},
             )
             assert result["key"] == "PROJ-2"
             sent_body = route.calls[0].request.content
@@ -48,7 +48,7 @@ class TestJiraIssues:
 
             payload = json.loads(sent_body)
             assert payload["fields"]["customfield_10004"] == 5
-            assert payload["fields"]["customfield_17220"] == {"value": "SDM"}
+            assert payload["fields"]["customfield_17220"] == {"value": "CustomValue"}
 
     @pytest.mark.asyncio
     async def test_update_issue(self):
