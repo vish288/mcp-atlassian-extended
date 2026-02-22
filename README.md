@@ -77,43 +77,47 @@ uv pip install mcp-atlassian-extended
 
 ### Jira Cloud (Basic Auth)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `JIRA_URL` | Yes | Jira instance URL (e.g. `https://your-company.atlassian.net`) |
-| `JIRA_USERNAME` | Yes | Email address for Jira Cloud |
-| `JIRA_API_TOKEN` | Yes | API token from [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JIRA_URL` | **Yes** | - | Jira instance URL (e.g. `https://your-company.atlassian.net`) |
+| `JIRA_USERNAME` | **Yes** | - | Email address for Jira Cloud |
+| `JIRA_API_TOKEN` | **Yes** | - | API token from [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
 
 ### Jira Data Center / Self-Hosted (Bearer Token)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `JIRA_URL` | Yes | Jira instance URL |
-| `JIRA_PAT` | Yes | Personal access token |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JIRA_URL` | **Yes** | - | Jira instance URL |
+| `JIRA_PAT` | **Yes** | - | Personal access token |
 
 Also accepts: `JIRA_PERSONAL_TOKEN`, `JIRA_TOKEN`
 
 ### Confluence Cloud (Basic Auth)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `CONFLUENCE_URL` | Yes | Confluence URL (e.g. `https://your-company.atlassian.net/wiki`) |
-| `CONFLUENCE_USERNAME` | Yes | Email address for Confluence Cloud |
-| `CONFLUENCE_API_TOKEN` | Yes | API token (same as Jira if same Atlassian account) |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CONFLUENCE_URL` | **Yes** | - | Confluence URL (e.g. `https://your-company.atlassian.net/wiki`) |
+| `CONFLUENCE_USERNAME` | **Yes** | - | Email address for Confluence Cloud |
+| `CONFLUENCE_API_TOKEN` | **Yes** | - | API token (same as Jira if same Atlassian account) |
 
 ### Confluence Data Center / Self-Hosted (Bearer Token)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `CONFLUENCE_URL` | Yes | Confluence instance URL |
-| `CONFLUENCE_PAT` | Yes | Personal access token |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CONFLUENCE_URL` | **Yes** | - | Confluence instance URL |
+| `CONFLUENCE_PAT` | **Yes** | - | Personal access token |
 
 Also accepts: `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_TOKEN`
 
-### Optional
+### Optional settings
 
-| Variable | Description |
-|----------|-------------|
-| `ATLASSIAN_READ_ONLY` | Set to `true` to disable write operations |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ATLASSIAN_READ_ONLY` | `false` | Set to `true` to globally disable write operations across tools |
+| `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
+| `JIRA_SSL_VERIFY` | `true` | Set to `false` to skip SSL verification for Jira |
+| `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
+| `CONFLUENCE_SSL_VERIFY` | `true` | Set to `false` to skip SSL verification for Confluence |
 
 ## Compatibility
 
