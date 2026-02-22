@@ -41,6 +41,8 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
 
 Add to `~/.codeium/windsurf/mcp_config.json`:
 
+> The actual server config starts at `atlassian-extended` inside `mcpServers`.
+
 ```json
 {
   "mcpServers": {
