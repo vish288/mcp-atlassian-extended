@@ -35,19 +35,19 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
 
 ### VS Code
 
-> IntelliJ one-click install support is planned for parity with VS Code/Cursor flows.
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-atlassian-extended&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-atlassian-extended%22%5D%2C%22env%22%3A%7B%22JIRA_URL%22%3A%22%24%7Binput%3Ajira-url%7D%22%2C%22JIRA_USERNAME%22%3A%22%24%7Binput%3Ajira-username%7D%22%2C%22JIRA_API_TOKEN%22%3A%22%24%7Binput%3Ajira-api-token%7D%22%7D%7D&image=https://cdn.simpleicons.org/atlassian/0052CC&logo=https://cdn.simpleicons.org/atlassian/0052CC) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-atlassian-extended&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-atlassian-extended%22%5D%2C%22env%22%3A%7B%22JIRA_URL%22%3A%22%24%7Binput%3Ajira-url%7D%22%2C%22JIRA_USERNAME%22%3A%22%24%7Binput%3Ajira-username%7D%22%2C%22JIRA_API_TOKEN%22%3A%22%24%7Binput%3Ajira-api-token%7D%22%7D%7D&quality=insiders&image=https://cdn.simpleicons.org/atlassian/0052CC&logo=https://cdn.simpleicons.org/atlassian/0052CC)
 
-[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-atlassian-extended&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-atlassian-extended%22%5D%2C%22env%22%3A%7B%22JIRA_URL%22%3A%22%24%7Binput%3Ajira-url%7D%22%2C%22JIRA_USERNAME%22%3A%22%24%7Binput%3Ajira-username%7D%22%2C%22JIRA_API_TOKEN%22%3A%22%24%7Binput%3Ajira-api-token%7D%22%7D%7D) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-atlassian-extended&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-atlassian-extended%22%5D%2C%22env%22%3A%7B%22JIRA_URL%22%3A%22%24%7Binput%3Ajira-url%7D%22%2C%22JIRA_USERNAME%22%3A%22%24%7Binput%3Ajira-username%7D%22%2C%22JIRA_API_TOKEN%22%3A%22%24%7Binput%3Ajira-api-token%7D%22%7D%7D&quality=insiders)
+### Windsurf & IntelliJ
 
-### Windsurf
+**Windsurf:** Add to `~/.codeium/windsurf/mcp_config.json`
+**IntelliJ:** Add to `Settings | Tools | MCP Servers`
 
-Add to `~/.codeium/windsurf/mcp_config.json`:
-
-> The actual server config starts at `atlassian-extended` inside `mcpServers`.
+> **Note:** The actual server config starts at `atlassian-extended` inside the `mcpServers` object.
 
 ```json
 {
   "mcpServers": {
+    ...
     "atlassian-extended": {
       "command": "uvx",
       "args": ["mcp-atlassian-extended"],
@@ -59,7 +59,8 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
         "CONFLUENCE_USERNAME": "your.email@company.com",
         "CONFLUENCE_API_TOKEN": "your_api_token"
       }
-    }
+    },
+    ...
   }
 }
 ```
