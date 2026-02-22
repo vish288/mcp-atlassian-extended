@@ -29,7 +29,7 @@ class ConfluenceExtendedClient:
     async def close(self) -> None:
         await self._client.aclose()
 
-    async def _get(self, path: str, params: dict[str, Any] | None = None) -> Any:
+    async def _get(self, path: str, params: Any = None) -> Any:
         resp = await self._client.get(path, params=params)
         if resp.status_code in (401, 403):
             raise AtlassianAuthError(resp.status_code, resp.text)
@@ -65,13 +65,10 @@ class ConfluenceExtendedClient:
         params: list[tuple[str, str]] = [("start", start), ("end", end)]
         for cal_id in sub_calendar_ids:
             params.append(("subCalendarId", cal_id))
-        resp = await self._client.get(
+        data = await self._get(
             "/rest/calendar-services/1.0/calendar/events.json",
             params=params,
         )
-        if not resp.is_success:
-            raise AtlassianApiError(resp.status_code, resp.reason_phrase or "", resp.text)
-        data = resp.json()
         events = data.get("events", []) if isinstance(data, dict) else data
         return events or []
 
