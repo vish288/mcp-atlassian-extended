@@ -23,6 +23,8 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 
 > Prerequisite: Install `uv` first (required for all `uvx` install flows, including one-click Cursor/VS Code buttons). [Install uv](https://docs.astral.sh/uv/getting-started/installation/).
 
+> **Tip:** For a unified installation experience across all IDEs, visit the **[MCP Installation Gateway](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html)**.
+
 ### Cursor
 
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html)
@@ -47,7 +49,6 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
 ```json
 {
   "mcpServers": {
-    ...
     "atlassian-extended": {
       "command": "uvx",
       "args": ["mcp-atlassian-extended"],
@@ -59,8 +60,7 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
         "CONFLUENCE_USERNAME": "your.email@company.com",
         "CONFLUENCE_API_TOKEN": "your_api_token"
       }
-    },
-    ...
+    }
   }
 }
 ```
