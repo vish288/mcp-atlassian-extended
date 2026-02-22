@@ -56,7 +56,7 @@ async def jira_create_issue(
 ) -> str:
     """Create a Jira issue with standard and custom fields.
 
-    custom_fields example: {"customfield_10004": 5, "customfield_17220": {"value": "SDM"}}
+    custom_fields example: {"customfield_10004": 5, "customfield_17220": {"value": "CustomValue"}}
     """
     try:
         _check_write(ctx)
