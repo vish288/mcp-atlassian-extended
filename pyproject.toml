@@ -4,7 +4,7 @@ version = "0.1.1"
 description = "Extended MCP tools for Jira and Confluence — attachments, agile boards, sprints, calendars"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 authors = [{name = "vish288"}]
 keywords = [
     "mcp",
@@ -29,6 +29,7 @@ classifiers = [
     "Intended Audience :: Information Technology",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -76,7 +77,7 @@ dev = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "W", "I", "N", "UP", "S", "C4", "EM", "ISC"]

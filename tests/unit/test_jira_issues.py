@@ -40,7 +40,10 @@ class TestJiraIssues:
             result = await client.create_issue(
                 "PROJ",
                 "Custom fields test",
-                custom_fields={"customfield_10004": 5, "customfield_17220": {"value": "CustomValue"}},
+                custom_fields={
+                    "customfield_10004": 5,
+                    "customfield_17220": {"value": "CustomValue"},
+                },
             )
             assert result["key"] == "PROJ-2"
             sent_body = route.calls[0].request.content
