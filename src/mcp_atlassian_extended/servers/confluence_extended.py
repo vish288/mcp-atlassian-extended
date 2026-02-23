@@ -10,7 +10,7 @@ from fastmcp import Context
 from pydantic import Field
 
 from . import mcp
-from ._helpers import _err, _get_confluence, _ok
+from ._helpers import _err, _get_confluence, _ok, _paginated
 
 
 def _resolve_date(value: str) -> str:
@@ -38,7 +38,7 @@ def _resolve_date(value: str) -> str:
 
 @mcp.tool(
     tags={"confluence", "calendars", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def confluence_list_calendars(
     ctx: Context,
@@ -73,14 +73,14 @@ async def confluence_list_calendars(
                     "child_ids": [c.get("subCalendar", {}).get("id") for c in children],
                 }
             )
-        return _ok(result)
+        return _paginated(result)
     except Exception as e:
         return _err(e)
 
 
 @mcp.tool(
     tags={"confluence", "calendars", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def confluence_search_calendars(
     ctx: Context,
@@ -109,14 +109,14 @@ async def confluence_search_calendars(
                         "space_name": sub.get("spaceName"),
                     }
                 )
-        return _ok(matched)
+        return _paginated(matched)
     except Exception as e:
         return _err(e)
 
 
 @mcp.tool(
     tags={"confluence", "time_off", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def confluence_get_time_off(
     ctx: Context,
@@ -145,7 +145,7 @@ async def confluence_get_time_off(
 
 @mcp.tool(
     tags={"confluence", "time_off", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def confluence_who_is_out(
     ctx: Context,
@@ -163,7 +163,7 @@ async def confluence_who_is_out(
 
 @mcp.tool(
     tags={"confluence", "time_off", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def confluence_get_person_time_off(
     ctx: Context,
@@ -186,7 +186,7 @@ async def confluence_get_person_time_off(
 
 @mcp.tool(
     tags={"confluence", "time_off", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def confluence_sprint_capacity(
     ctx: Context,

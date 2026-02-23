@@ -99,8 +99,8 @@ class TestGetAttachments:
         )
         result = await client.call_tool("jira_get_attachments", {"issue_key": "PROJ-123"})
         parsed = _parse(result)
-        assert len(parsed) == 1
-        assert parsed[0]["filename"] == "doc.pdf"
+        assert parsed["count"] == 1
+        assert parsed["items"][0]["filename"] == "doc.pdf"
 
     async def test_not_found(self, tool_client):
         client, router = tool_client
@@ -306,8 +306,8 @@ class TestSearchUsers:
         )
         result = await client.call_tool("jira_search_users", {"query": "ali"})
         parsed = _parse(result)
-        assert len(parsed) == 2
-        assert parsed[0]["displayName"] == "Alice"
+        assert parsed["count"] == 2
+        assert parsed["items"][0]["displayName"] == "Alice"
 
 
 class TestListProjects:
@@ -324,8 +324,8 @@ class TestListProjects:
         )
         result = await client.call_tool("jira_list_projects", {})
         parsed = _parse(result)
-        assert len(parsed) == 2
-        assert parsed[0]["key"] == "PROJ"
+        assert parsed["count"] == 2
+        assert parsed["items"][0]["key"] == "PROJ"
 
 
 # ═══════════════════════════════════════════════════════

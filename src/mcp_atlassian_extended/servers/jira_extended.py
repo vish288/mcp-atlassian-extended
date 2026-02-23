@@ -8,14 +8,14 @@ from fastmcp import Context
 from pydantic import Field
 
 from . import mcp
-from ._helpers import _check_write, _err, _get_jira, _ok
+from ._helpers import _check_write, _err, _get_jira, _ok, _paginated
 
 # ── Attachments ───────────────────────────────────────────────────
 
 
 @mcp.tool(
     tags={"jira", "attachments", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_get_attachments(
     ctx: Context,
@@ -24,12 +24,15 @@ async def jira_get_attachments(
     """List attachments on a Jira issue."""
     try:
         data = await _get_jira(ctx).get_attachments(issue_key)
-        return _ok(data)
+        return _paginated(data)
     except Exception as e:
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "attachments", "write"}, annotations={"readOnlyHint": False})
+@mcp.tool(
+    tags={"jira", "attachments", "write"},
+    annotations={"readOnlyHint": False, "openWorldHint": True},
+)
 async def jira_upload_attachment(
     ctx: Context,
     issue_key: Annotated[str, Field(description="Jira issue key", min_length=1)],
@@ -45,7 +48,10 @@ async def jira_upload_attachment(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "attachments", "write"}, annotations={"readOnlyHint": False})
+@mcp.tool(
+    tags={"jira", "attachments", "write"},
+    annotations={"readOnlyHint": False, "openWorldHint": True},
+)
 async def jira_download_attachment(
     ctx: Context,
     content_url: Annotated[str, Field(description="Attachment content URL", min_length=1)],
@@ -78,7 +84,7 @@ async def jira_download_attachment(
 
 @mcp.tool(
     tags={"jira", "attachments", "write"},
-    annotations={"destructiveHint": True, "readOnlyHint": False},
+    annotations={"destructiveHint": True, "readOnlyHint": False, "openWorldHint": True},
 )
 async def jira_delete_attachment(
     ctx: Context,
@@ -98,7 +104,7 @@ async def jira_delete_attachment(
 
 @mcp.tool(
     tags={"jira", "users", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_search_users(
     ctx: Context,
@@ -108,7 +114,7 @@ async def jira_search_users(
     """Search for Jira users."""
     try:
         data = await _get_jira(ctx).search_users(query, max_results)
-        return _ok(data)
+        return _paginated(data)
     except Exception as e:
         return _err(e)
 
@@ -118,20 +124,20 @@ async def jira_search_users(
 
 @mcp.tool(
     tags={"jira", "metadata", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_list_projects(ctx: Context) -> str:
     """List all accessible Jira projects."""
     try:
         data = await _get_jira(ctx).list_projects()
-        return _ok(data)
+        return _paginated(data)
     except Exception as e:
         return _err(e)
 
 
 @mcp.tool(
     tags={"jira", "metadata", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_list_fields(
     ctx: Context,
@@ -146,14 +152,14 @@ async def jira_list_fields(
         if search:
             search_lower = search.lower()
             data = [f for f in data if search_lower in f.get("name", "").lower()]
-        return _ok(data)
+        return _paginated(data)
     except Exception as e:
         return _err(e)
 
 
 @mcp.tool(
     tags={"jira", "metadata", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_backlog(
     ctx: Context,

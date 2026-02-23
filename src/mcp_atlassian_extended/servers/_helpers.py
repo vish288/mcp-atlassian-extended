@@ -40,6 +40,20 @@ def _ok(data: Any) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False)
 
 
+def _paginated(items: list, total: int | None = None) -> str:
+    """Wrap a list response with pagination metadata."""
+    return json.dumps(
+        {
+            "items": items,
+            "count": len(items),
+            "total": total,
+            "has_more": total is not None and len(items) < total,
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
+
+
 def _err(error: Exception) -> str:
     """Format error as JSON with actionable hints."""
     from ..exceptions import AtlassianApiError, AtlassianAuthError, WriteDisabledError
