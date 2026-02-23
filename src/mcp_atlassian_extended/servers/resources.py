@@ -768,7 +768,7 @@ project = PROJ AND sprint in openSprints() AND created > startOfSprint()
 project = PROJ AND sprint in openSprints() AND labels = "blocked" AND status != Closed
 
 -- Tickets blocking others
-project = PROJ AND issueFunction in hasLinks("blocks") AND status NOT IN (Closed, Done)
+project = PROJ AND issue in linkedIssues("PROJ-*", "blocks") AND status NOT IN (Closed, Done)
 ```
 
 ## Stale Tickets
