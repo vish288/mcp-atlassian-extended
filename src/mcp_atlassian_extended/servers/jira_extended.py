@@ -51,18 +51,27 @@ async def jira_download_attachment(
     content_url: Annotated[str, Field(description="Attachment content URL", min_length=1)],
     save_path: Annotated[str, Field(description="Local path to save the file", min_length=1)],
 ) -> str:
-    """Download a Jira attachment to a local file. Writes to local disk."""
+    """Download a Jira attachment to a local file. Writes to current working directory only."""
     try:
         _check_write(ctx)
         from pathlib import Path
 
-        if ".." in Path(save_path).parts:
+        save = Path(save_path)
+        if save.is_absolute():
+            msg = "Absolute paths are not allowed. Use a relative path from the working directory."
+            raise ValueError(msg)
+        if ".." in save.parts:
+            msg = f"Path traversal detected in save_path: {save_path}"
+            raise ValueError(msg)
+        resolved = (Path.cwd() / save).resolve()
+        if not resolved.is_relative_to(Path.cwd().resolve()):
             msg = f"Path traversal detected in save_path: {save_path}"
             raise ValueError(msg)
 
         content = await _get_jira(ctx).download_attachment(content_url)
-        Path(save_path).resolve().write_bytes(content)
-        return _ok({"status": "downloaded", "path": save_path, "size": len(content)})
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_bytes(content)
+        return _ok({"status": "downloaded", "path": str(resolved), "size": len(content)})
     except Exception as e:
         return _err(e)
 
