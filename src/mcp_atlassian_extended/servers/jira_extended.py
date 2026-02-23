@@ -19,7 +19,7 @@ from ._helpers import _check_write, _err, _get_jira, _ok
 )
 async def jira_get_attachments(
     ctx: Context,
-    issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)")],
+    issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)", min_length=1)],
 ) -> str:
     """List attachments on a Jira issue."""
     try:
@@ -32,8 +32,8 @@ async def jira_get_attachments(
 @mcp.tool(tags={"jira", "attachments", "write"}, annotations={"readOnlyHint": False})
 async def jira_upload_attachment(
     ctx: Context,
-    issue_key: Annotated[str, Field(description="Jira issue key")],
-    file_path: Annotated[str, Field(description="Local file path to upload")],
+    issue_key: Annotated[str, Field(description="Jira issue key", min_length=1)],
+    file_path: Annotated[str, Field(description="Local file path to upload", min_length=1)],
     filename: Annotated[str | None, Field(description="Override filename")] = None,
 ) -> str:
     """Upload a file as an attachment to a Jira issue."""
@@ -48,17 +48,30 @@ async def jira_upload_attachment(
 @mcp.tool(tags={"jira", "attachments", "write"}, annotations={"readOnlyHint": False})
 async def jira_download_attachment(
     ctx: Context,
-    content_url: Annotated[str, Field(description="Attachment content URL")],
-    save_path: Annotated[str, Field(description="Local path to save the file")],
+    content_url: Annotated[str, Field(description="Attachment content URL", min_length=1)],
+    save_path: Annotated[str, Field(description="Local path to save the file", min_length=1)],
 ) -> str:
-    """Download a Jira attachment to a local file. Writes to local disk."""
+    """Download a Jira attachment to a local file. Writes to current working directory only."""
     try:
         _check_write(ctx)
         from pathlib import Path
 
+        save = Path(save_path)
+        if save.is_absolute():
+            msg = "Absolute paths are not allowed. Use a relative path from the working directory."
+            raise ValueError(msg)
+        if ".." in save.parts:
+            msg = f"Path traversal detected in save_path: {save_path}"
+            raise ValueError(msg)
+        resolved = (Path.cwd() / save).resolve()
+        if not resolved.is_relative_to(Path.cwd().resolve()):
+            msg = f"Path traversal detected in save_path: {save_path}"
+            raise ValueError(msg)
+
         content = await _get_jira(ctx).download_attachment(content_url)
-        Path(save_path).write_bytes(content)
-        return _ok({"status": "downloaded", "path": save_path, "size": len(content)})
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_bytes(content)
+        return _ok({"status": "downloaded", "path": str(resolved), "size": len(content)})
     except Exception as e:
         return _err(e)
 
@@ -69,7 +82,7 @@ async def jira_download_attachment(
 )
 async def jira_delete_attachment(
     ctx: Context,
-    attachment_id: Annotated[str, Field(description="Attachment ID to delete")],
+    attachment_id: Annotated[str, Field(description="Attachment ID to delete", min_length=1)],
 ) -> str:
     """Delete a Jira attachment."""
     try:
@@ -89,8 +102,8 @@ async def jira_delete_attachment(
 )
 async def jira_search_users(
     ctx: Context,
-    query: Annotated[str, Field(description="Search by name, email, or username")],
-    max_results: Annotated[int, Field(description="Maximum results")] = 10,
+    query: Annotated[str, Field(description="Search by name, email, or username", min_length=1)],
+    max_results: Annotated[int, Field(description="Maximum results", ge=1, le=100)] = 10,
 ) -> str:
     """Search for Jira users."""
     try:
@@ -144,8 +157,8 @@ async def jira_list_fields(
 )
 async def jira_backlog(
     ctx: Context,
-    board_id: Annotated[int, Field(description="Board ID")],
-    max_results: Annotated[int, Field(description="Maximum results")] = 50,
+    board_id: Annotated[int, Field(description="Board ID", ge=1)],
+    max_results: Annotated[int, Field(description="Maximum results", ge=1, le=100)] = 50,
 ) -> str:
     """Get backlog issues for a board."""
     try:

@@ -17,7 +17,7 @@ from ._helpers import _check_write, _err, _get_jira, _ok
 )
 async def jira_get_board(
     ctx: Context,
-    board_id: Annotated[int, Field(description="Board ID")],
+    board_id: Annotated[int, Field(description="Board ID", ge=1)],
 ) -> str:
     """Get details of a Jira agile board."""
     try:
@@ -33,7 +33,7 @@ async def jira_get_board(
 )
 async def jira_board_config(
     ctx: Context,
-    board_id: Annotated[int, Field(description="Board ID")],
+    board_id: Annotated[int, Field(description="Board ID", ge=1)],
 ) -> str:
     """Get board column/status configuration."""
     try:
@@ -49,7 +49,7 @@ async def jira_board_config(
 )
 async def jira_get_sprint(
     ctx: Context,
-    sprint_id: Annotated[int, Field(description="Sprint ID")],
+    sprint_id: Annotated[int, Field(description="Sprint ID", ge=1)],
 ) -> str:
     """Get details of a specific sprint."""
     try:
@@ -62,7 +62,7 @@ async def jira_get_sprint(
 @mcp.tool(tags={"jira", "agile", "write"}, annotations={"readOnlyHint": False})
 async def jira_move_to_sprint(
     ctx: Context,
-    sprint_id: Annotated[int, Field(description="Target sprint ID")],
+    sprint_id: Annotated[int, Field(description="Target sprint ID", ge=1)],
     issue_keys: Annotated[
         list[str], Field(description="Issue keys to move (e.g. ['PROJ-1', 'PROJ-2'])")
     ],

@@ -94,6 +94,39 @@ class JiraExtendedClient:
     async def delete(self, path: str, **kw: Any) -> Any:
         return await self._request("DELETE", path, **kw)
 
+    # ── Path Validation ─────────────────────────────────────────────
+
+    @staticmethod
+    def _validate_file_path(path: str) -> Path:
+        """Validate file path is safe — no traversal, reasonable size."""
+        resolved = Path(path).resolve()
+        if ".." in Path(path).parts:
+            msg = f"Path traversal detected: {path}"
+            raise ValueError(msg)
+        if not resolved.is_file():
+            msg = f"File not found: {resolved}"
+            raise FileNotFoundError(msg)
+        size_mb = resolved.stat().st_size / (1024 * 1024)
+        if size_mb > 100:
+            msg = f"File too large ({size_mb:.1f}MB). Max 100MB."
+            raise ValueError(msg)
+        return resolved
+
+    def _validate_download_url(self, url: str) -> str:
+        """Validate download URL domain matches configured Jira URL."""
+        if url.startswith(("http://", "https://")):
+            from urllib.parse import urlparse
+
+            parsed = urlparse(url)
+            expected = urlparse(self.config.url)
+            if parsed.hostname != expected.hostname:
+                msg = (
+                    f"URL domain {parsed.hostname} doesn't match "
+                    f"configured Jira URL {expected.hostname}"
+                )
+                raise ValueError(msg)
+        return url
+
     # ── Attachments ───────────────────────────────────────────────
 
     async def get_attachments(self, issue_key: str) -> list[dict]:
@@ -103,7 +136,7 @@ class JiraExtendedClient:
     async def upload_attachment(
         self, issue_key: str, file_path: str, filename: str | None = None
     ) -> list[dict]:
-        p = Path(file_path)
+        p = self._validate_file_path(file_path)
         fname = filename or p.name
         content_type = (
             MIME_OVERRIDES.get(p.suffix.lower())
@@ -126,6 +159,7 @@ class JiraExtendedClient:
 
     async def download_attachment(self, content_url: str) -> bytes:
         """Download attachment content. Handles both absolute and relative URLs."""
+        content_url = self._validate_download_url(content_url)
         if content_url.startswith(("http://", "https://")):
             resp = await self._client.request("GET", content_url, headers=self.config.auth_header)
             if resp.status_code in (401, 403):
