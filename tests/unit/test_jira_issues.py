@@ -42,7 +42,7 @@ class TestJiraIssues:
                 "Custom fields test",
                 custom_fields={
                     "customfield_10004": 5,
-                    "customfield_17220": {"value": "CustomValue"},
+                    "customfield_12345": {"value": "MyTeam"},
                 },
             )
             assert result["key"] == "PROJ-2"
@@ -51,7 +51,7 @@ class TestJiraIssues:
 
             payload = json.loads(sent_body)
             assert payload["fields"]["customfield_10004"] == 5
-            assert payload["fields"]["customfield_17220"] == {"value": "CustomValue"}
+            assert payload["fields"]["customfield_12345"] == {"value": "MyTeam"}
 
     @pytest.mark.asyncio
     async def test_update_issue(self):
