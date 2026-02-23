@@ -3,21 +3,8 @@
 from __future__ import annotations
 
 from mcp_atlassian_extended.servers.resources import (
-    _ACCEPTANCE_CRITERIA_CONTENT,
-    _AGILE_CEREMONIES_CONTENT,
-    _CONFLUENCE_PAGES_CONTENT,
-    _CONFLUENCE_SPACES_CONTENT,
-    _CUSTOM_FIELDS_CONTENT,
-    _DEFINITION_OF_DONE_CONTENT,
-    _GIT_JIRA_INTEGRATION_CONTENT,
-    _ISSUE_LINKING_CONTENT,
-    _JIRA_HIERARCHY_CONTENT,
-    _JIRA_LABELS_CONTENT,
-    _JIRA_TICKET_WRITING_CONTENT,
-    _JIRA_WORKFLOW_CONTENT,
-    _JQL_LIBRARY_CONTENT,
-    _SPRINT_HYGIENE_CONTENT,
-    _STORY_POINTS_CONTENT,
+    _RESOURCES_DIR,
+    _load,
     acceptance_criteria_rules,
     agile_ceremonies_guide,
     confluence_page_templates,
@@ -38,65 +25,125 @@ from mcp_atlassian_extended.servers.resources import (
 EXPECTED_RESOURCES = {
     "resource://rules/jira-hierarchy": {
         "fn": jira_hierarchy_rules,
-        "content": _JIRA_HIERARCHY_CONTENT,
+        "file": "jira-hierarchy.md",
     },
     "resource://rules/jira-ticket-writing": {
         "fn": jira_ticket_writing_rules,
-        "content": _JIRA_TICKET_WRITING_CONTENT,
+        "file": "jira-ticket-writing.md",
     },
     "resource://rules/acceptance-criteria": {
         "fn": acceptance_criteria_rules,
-        "content": _ACCEPTANCE_CRITERIA_CONTENT,
+        "file": "acceptance-criteria.md",
     },
     "resource://rules/sprint-hygiene": {
         "fn": sprint_hygiene_rules,
-        "content": _SPRINT_HYGIENE_CONTENT,
+        "file": "sprint-hygiene.md",
     },
     "resource://rules/jira-workflow": {
         "fn": jira_workflow_rules,
-        "content": _JIRA_WORKFLOW_CONTENT,
+        "file": "jira-workflow.md",
     },
     "resource://rules/issue-linking": {
         "fn": issue_linking_rules,
-        "content": _ISSUE_LINKING_CONTENT,
+        "file": "issue-linking.md",
     },
     "resource://guides/story-points": {
         "fn": story_points_guide,
-        "content": _STORY_POINTS_CONTENT,
+        "file": "story-points.md",
     },
     "resource://guides/definition-of-done": {
         "fn": definition_of_done_guide,
-        "content": _DEFINITION_OF_DONE_CONTENT,
+        "file": "definition-of-done.md",
     },
     "resource://guides/jira-labels": {
         "fn": jira_labels_guide,
-        "content": _JIRA_LABELS_CONTENT,
+        "file": "jira-labels.md",
     },
     "resource://guides/jql-library": {
         "fn": jql_library_guide,
-        "content": _JQL_LIBRARY_CONTENT,
+        "file": "jql-library.md",
     },
     "resource://guides/custom-fields": {
         "fn": custom_fields_guide,
-        "content": _CUSTOM_FIELDS_CONTENT,
+        "file": "custom-fields.md",
     },
     "resource://guides/confluence-spaces": {
         "fn": confluence_spaces_guide,
-        "content": _CONFLUENCE_SPACES_CONTENT,
+        "file": "confluence-spaces.md",
     },
     "resource://guides/agile-ceremonies": {
         "fn": agile_ceremonies_guide,
-        "content": _AGILE_CEREMONIES_CONTENT,
+        "file": "agile-ceremonies.md",
     },
     "resource://guides/git-jira-integration": {
         "fn": git_jira_integration_guide,
-        "content": _GIT_JIRA_INTEGRATION_CONTENT,
+        "file": "git-jira-integration.md",
     },
     "resource://templates/confluence-pages": {
         "fn": confluence_page_templates,
-        "content": _CONFLUENCE_PAGES_CONTENT,
+        "file": "confluence-pages.md",
     },
 }
+
+RESOURCE_FILES = [info["file"] for info in EXPECTED_RESOURCES.values()]
+
+
+class TestResourceFiles:
+    """Verify resource .md files exist and are valid."""
+
+    def test_resources_dir_exists(self) -> None:
+        assert _RESOURCES_DIR.is_dir(), f"Resources directory missing: {_RESOURCES_DIR}"
+
+    def test_all_files_exist(self) -> None:
+        for filename in RESOURCE_FILES:
+            path = _RESOURCES_DIR / filename
+            assert path.is_file(), f"Missing resource file: {path}"
+
+    def test_load_returns_content(self) -> None:
+        for filename in RESOURCE_FILES:
+            content = _load(filename)
+            assert len(content) > 100, f"{filename} too short ({len(content)} chars)"
+
+    def test_content_starts_with_heading(self) -> None:
+        for filename in RESOURCE_FILES:
+            content = _load(filename)
+            assert content.lstrip().startswith("#"), (
+                f"{filename} should start with markdown heading"
+            )
+
+    def test_no_python_escape_artifacts(self) -> None:
+        """Ensure extracted .md files don't contain Python string artifacts."""
+        for filename in RESOURCE_FILES:
+            content = _load(filename)
+            assert '"""' not in content, f"{filename} contains triple-quote artifact"
+
+
+class TestLoadSecurity:
+    """Verify _load() rejects path traversal attempts."""
+
+    def test_rejects_directory_traversal(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid resource filename"):
+            _load("../../../etc/passwd")
+
+    def test_rejects_forward_slash(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid resource filename"):
+            _load("subdir/file.md")
+
+    def test_rejects_backslash(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid resource filename"):
+            _load("subdir\\file.md")
+
+    def test_rejects_dotdot_only(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid resource filename"):
+            _load("..")
 
 
 class TestResourceRegistration:
@@ -106,18 +153,12 @@ class TestResourceRegistration:
         """All 15 resources are defined."""
         assert len(EXPECTED_RESOURCES) == 15
 
-    def test_each_resource_returns_content(self) -> None:
-        """Each resource function returns its content constant."""
+    def test_each_resource_returns_file_content(self) -> None:
+        """Each resource function returns its file content."""
         for uri, info in EXPECTED_RESOURCES.items():
             result = info["fn"]()
-            assert result == info["content"], f"{uri} content mismatch"
-
-    def test_content_is_non_empty_markdown(self) -> None:
-        """Each content constant is non-empty and starts with a markdown heading."""
-        for uri, info in EXPECTED_RESOURCES.items():
-            content = info["content"]
-            assert len(content) > 100, f"{uri} content too short"
-            assert content.lstrip().startswith("#"), f"{uri} should start with markdown heading"
+            expected = _load(info["file"])
+            assert result == expected, f"{uri} content mismatch"
 
     def test_resource_uris_are_unique(self) -> None:
         """No duplicate URIs."""

@@ -84,7 +84,9 @@ async def confluence_list_calendars(
 )
 async def confluence_search_calendars(
     ctx: Context,
-    query: Annotated[str, Field(description="Search by calendar name, space name, or space key")],
+    query: Annotated[
+        str, Field(description="Search by calendar name, space name, or space key", min_length=1)
+    ],
 ) -> str:
     """Search Confluence calendars by name or space."""
     try:
@@ -165,8 +167,8 @@ async def confluence_who_is_out(
 )
 async def confluence_get_person_time_off(
     ctx: Context,
-    person: Annotated[str, Field(description="Person name to search for")],
-    calendar_name: Annotated[str, Field(description="Calendar name to search in")],
+    person: Annotated[str, Field(description="Person name to search for", min_length=1)],
+    calendar_name: Annotated[str, Field(description="Calendar name to search in", min_length=1)],
     start_date: Annotated[str, Field(description="Start date")],
     end_date: Annotated[str, Field(description="End date")],
 ) -> str:
@@ -191,7 +193,9 @@ async def confluence_sprint_capacity(
     team_members: Annotated[list[str], Field(description="List of team member names")],
     sprint_start: Annotated[str, Field(description="Sprint start date")],
     sprint_end: Annotated[str, Field(description="Sprint end date")],
-    working_days_per_week: Annotated[int, Field(description="Working days per week")] = 5,
+    working_days_per_week: Annotated[
+        int, Field(description="Working days per week", ge=1, le=7)
+    ] = 5,
 ) -> str:
     """Calculate sprint capacity considering team time-off."""
     try:

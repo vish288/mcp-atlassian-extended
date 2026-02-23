@@ -19,9 +19,9 @@ from ._helpers import _check_write, _err, _get_jira, _ok
 )
 async def jira_create_issue(
     ctx: Context,
-    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)")],
-    summary: Annotated[str, Field(description="Issue title/summary")],
-    issue_type: Annotated[str, Field(description="Issue type name")] = "Story",
+    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)", min_length=1)],
+    summary: Annotated[str, Field(description="Issue title/summary", min_length=1)],
+    issue_type: Annotated[str, Field(description="Issue type name", min_length=1)] = "Story",
     description: Annotated[str | None, Field(description="Issue description")] = None,
     labels: Annotated[list[str] | None, Field(description="Labels to set")] = None,
     priority: Annotated[str | None, Field(description="Priority name")] = None,
@@ -59,7 +59,7 @@ async def jira_create_issue(
 )
 async def jira_update_issue(
     ctx: Context,
-    issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)")],
+    issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)", min_length=1)],
     fields: Annotated[
         dict[str, Any] | None,
         Field(description="Standard fields to update (summary, description, labels, etc.)"),
@@ -84,8 +84,8 @@ async def jira_update_issue(
 )
 async def jira_create_epic(
     ctx: Context,
-    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)")],
-    epic_name: Annotated[str, Field(description="Epic name/title")],
+    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)", min_length=1)],
+    epic_name: Annotated[str, Field(description="Epic name/title", min_length=1)],
     description: Annotated[str | None, Field(description="Epic description")] = None,
     labels: Annotated[list[str] | None, Field(description="Labels to set")] = None,
     custom_fields: Annotated[
@@ -122,10 +122,14 @@ async def jira_create_epic(
 async def jira_create_link(
     ctx: Context,
     link_type: Annotated[
-        str, Field(description="Link type name (Relates, Blocks, Duplicate, etc.)")
+        str, Field(description="Link type name (Relates, Blocks, Duplicate, etc.)", min_length=1)
     ],
-    inward_issue: Annotated[str, Field(description="Inward issue key (receives the action)")],
-    outward_issue: Annotated[str, Field(description="Outward issue key (performs the action)")],
+    inward_issue: Annotated[
+        str, Field(description="Inward issue key (receives the action)", min_length=1)
+    ],
+    outward_issue: Annotated[
+        str, Field(description="Outward issue key (performs the action)", min_length=1)
+    ],
     comment: Annotated[str | None, Field(description="Optional comment on the link")] = None,
 ) -> str:
     """Create a link between two Jira issues."""
@@ -152,7 +156,7 @@ async def jira_create_link(
 )
 async def jira_delete_link(
     ctx: Context,
-    link_id: Annotated[str, Field(description="Issue link ID to delete")],
+    link_id: Annotated[str, Field(description="Issue link ID to delete", min_length=1)],
 ) -> str:
     """Delete a Jira issue link by its ID."""
     try:
