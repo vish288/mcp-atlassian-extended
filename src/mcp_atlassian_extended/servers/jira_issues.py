@@ -2,42 +2,21 @@
 
 from __future__ import annotations
 
-import json
 from typing import Annotated, Any
 
 from fastmcp import Context
 from pydantic import Field
 
-from ..clients.jira import JiraExtendedClient
-from ..exceptions import WriteDisabledError
 from . import mcp
-
-
-def _get_jira(ctx: Context) -> JiraExtendedClient:
-    client = ctx.request_context.lifespan_context["jira_client"]
-    if client is None:
-        msg = "Jira is not configured. Set JIRA_URL and JIRA_PAT environment variables."
-        raise ValueError(msg)
-    return client
-
-
-def _check_write(ctx: Context) -> None:
-    if ctx.request_context.lifespan_context["jira_config"].read_only:
-        raise WriteDisabledError
-
-
-def _ok(data: Any) -> str:
-    return json.dumps(data, indent=2, ensure_ascii=False)
-
-
-def _err(error: Exception) -> str:
-    return json.dumps({"error": str(error)}, indent=2, ensure_ascii=False)
-
+from ._helpers import _check_write, _err, _get_jira, _ok
 
 # ── Issue CRUD ─────────────────────────────────────────────────────
 
 
-@mcp.tool(tags={"jira", "issues", "write"})
+@mcp.tool(
+    tags={"jira", "issues", "write"},
+    annotations={"readOnlyHint": False},
+)
 async def jira_create_issue(
     ctx: Context,
     project_key: Annotated[str, Field(description="Project key (e.g. PROJ)")],
@@ -56,7 +35,7 @@ async def jira_create_issue(
 ) -> str:
     """Create a Jira issue with standard and custom fields.
 
-    custom_fields example: {"customfield_10004": 5, "customfield_17220": {"value": "CustomValue"}}
+    custom_fields example: {"customfield_10004": 5, "customfield_12345": {"value": "MyTeam"}}
     """
     try:
         _check_write(ctx)
@@ -74,7 +53,10 @@ async def jira_create_issue(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "issues", "write"})
+@mcp.tool(
+    tags={"jira", "issues", "write"},
+    annotations={"readOnlyHint": False, "idempotentHint": True},
+)
 async def jira_update_issue(
     ctx: Context,
     issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)")],
@@ -96,7 +78,10 @@ async def jira_update_issue(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "issues", "write"})
+@mcp.tool(
+    tags={"jira", "issues", "write"},
+    annotations={"readOnlyHint": False},
+)
 async def jira_create_epic(
     ctx: Context,
     project_key: Annotated[str, Field(description="Project key (e.g. PROJ)")],
@@ -130,7 +115,10 @@ async def jira_create_epic(
 # ── Issue Links ────────────────────────────────────────────────────
 
 
-@mcp.tool(tags={"jira", "links", "write"})
+@mcp.tool(
+    tags={"jira", "links", "write"},
+    annotations={"readOnlyHint": False},
+)
 async def jira_create_link(
     ctx: Context,
     link_type: Annotated[
@@ -158,7 +146,10 @@ async def jira_create_link(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "links", "write"})
+@mcp.tool(
+    tags={"jira", "links", "write"},
+    annotations={"destructiveHint": True, "readOnlyHint": False},
+)
 async def jira_delete_link(
     ctx: Context,
     link_id: Annotated[str, Field(description="Issue link ID to delete")],

@@ -2,39 +2,19 @@
 
 from __future__ import annotations
 
-import json
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastmcp import Context
 from pydantic import Field
 
-from ..clients.jira import JiraExtendedClient
-from ..exceptions import WriteDisabledError
 from . import mcp
+from ._helpers import _check_write, _err, _get_jira, _ok
 
 
-def _get_jira(ctx: Context) -> JiraExtendedClient:
-    client = ctx.request_context.lifespan_context["jira_client"]
-    if client is None:
-        msg = "Jira is not configured. Set JIRA_URL and JIRA_PAT environment variables."
-        raise ValueError(msg)
-    return client
-
-
-def _check_write(ctx: Context) -> None:
-    if ctx.request_context.lifespan_context["jira_config"].read_only:
-        raise WriteDisabledError
-
-
-def _ok(data: Any) -> str:
-    return json.dumps(data, indent=2, ensure_ascii=False)
-
-
-def _err(error: Exception) -> str:
-    return json.dumps({"error": str(error)}, indent=2, ensure_ascii=False)
-
-
-@mcp.tool(tags={"jira", "agile", "read"})
+@mcp.tool(
+    tags={"jira", "agile", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_get_board(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID")],
@@ -47,7 +27,10 @@ async def jira_get_board(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "agile", "read"})
+@mcp.tool(
+    tags={"jira", "agile", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_board_config(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID")],
@@ -60,7 +43,10 @@ async def jira_board_config(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "agile", "read"})
+@mcp.tool(
+    tags={"jira", "agile", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_get_sprint(
     ctx: Context,
     sprint_id: Annotated[int, Field(description="Sprint ID")],
@@ -73,7 +59,7 @@ async def jira_get_sprint(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "agile", "write"})
+@mcp.tool(tags={"jira", "agile", "write"}, annotations={"readOnlyHint": False})
 async def jira_move_to_sprint(
     ctx: Context,
     sprint_id: Annotated[int, Field(description="Target sprint ID")],

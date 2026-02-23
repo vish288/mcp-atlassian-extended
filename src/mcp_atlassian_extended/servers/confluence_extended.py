@@ -2,35 +2,15 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta
-from typing import Annotated, Any
+from typing import Annotated
 
 from dateutil.parser import parse as parse_date
 from fastmcp import Context
 from pydantic import Field
 
-from ..clients.confluence import ConfluenceExtendedClient
 from . import mcp
-
-
-def _get_confluence(ctx: Context) -> ConfluenceExtendedClient:
-    client = ctx.request_context.lifespan_context["confluence_client"]
-    if client is None:
-        msg = (
-            "Confluence is not configured."
-            " Set CONFLUENCE_URL and CONFLUENCE_PAT environment variables."
-        )
-        raise ValueError(msg)
-    return client
-
-
-def _ok(data: Any) -> str:
-    return json.dumps(data, indent=2, ensure_ascii=False)
-
-
-def _err(error: Exception) -> str:
-    return json.dumps({"error": str(error)}, indent=2, ensure_ascii=False)
+from ._helpers import _err, _get_confluence, _ok
 
 
 def _resolve_date(value: str) -> str:
@@ -56,7 +36,10 @@ def _resolve_date(value: str) -> str:
     return parse_date(value).strftime("%Y-%m-%d")
 
 
-@mcp.tool(tags={"confluence", "calendars", "read"})
+@mcp.tool(
+    tags={"confluence", "calendars", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def confluence_list_calendars(
     ctx: Context,
     filter_type: Annotated[
@@ -95,7 +78,10 @@ async def confluence_list_calendars(
         return _err(e)
 
 
-@mcp.tool(tags={"confluence", "calendars", "read"})
+@mcp.tool(
+    tags={"confluence", "calendars", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def confluence_search_calendars(
     ctx: Context,
     query: Annotated[str, Field(description="Search by calendar name, space name, or space key")],
@@ -126,7 +112,10 @@ async def confluence_search_calendars(
         return _err(e)
 
 
-@mcp.tool(tags={"confluence", "time_off", "read"})
+@mcp.tool(
+    tags={"confluence", "time_off", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def confluence_get_time_off(
     ctx: Context,
     start_date: Annotated[str, Field(description="Start date (YYYY-MM-DD, 'today', '+14d', etc.)")],
@@ -152,7 +141,10 @@ async def confluence_get_time_off(
         return _err(e)
 
 
-@mcp.tool(tags={"confluence", "time_off", "read"})
+@mcp.tool(
+    tags={"confluence", "time_off", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def confluence_who_is_out(
     ctx: Context,
     date: Annotated[str, Field(description="Date to check (default: 'today')")] = "today",
@@ -167,7 +159,10 @@ async def confluence_who_is_out(
         return _err(e)
 
 
-@mcp.tool(tags={"confluence", "time_off", "read"})
+@mcp.tool(
+    tags={"confluence", "time_off", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def confluence_get_person_time_off(
     ctx: Context,
     person: Annotated[str, Field(description="Person name to search for")],
@@ -187,7 +182,10 @@ async def confluence_get_person_time_off(
         return _err(e)
 
 
-@mcp.tool(tags={"confluence", "time_off", "read"})
+@mcp.tool(
+    tags={"confluence", "time_off", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def confluence_sprint_capacity(
     ctx: Context,
     team_members: Annotated[list[str], Field(description="List of team member names")],

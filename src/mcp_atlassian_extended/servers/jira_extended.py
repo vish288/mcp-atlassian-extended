@@ -2,42 +2,21 @@
 
 from __future__ import annotations
 
-import json
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastmcp import Context
 from pydantic import Field
 
-from ..clients.jira import JiraExtendedClient
-from ..exceptions import WriteDisabledError
 from . import mcp
-
-
-def _get_jira(ctx: Context) -> JiraExtendedClient:
-    client = ctx.request_context.lifespan_context["jira_client"]
-    if client is None:
-        msg = "Jira is not configured. Set JIRA_URL and JIRA_PAT environment variables."
-        raise ValueError(msg)
-    return client
-
-
-def _check_write(ctx: Context) -> None:
-    if ctx.request_context.lifespan_context["jira_config"].read_only:
-        raise WriteDisabledError
-
-
-def _ok(data: Any) -> str:
-    return json.dumps(data, indent=2, ensure_ascii=False)
-
-
-def _err(error: Exception) -> str:
-    return json.dumps({"error": str(error)}, indent=2, ensure_ascii=False)
-
+from ._helpers import _check_write, _err, _get_jira, _ok
 
 # ── Attachments ───────────────────────────────────────────────────
 
 
-@mcp.tool(tags={"jira", "attachments", "read"})
+@mcp.tool(
+    tags={"jira", "attachments", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_get_attachments(
     ctx: Context,
     issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)")],
@@ -50,7 +29,7 @@ async def jira_get_attachments(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "attachments", "write"})
+@mcp.tool(tags={"jira", "attachments", "write"}, annotations={"readOnlyHint": False})
 async def jira_upload_attachment(
     ctx: Context,
     issue_key: Annotated[str, Field(description="Jira issue key")],
@@ -66,14 +45,15 @@ async def jira_upload_attachment(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "attachments", "read"})
+@mcp.tool(tags={"jira", "attachments", "write"}, annotations={"readOnlyHint": False})
 async def jira_download_attachment(
     ctx: Context,
     content_url: Annotated[str, Field(description="Attachment content URL")],
     save_path: Annotated[str, Field(description="Local path to save the file")],
 ) -> str:
-    """Download a Jira attachment to a local file."""
+    """Download a Jira attachment to a local file. Writes to local disk."""
     try:
+        _check_write(ctx)
         from pathlib import Path
 
         content = await _get_jira(ctx).download_attachment(content_url)
@@ -83,7 +63,10 @@ async def jira_download_attachment(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "attachments", "write"})
+@mcp.tool(
+    tags={"jira", "attachments", "write"},
+    annotations={"destructiveHint": True, "readOnlyHint": False},
+)
 async def jira_delete_attachment(
     ctx: Context,
     attachment_id: Annotated[str, Field(description="Attachment ID to delete")],
@@ -100,7 +83,10 @@ async def jira_delete_attachment(
 # ── Users ─────────────────────────────────────────────────────────
 
 
-@mcp.tool(tags={"jira", "users", "read"})
+@mcp.tool(
+    tags={"jira", "users", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_search_users(
     ctx: Context,
     query: Annotated[str, Field(description="Search by name, email, or username")],
@@ -117,7 +103,10 @@ async def jira_search_users(
 # ── Metadata ──────────────────────────────────────────────────────
 
 
-@mcp.tool(tags={"jira", "metadata", "read"})
+@mcp.tool(
+    tags={"jira", "metadata", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_list_projects(ctx: Context) -> str:
     """List all accessible Jira projects."""
     try:
@@ -127,7 +116,10 @@ async def jira_list_projects(ctx: Context) -> str:
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "metadata", "read"})
+@mcp.tool(
+    tags={"jira", "metadata", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_list_fields(
     ctx: Context,
     search: Annotated[str | None, Field(description="Filter fields by name")] = None,
@@ -146,7 +138,10 @@ async def jira_list_fields(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "metadata", "read"})
+@mcp.tool(
+    tags={"jira", "metadata", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
 async def jira_backlog(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID")],
