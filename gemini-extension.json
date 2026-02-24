@@ -1,0 +1,37 @@
+{
+  "name": "mcp-atlassian-extended",
+  "version": "0.6.2",
+  "description": "Extended MCP tools for Jira and Confluence — attachments, agile boards, sprints, calendars",
+  "mcpServers": {
+    "mcp-atlassian-extended": {
+      "command": "uvx",
+      "args": ["mcp-atlassian-extended"]
+    }
+  },
+  "settings": [
+    {
+      "name": "JIRA_URL",
+      "description": "Jira instance URL (e.g., https://your-org.atlassian.net)",
+      "required": true,
+      "sensitive": false
+    },
+    {
+      "name": "JIRA_PAT",
+      "description": "Jira personal access token",
+      "required": true,
+      "sensitive": true
+    },
+    {
+      "name": "CONFLUENCE_URL",
+      "description": "Confluence instance URL (e.g., https://your-org.atlassian.net/wiki)",
+      "required": true,
+      "sensitive": false
+    },
+    {
+      "name": "CONFLUENCE_PAT",
+      "description": "Confluence personal access token",
+      "required": true,
+      "sensitive": true
+    }
+  ]
+}
