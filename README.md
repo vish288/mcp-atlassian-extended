@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/vish288/mcp-atlassian-extended/actions/workflows/tests.yml/badge.svg)](https://github.com/vish288/mcp-atlassian-extended/actions/workflows/tests.yml)
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **23 additional tools** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **23 tools**, **15 resources**, and **5 prompts** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
 
 Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.python-httpx.org/), and [Pydantic](https://docs.pydantic.dev/).
 
@@ -219,6 +219,18 @@ The server exposes curated Jira and Confluence workflow guides as [MCP resources
 | `resource://guides/agile-ceremonies` | Agile Ceremony Standards |
 | `resource://guides/git-jira-integration` | Git-Jira Integration Patterns |
 | `resource://templates/confluence-pages` | Confluence Page Templates |
+
+## Prompts (5)
+
+The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/prompts) — reusable multi-tool workflow templates that clients can surface as slash commands.
+
+| Prompt | Parameters | Workflow |
+|--------|-----------|----------|
+| `create_ticket` | `project_key`, `issue_type` | Gather fields → set custom fields (DoD, privacy, security) → create → add links |
+| `plan_sprint` | `board_id`, `sprint_id` | Check sprint → review backlog → calculate capacity → suggest scope → move issues |
+| `close_ticket` | `issue_key` | Verify DoD → check linked MR → transition statuses → add closing comment |
+| `team_availability` | `team_members`, `start_date`, `end_date` | Check who is out → per-person time-off → calculate capacity → flag conflicts |
+| `manage_attachments` | `issue_key` | List attachments → identify stale/duplicates → upload/download → clean up |
 
 ## Usage Examples
 
