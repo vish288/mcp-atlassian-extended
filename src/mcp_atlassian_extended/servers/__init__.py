@@ -56,6 +56,7 @@ def _register_tools() -> None:
     importlib.import_module(".jira_issues", __package__)
     importlib.import_module(".confluence_extended", __package__)
     importlib.import_module(".resources", __package__)
+    importlib.import_module(".prompts", __package__)
 
 
 _register_tools()

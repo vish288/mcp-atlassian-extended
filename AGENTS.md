@@ -9,6 +9,7 @@ Extended MCP tools for Jira and Confluence, complementing mcp-atlassian with 23 
 - **Tools**: `src/mcp_atlassian_extended/servers/` — four modules: `jira_extended`, `jira_agile`, `jira_issues`, `confluence_extended`
 - **Helpers**: `src/mcp_atlassian_extended/servers/_helpers.py` — shared `_get_jira`, `_get_confluence`, `_check_write`, `_ok`, `_err`
 - **Resources**: `src/mcp_atlassian_extended/servers/resources.py` — 15 MCP resources (workflow guides)
+- **Prompts**: `src/mcp_atlassian_extended/servers/prompts.py` — 5 MCP prompts (multi-tool workflows)
 - **Config**: `src/mcp_atlassian_extended/config.py` — `JiraConfig`, `ConfluenceConfig` from env
 - **Tests**: `tests/unit/test_tools.py` — 50+ tool-level tests via FastMCP test client
 
@@ -105,6 +106,16 @@ gh workflow run release.yml -f bump=minor -f dry_run=true
 - Never create tags manually — the workflow creates them
 - Commit messages must follow conventional commits (`feat:`, `fix:`, `docs:`, etc.) for changelog generation
 - The release commit is authored by `github-actions[bot]` with message `chore(release): X.Y.Z`
+
+## Prompts
+
+Prompts follow the resources pattern: prompt content lives as `.md` files in `src/mcp_atlassian_extended/resources/prompts/`, loaded by `servers/prompts.py` via `_load_prompt()`, registered with `@mcp.prompt()`. Each prompt returns `list[Message]` with a user message (workflow template) and an assistant message (acknowledgment).
+
+- `create_ticket` — Guided ticket creation (tags: jira, create)
+- `plan_sprint` — Sprint planning workflow (tags: jira, agile)
+- `close_ticket` — Ticket closure checklist (tags: jira, workflow)
+- `team_availability` — Availability report (tags: confluence, capacity)
+- `manage_attachments` — Attachment management (tags: jira, attachments)
 
 ## Known Limitations / Future Work
 
