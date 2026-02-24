@@ -75,6 +75,12 @@ dev = [
     "mypy>=1.8.0",
 ]
 
+[tool.coverage.run]
+omit = [
+    "src/mcp_atlassian_extended/__init__.py",
+    "src/mcp_atlassian_extended/__main__.py",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

@@ -13,7 +13,7 @@ from ._helpers import _check_write, _err, _get_jira, _ok
 
 @mcp.tool(
     tags={"jira", "agile", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_get_board(
     ctx: Context,
@@ -29,7 +29,7 @@ async def jira_get_board(
 
 @mcp.tool(
     tags={"jira", "agile", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_board_config(
     ctx: Context,
@@ -45,7 +45,7 @@ async def jira_board_config(
 
 @mcp.tool(
     tags={"jira", "agile", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_get_sprint(
     ctx: Context,
@@ -59,7 +59,10 @@ async def jira_get_sprint(
         return _err(e)
 
 
-@mcp.tool(tags={"jira", "agile", "write"}, annotations={"readOnlyHint": False})
+@mcp.tool(
+    tags={"jira", "agile", "write"},
+    annotations={"readOnlyHint": False, "openWorldHint": True},
+)
 async def jira_move_to_sprint(
     ctx: Context,
     sprint_id: Annotated[int, Field(description="Target sprint ID", ge=1)],
