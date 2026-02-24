@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.0] - 2026-02-24
+
+### Features
+- feat(#24): add 5 MCP prompts for multi-tool workflows (#25) (735f846)
+
+
 ## [0.5.0] - 2026-02-24
 
 
