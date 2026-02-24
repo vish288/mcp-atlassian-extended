@@ -21,11 +21,11 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 
 ## 1-Click Installation
 
-[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html?install=cursor)
+[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-install.html?server=mcp-atlassian-extended&install=cursor)
 
-[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html?install=vscode) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html?install=vscode-insiders)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install.html?server=mcp-atlassian-extended&install=vscode) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install.html?server=mcp-atlassian-extended&install=vscode-insiders)
 
-> **💡 Tip:** For other AI assistants (Claude Code, Windsurf, IntelliJ), visit the **[Atlassian Extended MCP Installation Gateway](https://vish288.github.io/mcp-atlassian-extended-cursor-redirect.html)**.
+> **💡 Tip:** For other AI assistants (Claude Code, Windsurf, IntelliJ), visit the **[Atlassian Extended MCP Installation Gateway](https://vish288.github.io/mcp-install.html?server=mcp-atlassian-extended)**.
 
 <details>
 <summary><b>Manual Setup Guides (Click to expand)</b></summary>
@@ -197,6 +197,133 @@ Also accepts: `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_TOKEN`
 | `confluence_sprint_capacity` | Calculate sprint capacity with time-off |
 
 </details>
+
+## Resources (15)
+
+The server exposes curated Jira and Confluence workflow guides as [MCP resources](https://modelcontextprotocol.io/docs/concepts/resources).
+
+| URI | Name |
+|-----|------|
+| `resource://rules/jira-hierarchy` | Jira Issue Hierarchy |
+| `resource://rules/jira-ticket-writing` | Jira Ticket Writing Standards |
+| `resource://rules/acceptance-criteria` | Acceptance Criteria Standards |
+| `resource://rules/sprint-hygiene` | Sprint Hygiene Rules |
+| `resource://rules/jira-workflow` | Jira Workflow & Automation |
+| `resource://rules/issue-linking` | Issue Linking Best Practices |
+| `resource://guides/story-points` | Story Point Estimation |
+| `resource://guides/definition-of-done` | Definition of Done Checklists |
+| `resource://guides/jira-labels` | Jira Label Taxonomy |
+| `resource://guides/jql-library` | JQL Query Library |
+| `resource://guides/custom-fields` | Jira Custom Field Governance |
+| `resource://guides/confluence-spaces` | Confluence Space Organization |
+| `resource://guides/agile-ceremonies` | Agile Ceremony Standards |
+| `resource://guides/git-jira-integration` | Git-Jira Integration Patterns |
+| `resource://templates/confluence-pages` | Confluence Page Templates |
+
+## Usage Examples
+
+### Issue Management
+
+```
+"Create a story in PROJ with custom story points"
+→ jira_create_issue(project_key="PROJ", summary="Add OAuth login", issue_type="Story",
+    custom_fields={"customfield_10004": 5})
+
+"Update a ticket's priority and add labels"
+→ jira_update_issue(issue_key="PROJ-123", fields={"priority": {"name": "High"}, "labels": ["urgent"]})
+
+"Create an epic and link related stories"
+→ jira_create_epic(project_key="PROJ", epic_name="Q1 Auth Overhaul")
+→ jira_create_link(link_type="Relates", inward_issue="PROJ-100", outward_issue="PROJ-200")
+```
+
+### Attachments
+
+```
+"List attachments on PROJ-123"
+→ jira_get_attachments(issue_key="PROJ-123")
+
+"Upload a screenshot to a ticket"
+→ jira_upload_attachment(issue_key="PROJ-123", file_path="./screenshot.png")
+
+"Download an attachment"
+→ jira_download_attachment(content_url="https://jira.example.com/rest/api/2/attachment/content/456",
+    save_path="./downloads/report.pdf")
+```
+
+### Agile & Sprint Management
+
+```
+"Get the current sprint for board 42"
+→ jira_get_board(board_id=42) → jira_get_sprint(sprint_id=7)
+
+"Move tickets into the next sprint"
+→ jira_move_to_sprint(sprint_id=8, issue_keys=["PROJ-1", "PROJ-2", "PROJ-3"])
+
+"View backlog for board 42"
+→ jira_backlog(board_id=42, max_results=50)
+```
+
+### Time-Off & Sprint Capacity
+
+```
+"Who is out today?"
+→ confluence_who_is_out(date="today")
+
+"Get team time-off for the next two weeks"
+→ confluence_get_time_off(start_date="today", end_date="+14d", group_by_person=True)
+
+"Calculate sprint capacity accounting for PTO"
+→ confluence_sprint_capacity(
+    team_members=["Alice", "Bob", "Carol"],
+    sprint_start="2025-03-03", sprint_end="2025-03-14")
+```
+
+## Security Considerations
+
+- **Token scope**: For Jira Cloud, use API tokens scoped to the minimum required permissions. For Data Center, use PATs with project-level access.
+- **Read-only mode**: Set `ATLASSIAN_READ_ONLY=true` to disable all write operations (create, update, delete, upload). Enforced server-side before any API call.
+- **File upload validation**: `jira_upload_attachment` validates file paths (no traversal, max 100MB, file must exist).
+- **Download path restriction**: `jira_download_attachment` only accepts relative paths resolved within the working directory. Absolute paths and path traversal (`../`) are rejected.
+- **Download URL validation**: Attachment download URLs are validated against the configured Jira URL domain to prevent SSRF.
+- **SSL verification**: Enabled by default for both Jira and Confluence. Only disable for self-signed certificates in trusted networks.
+- **No credential storage**: Tokens are read from environment variables at startup and never persisted.
+
+## Rate Limits & Permissions
+
+### Rate Limits
+
+Jira Cloud enforces per-user rate limits. When rate-limited, tools return a 429 error with a hint to wait. Confluence Calendar API calls may be slower due to the Team Calendars plugin architecture.
+
+### Required Permissions
+
+| Operation | Minimum Jira Permission |
+|-----------|----------------------|
+| List projects, fields, boards | Browse Projects |
+| Search users | Browse Users |
+| Create/update issues, epics | Create Issues + Edit Issues |
+| Create/delete issue links | Link Issues |
+| Upload/delete attachments | Create Attachments + Delete Own Attachments |
+| Move issues to sprint | Manage Sprints |
+| Confluence calendars/time-off | View space content |
+
+## CLI & Transport Options
+
+```bash
+# Default: stdio transport (for MCP clients)
+uvx mcp-atlassian-extended
+
+# HTTP transport (SSE or streamable-http)
+uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
+uvx mcp-atlassian-extended --transport streamable-http --port 9000
+
+# CLI overrides for config
+uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx --read-only
+```
+
+The server loads `.env` files from the working directory automatically via `python-dotenv`.
+
+**Partial configuration**: If only Jira credentials are set, the server starts with Jira tools only (no Confluence tools). The reverse also works — set only Confluence credentials to get calendar/time-off tools without Jira.
 
 ## Attribution
 

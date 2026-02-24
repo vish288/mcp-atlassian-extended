@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Evaluation suite for mcp-atlassian-extended MCP server.
+  10 read-only questions testing tool composition and multi-step reasoning.
+  Replace placeholder project keys and board IDs with real values from your instance.
+-->
+<evaluation>
+  <qa_pair id="1">
+    <question>List all accessible Jira projects and tell me their keys.</question>
+    <expected_tools>jira_list_projects</expected_tools>
+    <answer_contains>items, count</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="2">
+    <question>What custom fields are available in my Jira instance? Show only custom fields.</question>
+    <expected_tools>jira_list_fields</expected_tools>
+    <answer_contains>items, count</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="3">
+    <question>List attachments on ticket PROJ-123 and tell me their filenames and sizes.</question>
+    <expected_tools>jira_get_attachments</expected_tools>
+    <answer_contains>items, count</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="4">
+    <question>Search for users named "Alice" in Jira.</question>
+    <expected_tools>jira_search_users</expected_tools>
+    <answer_contains>items, count</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="5">
+    <question>Get the details and configuration of agile board 42.</question>
+    <expected_tools>jira_get_board, jira_board_config</expected_tools>
+    <answer_contains>name, type</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="6">
+    <question>What is the current active sprint for board 42? Show its start and end dates.</question>
+    <expected_tools>jira_get_board, jira_get_sprint</expected_tools>
+    <answer_contains>state, startDate, endDate</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="7">
+    <question>Show the backlog for board 42, limited to 10 items.</question>
+    <expected_tools>jira_backlog</expected_tools>
+    <answer_contains>issues</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="8">
+    <question>Who is out of office today?</question>
+    <expected_tools>confluence_who_is_out</expected_tools>
+    <answer_contains>date, people_out, count</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="9">
+    <question>Get all time-off events for the next two weeks, grouped by person.</question>
+    <expected_tools>confluence_get_time_off</expected_tools>
+    <answer_contains>start, end, people</answer_contains>
+  </qa_pair>
+
+  <qa_pair id="10">
+    <question>Calculate sprint capacity for Alice, Bob, and Carol for the sprint from March 3 to March 14, 2025.</question>
+    <expected_tools>confluence_sprint_capacity</expected_tools>
+    <answer_contains>sprint, team, member_breakdown, capacity_percentage</answer_contains>
+  </qa_pair>
+</evaluation>

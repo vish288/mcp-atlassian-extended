@@ -15,7 +15,7 @@ from ._helpers import _check_write, _err, _get_jira, _ok
 
 @mcp.tool(
     tags={"jira", "issues", "write"},
-    annotations={"readOnlyHint": False},
+    annotations={"readOnlyHint": False, "openWorldHint": True},
 )
 async def jira_create_issue(
     ctx: Context,
@@ -55,7 +55,7 @@ async def jira_create_issue(
 
 @mcp.tool(
     tags={"jira", "issues", "write"},
-    annotations={"readOnlyHint": False, "idempotentHint": True},
+    annotations={"readOnlyHint": False, "idempotentHint": True, "openWorldHint": True},
 )
 async def jira_update_issue(
     ctx: Context,
@@ -80,7 +80,7 @@ async def jira_update_issue(
 
 @mcp.tool(
     tags={"jira", "issues", "write"},
-    annotations={"readOnlyHint": False},
+    annotations={"readOnlyHint": False, "openWorldHint": True},
 )
 async def jira_create_epic(
     ctx: Context,
@@ -117,7 +117,7 @@ async def jira_create_epic(
 
 @mcp.tool(
     tags={"jira", "links", "write"},
-    annotations={"readOnlyHint": False},
+    annotations={"readOnlyHint": False, "openWorldHint": True},
 )
 async def jira_create_link(
     ctx: Context,
@@ -152,7 +152,7 @@ async def jira_create_link(
 
 @mcp.tool(
     tags={"jira", "links", "write"},
-    annotations={"destructiveHint": True, "readOnlyHint": False},
+    annotations={"destructiveHint": True, "readOnlyHint": False, "openWorldHint": True},
 )
 async def jira_delete_link(
     ctx: Context,
