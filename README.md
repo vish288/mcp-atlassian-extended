@@ -88,9 +88,13 @@ uv pip install mcp-atlassian-extended
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `JIRA_URL` | **Yes** | - | Jira instance URL |
-| `JIRA_PAT` | **Yes** | - | Personal access token |
+| `JIRA_PAT` | **Yes** | - | Personal access token (see fallback order below) |
 
-Also accepts: `JIRA_PERSONAL_TOKEN`, `JIRA_TOKEN`
+The server checks these environment variables in order — first match wins:
+
+1. `JIRA_PAT`
+2. `JIRA_PERSONAL_TOKEN`
+3. `JIRA_TOKEN`
 
 ### Confluence Cloud (Basic Auth)
 
@@ -105,9 +109,13 @@ Also accepts: `JIRA_PERSONAL_TOKEN`, `JIRA_TOKEN`
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `CONFLUENCE_URL` | **Yes** | - | Confluence instance URL |
-| `CONFLUENCE_PAT` | **Yes** | - | Personal access token |
+| `CONFLUENCE_PAT` | **Yes** | - | Personal access token (see fallback order below) |
 
-Also accepts: `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_TOKEN`
+The server checks these environment variables in order — first match wins:
+
+1. `CONFLUENCE_PAT`
+2. `CONFLUENCE_PERSONAL_TOKEN`
+3. `CONFLUENCE_TOKEN`
 
 ### Optional settings
 
@@ -202,23 +210,23 @@ Also accepts: `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_TOKEN`
 
 The server exposes curated Jira and Confluence workflow guides as [MCP resources](https://modelcontextprotocol.io/docs/concepts/resources).
 
-| URI | Name |
-|-----|------|
-| `resource://rules/jira-hierarchy` | Jira Issue Hierarchy |
-| `resource://rules/jira-ticket-writing` | Jira Ticket Writing Standards |
-| `resource://rules/acceptance-criteria` | Acceptance Criteria Standards |
-| `resource://rules/sprint-hygiene` | Sprint Hygiene Rules |
-| `resource://rules/jira-workflow` | Jira Workflow & Automation |
-| `resource://rules/issue-linking` | Issue Linking Best Practices |
-| `resource://guides/story-points` | Story Point Estimation |
-| `resource://guides/definition-of-done` | Definition of Done Checklists |
-| `resource://guides/jira-labels` | Jira Label Taxonomy |
-| `resource://guides/jql-library` | JQL Query Library |
-| `resource://guides/custom-fields` | Jira Custom Field Governance |
-| `resource://guides/confluence-spaces` | Confluence Space Organization |
-| `resource://guides/agile-ceremonies` | Agile Ceremony Standards |
-| `resource://guides/git-jira-integration` | Git-Jira Integration Patterns |
-| `resource://templates/confluence-pages` | Confluence Page Templates |
+| URI | Name | Description |
+|-----|------|-------------|
+| `resource://rules/jira-hierarchy` | Jira Issue Hierarchy | Epic/story/task/subtask relationships, when to use each level |
+| `resource://rules/jira-ticket-writing` | Jira Ticket Writing Standards | Summary format, description structure, acceptance criteria placement |
+| `resource://rules/acceptance-criteria` | Acceptance Criteria Standards | Given/When/Then format, testability, DoD vs AC |
+| `resource://rules/sprint-hygiene` | Sprint Hygiene Rules | Capacity planning, carryover policy, sprint goals, retrospective items |
+| `resource://rules/jira-workflow` | Jira Workflow & Automation | Status transitions, automation triggers, post-functions |
+| `resource://rules/issue-linking` | Issue Linking Best Practices | Link types (blocks, relates, duplicates), cross-project links, epic links |
+| `resource://guides/story-points` | Story Point Estimation | Fibonacci scale, relative sizing, team calibration, anti-patterns |
+| `resource://guides/definition-of-done` | Definition of Done Checklists | Checklist format, team-level vs org-level DoD, verification steps |
+| `resource://guides/jira-labels` | Jira Label Taxonomy | Naming conventions, label categories, label vs component |
+| `resource://guides/jql-library` | JQL Query Library | Common queries, date functions, custom field syntax, saved filters |
+| `resource://guides/custom-fields` | Jira Custom Field Governance | Field types, screen schemes, context, naming standards |
+| `resource://guides/confluence-spaces` | Confluence Space Organization | Space types, permission schemes, archiving, templates |
+| `resource://guides/agile-ceremonies` | Agile Ceremony Standards | Standup, planning, review, retro formats and time-boxing |
+| `resource://guides/git-jira-integration` | Git-Jira Integration Patterns | Smart commits, branch naming, PR linking, status transitions |
+| `resource://templates/confluence-pages` | Confluence Page Templates | ADR, runbook, onboarding, postmortem page structures |
 
 ## Prompts (5)
 
@@ -299,6 +307,7 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 - **Download path restriction**: `jira_download_attachment` only accepts relative paths resolved within the working directory. Absolute paths and path traversal (`../`) are rejected.
 - **Download URL validation**: Attachment download URLs are validated against the configured Jira URL domain to prevent SSRF.
 - **SSL verification**: Enabled by default for both Jira and Confluence. Only disable for self-signed certificates in trusted networks.
+- **MCP tool annotations**: Each tool declares `readOnlyHint`, `destructiveHint`, and `idempotentHint` for client-side permission prompts.
 - **No credential storage**: Tokens are read from environment variables at startup and never persisted.
 
 ## Rate Limits & Permissions
