@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.4] - 2026-02-25
+
+### Chores
+- chore(ci): bump astral-sh/setup-uv from 5 to 7 (#31) (6e64faf)
+- chore(ci): bump actions/checkout from 4 to 6 (#30) (3eaa07a)
+- chore: add Dependabot for Python deps and GitHub Actions (#29) (9a360a4)
+
+
 ## [0.6.3] - 2026-02-24
 
 ### Features
