@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from mcp_atlassian_extended.servers.prompts import (
@@ -53,11 +55,11 @@ class TestPromptFiles:
     """Verify prompt .md files exist and are valid."""
 
     def test_prompts_dir_exists(self) -> None:
-        assert _PROMPTS_DIR.is_dir(), f"Prompts directory missing: {_PROMPTS_DIR}"
+        assert Path(_PROMPTS_DIR).is_dir(), f"Prompts directory missing: {_PROMPTS_DIR}"
 
     def test_all_files_exist(self) -> None:
         for filename in PROMPT_FILES:
-            path = _PROMPTS_DIR / filename
+            path = Path(_PROMPTS_DIR) / filename
             assert path.is_file(), f"Missing prompt file: {path}"
 
     def test_load_returns_content(self) -> None:
@@ -83,19 +85,19 @@ class TestLoadPromptSecurity:
     """Verify _load_prompt() rejects path traversal attempts."""
 
     def test_rejects_directory_traversal(self) -> None:
-        with pytest.raises(ValueError, match="Invalid prompt filename"):
+        with pytest.raises(ValueError, match="Invalid filename"):
             _load_prompt("../../../etc/passwd")
 
     def test_rejects_forward_slash(self) -> None:
-        with pytest.raises(ValueError, match="Invalid prompt filename"):
+        with pytest.raises(ValueError, match="Invalid filename"):
             _load_prompt("subdir/file.md")
 
     def test_rejects_backslash(self) -> None:
-        with pytest.raises(ValueError, match="Invalid prompt filename"):
+        with pytest.raises(ValueError, match="Invalid filename"):
             _load_prompt("subdir\\file.md")
 
     def test_rejects_dotdot_only(self) -> None:
-        with pytest.raises(ValueError, match="Invalid prompt filename"):
+        with pytest.raises(ValueError, match="Invalid filename"):
             _load_prompt("..")
 
 
@@ -142,6 +144,42 @@ class TestPromptRegistration:
         for name, info in EXPECTED_PROMPTS.items():
             fn = info["fn"]
             assert hasattr(fn, "__fastmcp__"), f"{name} function missing __fastmcp__ metadata"
+
+    def test_curly_braces_in_args_do_not_crash(self) -> None:
+        """Values containing curly braces must not raise KeyError."""
+        result = create_ticket(project_key="PROJ", issue_type='{"nested": "json"}')
+        assert '{"nested": "json"}' in result[0].content.text
+
+
+class TestURLParsing:
+    """Verify prompts accept full Jira URLs and extract IDs."""
+
+    def test_close_ticket_from_browse_url(self) -> None:
+        result = close_ticket(issue_key="https://jira.example.com/browse/PROJ-123")
+        assert "PROJ-123" in result[0].content.text
+        assert "PROJ-123" in result[1].content.text
+
+    def test_manage_attachments_from_browse_url(self) -> None:
+        result = manage_attachments(issue_key="https://jira.example.com/browse/TEST-456")
+        assert "TEST-456" in result[0].content.text
+
+    def test_create_ticket_from_project_url(self) -> None:
+        result = create_ticket(
+            project_key="https://jira.example.com/jira/software/projects/DEMO/boards/1",
+            issue_type="Story",
+        )
+        assert "DEMO" in result[0].content.text
+
+    def test_plan_sprint_from_board_url(self) -> None:
+        result = plan_sprint(
+            board_id="https://jira.example.com/jira/software/projects/PROJ/boards/42",
+            sprint_id="100",
+        )
+        assert "42" in result[0].content.text
+
+    def test_plain_keys_still_work(self) -> None:
+        result = close_ticket(issue_key="PROJ-99")
+        assert "PROJ-99" in result[0].content.text
 
 
 class TestPromptRendering:

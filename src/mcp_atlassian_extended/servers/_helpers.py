@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import functools
 import json
+import re
+from pathlib import Path
 from typing import Any
 
 from fastmcp import Context
@@ -10,6 +13,23 @@ from fastmcp import Context
 from ..clients.confluence import ConfluenceExtendedClient
 from ..clients.jira import JiraExtendedClient
 from ..exceptions import WriteDisabledError
+
+
+@functools.cache
+def _load_file(base_dir: str, filename: str) -> str:
+    """Load a file from the given directory with path traversal protection.
+
+    Results are cached — static files do not change at runtime.
+    """
+    if "/" in filename or "\\" in filename or ".." in filename:
+        msg = f"Invalid filename: {filename}"
+        raise ValueError(msg)
+    base = Path(base_dir)
+    path = base / filename
+    if not path.resolve().is_relative_to(base.resolve()):
+        msg = f"Invalid filename: {filename}"
+        raise ValueError(msg)
+    return path.read_text(encoding="utf-8")
 
 
 def _get_jira(ctx: Context) -> JiraExtendedClient:
@@ -100,3 +120,54 @@ def _err(error: Exception) -> str:
         detail["hint"] = "File not found. Check the file path exists and is accessible."
 
     return json.dumps(detail, indent=2, ensure_ascii=False)
+
+
+# ════════════════════════════════════════════════════════════════════
+# Jira URL parsing
+# ════════════════════════════════════════════════════════════════════
+
+# Matches: https://<host>/browse/PROJ-123  (Data Center & Cloud)
+_ISSUE_URL_RE = re.compile(r"https?://[^/]+/browse/([A-Z][A-Z0-9_]+-\d+)")
+# Matches: https://<host>/jira/software/projects/PROJ/...
+_PROJECT_URL_RE = re.compile(r"https?://[^/]+/(?:jira/software/)?projects/([A-Z][A-Z0-9_]+)")
+# Matches: .../boards/<board_id>
+_BOARD_URL_RE = re.compile(r"/boards/(\d+)")
+
+
+def _parse_jira_issue_url(value: str) -> str:
+    """Extract issue key from a Jira browse URL.
+
+    If *value* is not a URL, returns it unchanged (assumes it's already a key).
+    """
+    if not value.startswith(("http://", "https://")):
+        return value
+    m = _ISSUE_URL_RE.match(value)
+    if m:
+        return m.group(1)
+    return value
+
+
+def _parse_jira_project_url(value: str) -> str:
+    """Extract project key from a Jira project URL.
+
+    If *value* is not a URL, returns it unchanged.
+    """
+    if not value.startswith(("http://", "https://")):
+        return value
+    m = _PROJECT_URL_RE.match(value)
+    if m:
+        return m.group(1)
+    return value
+
+
+def _parse_jira_board_url(value: str) -> str:
+    """Extract board ID from a Jira board URL.
+
+    If *value* is not a URL, returns it unchanged.
+    """
+    if not value.startswith(("http://", "https://")):
+        return value
+    m = _BOARD_URL_RE.search(value)
+    if m:
+        return m.group(1)
+    return value
