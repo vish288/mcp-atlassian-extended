@@ -32,7 +32,7 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended&install=vscode) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended&install=vscode-insiders)
 
-> **💡 Tip:** For other AI assistants (Claude Code, Windsurf, IntelliJ), visit the **[Atlassian Extended MCP Installation Gateway](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended)**.
+> **💡 Tip:** For other AI assistants (Claude Code, Windsurf, IntelliJ, Gemini CLI), visit the **[Atlassian Extended MCP Installation Gateway](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended)**.
 
 <details>
 <summary><b>Manual Setup Guides (Click to expand)</b></summary>
@@ -70,6 +70,12 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
     }
   }
 }
+```
+
+### Gemini CLI
+
+```bash
+gemini mcp add -e JIRA_URL=https://your-company.atlassian.net -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token -e CONFLUENCE_URL=https://your-company.atlassian.net/wiki -e CONFLUENCE_USERNAME=your.email@company.com -e CONFLUENCE_API_TOKEN=your_api_token atlassian-extended uvx mcp-atlassian-extended
 ```
 
 ### pip / uv
