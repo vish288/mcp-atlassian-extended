@@ -9,7 +9,11 @@
 
 <!-- mcp-name: io.github.vish288/mcp-atlassian-extended -->
 
+**Install:** `uvx mcp-atlassian-extended` | [PyPI](https://pypi.org/project/mcp-atlassian-extended/) | [MCP Registry](https://registry.modelcontextprotocol.io/servers/io.github.vish288/mcp-atlassian-extended) | [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases)
+
 **mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **23 tools**, **15 resources**, and **5 prompts** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
+
+Supports Jira Cloud, Jira Data Center, Confluence Cloud, and Confluence Data Center (self-hosted). No Atlassian Premium required.
 
 Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.python-httpx.org/), and [Pydantic](https://docs.pydantic.dev/).
 
@@ -28,7 +32,7 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended&install=vscode) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended&install=vscode-insiders)
 
-> **💡 Tip:** For other AI assistants (Claude Code, Windsurf, IntelliJ), visit the **[Atlassian Extended MCP Installation Gateway](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended)**.
+> **💡 Tip:** For other AI assistants (Claude Code, Windsurf, IntelliJ, Gemini CLI), visit the **[Atlassian Extended MCP Installation Gateway](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended)**.
 
 <details>
 <summary><b>Manual Setup Guides (Click to expand)</b></summary>
@@ -66,6 +70,12 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
     }
   }
 }
+```
+
+### Gemini CLI
+
+```bash
+gemini mcp add -e JIRA_URL=https://your-company.atlassian.net -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token -e CONFLUENCE_URL=https://your-company.atlassian.net/wiki -e CONFLUENCE_USERNAME=your.email@company.com -e CONFLUENCE_API_TOKEN=your_api_token atlassian-extended uvx mcp-atlassian-extended
 ```
 
 ### pip / uv
@@ -348,6 +358,11 @@ uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 
 **Partial configuration**: If only Jira credentials are set, the server starts with Jira tools only (no Confluence tools). The reverse also works — set only Confluence credentials to get calendar/time-off tools without Jira.
+
+## Related MCP Servers
+
+- [mcp-gitlab](https://github.com/vish288/mcp-gitlab) — GitLab integration (76 tools, 6 resources, 5 prompts)
+- [mcp-coda](https://github.com/vish288/mcp-coda) — Coda.io integration (54 tools, 12 resources, 5 prompts)
 
 ## Attribution
 

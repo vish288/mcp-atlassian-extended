@@ -22,6 +22,17 @@ keywords = [
     "project-management",
     "devops",
     "automation",
+    "time-off",
+    "calendar",
+    "sprint-capacity",
+    "sprint-planning",
+    "backlog",
+    "attachments",
+    "fastmcp",
+    "jira-mcp-server",
+    "cursor",
+    "vscode",
+    "windsurf",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -38,6 +49,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Bug Tracking",
     "Topic :: Office/Business",
+    "Topic :: Office/Business :: Scheduling",
+    "Framework :: Pydantic :: 2",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -54,6 +67,7 @@ Homepage = "https://github.com/vish288/mcp-atlassian-extended"
 Repository = "https://github.com/vish288/mcp-atlassian-extended"
 Issues = "https://github.com/vish288/mcp-atlassian-extended/issues"
 Changelog = "https://github.com/vish288/mcp-atlassian-extended/releases"
+Documentation = "https://github.com/vish288/mcp-atlassian-extended#readme"
 
 [project.scripts]
 mcp-atlassian-extended = "mcp_atlassian_extended:main"
