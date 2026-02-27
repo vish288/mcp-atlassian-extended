@@ -1,0 +1,46 @@
+# mcp-atlassian-extended
+
+> MCP server extending mcp-atlassian with 23 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, calendars, time-off tracking, and sprint capacity planning.
+
+- Version: 0.6.8
+- License: MIT
+- Python: >=3.10
+- Install: `uvx mcp-atlassian-extended`
+- PyPI: `pip install mcp-atlassian-extended`
+- Transport: stdio (default), SSE, streamable-http
+- Registry name: `io.github.vish288/mcp-atlassian-extended`
+- Runs alongside [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap
+
+## Environment Variables
+
+Required (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
+Required (Jira DC): `JIRA_URL`, `JIRA_PAT` (or `JIRA_PERSONAL_TOKEN` / `JIRA_TOKEN`)
+Optional (Confluence Cloud): `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN`
+Optional (Confluence DC): `CONFLUENCE_URL`, `CONFLUENCE_PAT` (or `CONFLUENCE_PERSONAL_TOKEN` / `CONFLUENCE_TOKEN`)
+Optional: `ATLASSIAN_READ_ONLY` (disable writes), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
+
+Partial configuration is supported: set only Jira credentials for Jira-only tools, or only Confluence credentials for calendar/time-off tools.
+
+## Tools (23)
+
+| Category | Tools |
+|----------|-------|
+| Jira Issues (3) | `jira_create_issue`, `jira_update_issue`, `jira_create_epic` |
+| Jira Links (2) | `jira_create_link`, `jira_delete_link` |
+| Jira Attachments (4) | `jira_get_attachments`, `jira_upload_attachment`, `jira_download_attachment`, `jira_delete_attachment` |
+| Jira Users (1) | `jira_search_users` |
+| Jira Metadata (3) | `jira_list_projects`, `jira_list_fields`, `jira_backlog` |
+| Jira Agile (4) | `jira_get_board`, `jira_board_config`, `jira_get_sprint`, `jira_move_to_sprint` |
+| Confluence Calendars (6) | `confluence_list_calendars`, `confluence_search_calendars`, `confluence_get_time_off`, `confluence_who_is_out`, `confluence_get_person_time_off`, `confluence_sprint_capacity` |
+
+## Documentation
+
+- [README](https://github.com/vish288/mcp-atlassian-extended#readme): Full setup, configuration, usage examples, security notes
+- [PyPI](https://pypi.org/project/mcp-atlassian-extended/): Package page with install instructions
+- [GitHub](https://github.com/vish288/mcp-atlassian-extended): Source code, issues, discussions
+
+## Optional
+
+- [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases): Release history
+- [MCP Registry](https://registry.modelcontextprotocol.io): Server discovery and 1-click install
+- [Installation Gateway](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended): Multi-client install page

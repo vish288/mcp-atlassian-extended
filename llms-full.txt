@@ -1,0 +1,793 @@
+# mcp-atlassian-extended
+
+> MCP server extending mcp-atlassian with 23 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, calendars, time-off tracking, and sprint capacity planning.
+
+- Version: 0.6.8
+- License: MIT
+- Python: >=3.10
+- Install: `uvx mcp-atlassian-extended`
+- PyPI: `pip install mcp-atlassian-extended`
+- Transport: stdio (default), SSE, streamable-http
+- Registry name: `io.github.vish288/mcp-atlassian-extended`
+- Runs alongside [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap
+- Built with FastMCP, httpx, and Pydantic
+
+## Documentation
+
+- [README](https://github.com/vish288/mcp-atlassian-extended#readme): Full setup, configuration, usage examples, security notes
+- [PyPI](https://pypi.org/project/mcp-atlassian-extended/): Package page with install instructions
+- [GitHub](https://github.com/vish288/mcp-atlassian-extended): Source code, issues, discussions
+
+## Optional
+
+- [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases): Release history
+- [MCP Registry](https://registry.modelcontextprotocol.io): Server discovery and 1-click install
+- [Installation Gateway](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended): Multi-client install page
+
+---
+
+## Environment Variables
+
+### Jira Cloud (Basic Auth)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JIRA_URL` | Yes | - | Jira instance URL (e.g. `https://your-company.atlassian.net`) |
+| `JIRA_USERNAME` | Yes | - | Email address for Jira Cloud |
+| `JIRA_API_TOKEN` | Yes | - | API token from id.atlassian.com |
+
+### Jira Data Center / Self-Hosted (Bearer Token)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JIRA_URL` | Yes | - | Jira instance URL |
+| `JIRA_PAT` | Yes | - | Personal access token (fallback order: `JIRA_PAT` > `JIRA_PERSONAL_TOKEN` > `JIRA_TOKEN`) |
+
+### Confluence Cloud (Basic Auth)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CONFLUENCE_URL` | Yes | - | Confluence URL (e.g. `https://your-company.atlassian.net/wiki`) |
+| `CONFLUENCE_USERNAME` | Yes | - | Email address for Confluence Cloud |
+| `CONFLUENCE_API_TOKEN` | Yes | - | API token (same as Jira if same Atlassian account) |
+
+### Confluence Data Center / Self-Hosted (Bearer Token)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CONFLUENCE_URL` | Yes | - | Confluence instance URL |
+| `CONFLUENCE_PAT` | Yes | - | Personal access token (fallback order: `CONFLUENCE_PAT` > `CONFLUENCE_PERSONAL_TOKEN` > `CONFLUENCE_TOKEN`) |
+
+### Optional Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ATLASSIAN_READ_ONLY` | `false` | Disable all write operations globally |
+| `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
+| `JIRA_SSL_VERIFY` | `true` | Skip SSL verification for Jira |
+| `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
+| `CONFLUENCE_SSL_VERIFY` | `true` | Skip SSL verification for Confluence |
+
+Partial configuration is supported: set only Jira credentials for Jira-only tools, or only Confluence credentials for calendar/time-off tools. The server loads `.env` files from the working directory automatically.
+
+## Configuration Example
+
+```json
+{
+  "mcpServers": {
+    "atlassian-extended": {
+      "command": "uvx",
+      "args": ["mcp-atlassian-extended"],
+      "env": {
+        "JIRA_URL": "https://your-company.atlassian.net",
+        "JIRA_USERNAME": "your.email@company.com",
+        "JIRA_API_TOKEN": "your_api_token",
+        "CONFLUENCE_URL": "https://your-company.atlassian.net/wiki",
+        "CONFLUENCE_USERNAME": "your.email@company.com",
+        "CONFLUENCE_API_TOKEN": "your_api_token"
+      }
+    }
+  }
+}
+```
+
+## CLI & Transport Options
+
+```bash
+# Default: stdio transport (for MCP clients)
+uvx mcp-atlassian-extended
+
+# HTTP transport (SSE or streamable-http)
+uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
+uvx mcp-atlassian-extended --transport streamable-http --port 9000
+
+# CLI overrides
+uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx --read-only
+```
+
+---
+
+## Tools (23) — Full Reference
+
+### Jira Issues (3)
+
+#### `jira_create_issue`
+Create a Jira issue with standard and custom fields.
+
+Parameters:
+- `project_key` (str, required): Project key (e.g. PROJ)
+- `summary` (str, required): Issue title/summary
+- `issue_type` (str, default "Story"): Issue type name
+- `description` (str, optional): Issue description
+- `labels` (list[str], optional): Labels to set
+- `priority` (str, optional): Priority name
+- `custom_fields` (dict, optional): Custom fields dict with customfield_NNNNN keys. Example: `{"customfield_10004": 5, "customfield_12345": {"value": "MyTeam"}}`
+
+Tags: jira, issues, write
+Annotations: readOnlyHint=false, openWorldHint=true
+
+#### `jira_update_issue`
+Update a Jira issue's standard and custom fields.
+
+Parameters:
+- `issue_key` (str, required): Jira issue key (e.g. PROJ-123)
+- `fields` (dict, optional): Standard fields to update (summary, description, labels, etc.)
+- `custom_fields` (dict, optional): Custom fields dict with customfield_NNNNN keys
+
+Tags: jira, issues, write
+Annotations: readOnlyHint=false, idempotentHint=true, openWorldHint=true
+
+#### `jira_create_epic`
+Create a Jira epic. Sets issue type to Epic automatically.
+
+Parameters:
+- `project_key` (str, required): Project key (e.g. PROJ)
+- `epic_name` (str, required): Epic name/title
+- `description` (str, optional): Epic description
+- `labels` (list[str], optional): Labels to set
+- `custom_fields` (dict, optional): Additional custom fields. Pass your instance's Epic Name field (e.g. `{"customfield_10009": "My Epic"}`) to set it explicitly.
+
+Tags: jira, issues, write
+Annotations: readOnlyHint=false, openWorldHint=true
+
+### Jira Links (2)
+
+#### `jira_create_link`
+Create a link between two Jira issues.
+
+Parameters:
+- `link_type` (str, required): Link type name (Relates, Blocks, Duplicate, etc.)
+- `inward_issue` (str, required): Inward issue key (receives the action)
+- `outward_issue` (str, required): Outward issue key (performs the action)
+- `comment` (str, optional): Optional comment on the link
+
+Tags: jira, links, write
+Annotations: readOnlyHint=false, openWorldHint=true
+
+#### `jira_delete_link`
+Delete a Jira issue link by its ID.
+
+Parameters:
+- `link_id` (str, required): Issue link ID to delete
+
+Tags: jira, links, write
+Annotations: destructiveHint=true, readOnlyHint=false, openWorldHint=true
+
+### Jira Attachments (4)
+
+#### `jira_get_attachments`
+List attachments on a Jira issue.
+
+Parameters:
+- `issue_key` (str, required): Jira issue key (e.g. PROJ-123)
+
+Tags: jira, attachments, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `jira_upload_attachment`
+Upload a file as an attachment to a Jira issue. Validates file paths (no traversal, max 100MB, file must exist).
+
+Parameters:
+- `issue_key` (str, required): Jira issue key
+- `file_path` (str, required): Local file path to upload
+- `filename` (str, optional): Override filename
+
+Tags: jira, attachments, write
+Annotations: readOnlyHint=false, openWorldHint=true
+
+#### `jira_download_attachment`
+Download a Jira attachment to a local file. Writes to current working directory only. Absolute paths and path traversal (`../`) are rejected. Download URLs are validated against the configured Jira URL domain.
+
+Parameters:
+- `content_url` (str, required): Attachment content URL
+- `save_path` (str, required): Local relative path to save the file
+
+Tags: jira, attachments, write
+Annotations: readOnlyHint=false, openWorldHint=true
+
+#### `jira_delete_attachment`
+Delete a Jira attachment.
+
+Parameters:
+- `attachment_id` (str, required): Attachment ID to delete
+
+Tags: jira, attachments, write
+Annotations: destructiveHint=true, readOnlyHint=false, openWorldHint=true
+
+### Jira Users (1)
+
+#### `jira_search_users`
+Search for Jira users by name, email, or username.
+
+Parameters:
+- `query` (str, required): Search by name, email, or username
+- `max_results` (int, default 10, range 1-100): Maximum results
+
+Tags: jira, users, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+### Jira Metadata (3)
+
+#### `jira_list_projects`
+List all accessible Jira projects.
+
+Parameters: none
+
+Tags: jira, metadata, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `jira_list_fields`
+List Jira fields, optionally filtered by name or custom-only.
+
+Parameters:
+- `search` (str, optional): Filter fields by name
+- `custom_only` (bool, default false): Only return custom fields
+
+Tags: jira, metadata, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `jira_backlog`
+Get backlog issues for a board.
+
+Parameters:
+- `board_id` (int, required, >=1): Board ID
+- `max_results` (int, default 50, range 1-100): Maximum results
+
+Tags: jira, metadata, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+### Jira Agile (4)
+
+#### `jira_get_board`
+Get details of a Jira agile board.
+
+Parameters:
+- `board_id` (int, required, >=1): Board ID
+
+Tags: jira, agile, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `jira_board_config`
+Get board column/status configuration.
+
+Parameters:
+- `board_id` (int, required, >=1): Board ID
+
+Tags: jira, agile, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `jira_get_sprint`
+Get details of a specific sprint.
+
+Parameters:
+- `sprint_id` (int, required, >=1): Sprint ID
+
+Tags: jira, agile, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `jira_move_to_sprint`
+Move issues into a sprint.
+
+Parameters:
+- `sprint_id` (int, required, >=1): Target sprint ID
+- `issue_keys` (list[str], required): Issue keys to move (e.g. ["PROJ-1", "PROJ-2"])
+
+Tags: jira, agile, write
+Annotations: readOnlyHint=false, openWorldHint=true
+
+### Confluence Calendars (6)
+
+#### `confluence_list_calendars`
+List all Confluence calendars.
+
+Parameters:
+- `filter_type` (str, optional): Filter by calendar type (e.g. "leaves")
+
+Tags: confluence, calendars, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `confluence_search_calendars`
+Search Confluence calendars by name or space.
+
+Parameters:
+- `query` (str, required): Search by calendar name, space name, or space key
+
+Tags: confluence, calendars, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `confluence_get_time_off`
+Get time-off events for a date range across all leave calendars. Supports relative dates: "today", "tomorrow", "next week", "+14d", "-7d".
+
+Parameters:
+- `start_date` (str, required): Start date (YYYY-MM-DD, "today", "+14d", etc.)
+- `end_date` (str, required): End date (YYYY-MM-DD, "today", "+14d", etc.)
+- `calendar_name` (str, optional): Filter by calendar name
+- `group_by_person` (bool, default false): Group results by person
+
+Tags: confluence, time_off, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `confluence_who_is_out`
+Check who is out on a specific date.
+
+Parameters:
+- `date` (str, default "today"): Date to check
+
+Tags: confluence, time_off, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `confluence_get_person_time_off`
+Get a specific person's time-off events.
+
+Parameters:
+- `person` (str, required): Person name to search for
+- `calendar_name` (str, required): Calendar name to search in
+- `start_date` (str, required): Start date
+- `end_date` (str, required): End date
+
+Tags: confluence, time_off, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `confluence_sprint_capacity`
+Calculate sprint capacity considering team time-off. Computes available working days per member, total team capacity, and capacity percentage.
+
+Parameters:
+- `team_members` (list[str], required): List of team member names
+- `sprint_start` (str, required): Sprint start date
+- `sprint_end` (str, required): Sprint end date
+- `working_days_per_week` (int, default 5, range 1-7): Working days per week
+
+Tags: confluence, time_off, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+---
+
+## Resources (15) — Full Content
+
+### resource://rules/jira-hierarchy — Jira Issue Hierarchy
+
+Epic/Story/Task/Subtask structure, splitting rules, and type selection.
+
+#### Structure
+
+```
+Epic (measurable outcome, spans sprints)
+  +-- Story (user-facing deliverable, fits in one sprint)
+       +-- Task (technical unit of work, no direct user story)
+            +-- Subtask (atomic action within a Task)
+  +-- Bug (defect against a Story or standalone)
+  +-- Spike (time-boxed research, produces knowledge not code)
+```
+
+#### Type Definitions
+
+| Type | Delivers | Fits in Sprint | Example |
+|------|----------|---------------|---------|
+| Epic | Measurable outcome | No (multi-sprint) | Reduce checkout abandonment by 15% |
+| Story | User-facing capability | Yes (8 pts max) | User can save address for future orders |
+| Task | Technical work | Yes | Migrate session store from Redis 6 to 7 |
+| Subtask | Atomic piece of Task | Yes (child of Task) | Write migration script for key format |
+| Bug | Defect fix | Yes | Cart total shows negative after coupon |
+| Spike | Research output | Yes (time-boxed) | Evaluate WebSocket vs SSE |
+
+#### When to Use Each Type
+
+- **Epic**: business objective, not feature list. Must have: objective, measurable outcome, time bound, out of scope, dependencies
+- **Story**: answers "as a [user], I can [do something] so that [benefit]". Max 8 points.
+- **Task**: technical work without user story. Still requires verifiable acceptance criteria.
+- **Subtask**: use sparingly. Only when parallel work within a Task requires separate assignees. If >5 subtasks, the Task is too large.
+- **Bug**: link to the Story/Epic it breaks. Always include: steps to reproduce, expected vs actual, severity.
+- **Spike**: time-boxed 1-3 days. Deliverable is recommendation, not code. Creates follow-up tickets.
+
+#### Splitting Rules
+
+| Signal | Action |
+|--------|--------|
+| Story estimated at 13+ points | Split into 2-3 smaller Stories |
+| Task has 6+ subtasks | Split into multiple Tasks |
+| Epic has no clear measurable outcome | Redefine or split |
+
+How to split: by user workflow step, by data entity, by platform/environment, by acceptance criterion, by happy path vs edge cases.
+
+#### Hierarchy Linking
+
+| Relationship | How |
+|-------------|-----|
+| Story/Task -> Epic | Epic Link field (`customfield_10008`), NOT `parent` |
+| Subtask -> Task | Standard parent field |
+| Bug -> Story/Epic | Epic Link or `relates to` link |
+| Spike -> Story | `relates to` link |
+
+---
+
+### resource://rules/jira-ticket-writing — Jira Ticket Writing Standards
+
+Summary format, Story/Bug/Task/Spike description templates, comment policy.
+
+#### Summary Line
+
+Format: `[Component] Imperative description under 80 characters`
+
+Rules: start with imperative verb (Add, Fix, Remove, Migrate, Refactor, Update, Expose), component prefix in brackets, under 80 characters, no "WIP"/"TODO"/"temp", no ALL CAPS urgency markers.
+
+#### Description Templates
+
+**Story:**
+- Context/Problem, User Story ("As a [role], I want [capability] so that [benefit]"), Acceptance Criteria (Given/When/Then), Out of Scope, Technical Notes
+
+**Bug:**
+- Steps to Reproduce, Expected Behavior, Actual Behavior, Environment (Browser/OS, Version), Severity
+
+**Task:**
+- Context, Scope (action list), Acceptance Criteria, Out of Scope
+
+**Spike:**
+- Question, Time Box (max 1-3 days), Deliverables (recommendation + follow-up tickets)
+
+#### Comment Policy
+
+Comments are for decisions and reasoning, not status updates. Structure: brief context + bullet evidence + next steps.
+
+---
+
+### resource://rules/acceptance-criteria — Acceptance Criteria Standards
+
+Given/When/Then format, rule-oriented criteria, writing rules.
+
+#### Formats
+
+**Given/When/Then (Behavioral):** `Given [precondition], when [action], then [outcome with measurable threshold].`
+
+**Checklist (Rule-Oriented):** Independent verifiable items.
+
+**Hybrid:** Combine both when a feature has a primary workflow plus independent requirements.
+
+#### Writing Rules
+
+- Must be testable: include numbers, thresholds, exact behaviors
+- Must be specific: "File upload accepts PNG, JPG, GIF up to 10MB" not "should work for common formats"
+- Must be independent: each criterion verifiable on its own
+- Must reflect user value: describe outcomes, not implementation
+
+#### Performance Criteria Template
+
+```
+Given [load condition],
+when [user action or API call],
+then [metric] is under [threshold] at [percentile],
+measured by [tool/method].
+```
+
+---
+
+### resource://rules/sprint-hygiene — Sprint Hygiene Rules
+
+Definition of Ready, WIP limits, carry-over policy, refinement standards.
+
+#### Definition of Ready
+
+Summary follows format, description populated, acceptance criteria testable, story points estimated, dependencies identified and linked, no unresolved questions, design reviewed, priority set.
+
+#### WIP Limits
+
+| Team size | Max WIP per person |
+|-----------|-------------------|
+| 1-3 | 1 |
+| 4-6 | 1-2 |
+| 7+ | 1 (strictly enforced) |
+
+Blocked tickets count toward WIP.
+
+#### Carry-Over Policy
+
+- 2nd sprint: re-estimate, add comment
+- 3rd sprint: mandatory team discussion (split, descope, or escalate)
+- 4th sprint: escalate to product owner
+
+#### PTO Capacity Formula
+
+```
+adjusted_capacity = (team_size - (total_PTO_days / sprint_days)) * avg_velocity_per_person
+```
+
+---
+
+### resource://rules/jira-workflow — Jira Workflow & Automation
+
+Status transitions, automation rule patterns, workflow governance.
+
+#### Standard Workflow
+
+```
+Triage -> Committed -> In Progress -> Review -> Test -> Closed
+```
+
+| Status | Entry criteria | Exit criteria |
+|--------|---------------|---------------|
+| Triage | Ticket created | Prioritized, assigned |
+| Committed | Accepted for sprint | Developer picks up |
+| In Progress | Developer working | Code complete, PR opened |
+| Review | PR open, CI green | Threads resolved, approved |
+| Test | Merged, deployed to staging | QA verified |
+| Closed | All DoD items checked | Complete |
+
+#### Automation Patterns
+
+1. Branch matching `*/PROJ-*` -> In Progress
+2. PR created with issue key -> Review
+3. Parent closed -> close all subtasks
+4. In Progress >5 days -> comment + label
+5. `blocked` label added -> notification
+
+---
+
+### resource://rules/issue-linking — Issue Linking Best Practices
+
+Link types, correct usage, cross-team patterns, cleanup.
+
+| Link type | Meaning | When to use |
+|-----------|---------|-------------|
+| `blocks` / `is blocked by` | Hard dependency | Technical prerequisite |
+| `relates to` | Soft dependency | Cross-team awareness |
+| `duplicates` | Same issue reported twice | Close one, keep other |
+| `covers` / `is covered by` | Supersedes | Newer ticket covers older |
+| `clones` | Copy to another project | Cross-project mirroring |
+
+#### Cross-Team Patterns
+
+Create tickets in both projects and link with `relates to`. Add banner panels with contact info.
+
+#### Circular Dependency Detection
+
+Find tickets that both block and are blocked by others. Resolution: map full chain, identify weakest link, convert `blocks` to `relates to`, add comment.
+
+---
+
+### resource://guides/story-points — Story Point Estimation
+
+Fibonacci scale, Planning Poker, relative sizing, velocity.
+
+| Points | Complexity | Unknowns | Example |
+|--------|-----------|----------|---------|
+| 1 | Trivial | None | Fix typo, update config |
+| 2 | Small | Minimal | Add form field, update API response |
+| 3 | Moderate | Some | New API endpoint with tests |
+| 5 | Significant | Moderate | Third-party integration |
+| 8 | Large | High | DB migration with backfill |
+| 13 | Too large | Very high | Must decompose |
+
+Rules: everyone votes, simultaneous reveal, no averaging. Track velocity over 3-5 sprints, never compare across teams.
+
+---
+
+### resource://guides/definition-of-done — Definition of Done Checklists
+
+Story/Bug/Task DoD templates, enforcement rules, governance.
+
+#### Story DoD
+
+Code reviewed and approved (1+ approval), all acceptance criteria verified, unit tests (>=90% on new code), integration/E2E tests updated, no new linting/type errors, feature flag if applicable, documentation updated, deployed to staging, accessibility checked (WCAG 2.1 AA) for UI, security review for PII/auth, PR merged, ticket transitioned.
+
+#### Bug DoD
+
+Root cause identified and documented, fix addresses root cause, regression test added, existing tests passing, code reviewed, verified in staging, PR merged.
+
+#### DoD Management
+
+Read-before-write: always fetch existing DoD items before updating. Never overwrite, mark completed items, only append genuinely new criteria. Implementation evidence belongs in comments, not DoD.
+
+---
+
+### resource://guides/jira-labels — Jira Label Taxonomy
+
+Standard labels, naming rules, governance, JQL usage.
+
+Standard labels: `tech-debt`, `security`, `accessibility`, `performance`, `breaking-change`, `spike`, `blocked`, `quick-win`, `regression`.
+
+Naming rules: lowercase, hyphen-separated. No status labels, no priority labels, no sprint labels.
+
+---
+
+### resource://guides/jql-library — JQL Query Library
+
+15 query patterns for sprint management, blockers, stale tickets, reporting.
+
+Key patterns: current sprint work, my tickets, carry-over candidates, blocked tickets, stale In Progress (>5d), stale Review (>3d), unassigned in sprint, unsized tickets, completed this sprint, bugs this week.
+
+Key functions: `currentUser()`, `openSprints()`, `closedSprints()`, `startOfWeek()`, `startOfSprint()`.
+
+Performance tips: avoid `text ~ "word"` on large instances, use indexed fields first, add `ORDER BY`, use `maxResults` in API calls.
+
+---
+
+### resource://guides/custom-fields — Jira Custom Field Governance
+
+Creation process, naming conventions, field contexts, audit.
+
+Before creating: check if built-in field covers it, check if label suffices, verify >50% usage, identify who populates it, verify JQL queryability.
+
+Field types: Select (single), Select (multi), Text, Number, Checklist (plugin). For select fields, use `{"value": "Option Text"}` in API calls.
+
+Governance: quarterly audit for fill rates, merge duplicates, retire unused fields (hide context, do not delete).
+
+---
+
+### resource://guides/confluence-spaces — Confluence Space Organization
+
+Space taxonomy, page hierarchy, naming conventions, maintenance.
+
+Space types: `TEAM-<name>`, `PROJ-<key>`, `KB-<domain>`, `ARCHIVE-<year>`. One team = one space.
+
+Page hierarchy: max 4 levels deep. Date prefix for chronological content (YYYY-MM-DD). Type prefix for structured content (ADR, RFC, Runbook).
+
+---
+
+### resource://guides/agile-ceremonies — Agile Ceremony Standards
+
+Sprint planning, standup, review, retrospective formats and rules.
+
+- Sprint Planning: 2h max (2-week sprint). Goal, backlog review, capacity check, commitment, task breakdown. Plan to 80% capacity.
+- Daily Standup: 15 min hard stop. "What will I work on today? Am I blocked?"
+- Sprint Review: 1h max. Demo working software, not slides.
+- Retrospective: 45-60 min. Max 2-3 action items. Rotate facilitator.
+
+Async standup supported for distributed teams (>6h timezone spread).
+
+---
+
+### resource://guides/git-jira-integration — Git-Jira Integration Patterns
+
+Branch naming for auto-linking, smart commits, automation rules, macros.
+
+Branch naming: `feat/PROJ-123-description`, `fix/PROJ-456-description`. Key must be uppercase.
+
+Smart commits: `PROJ-123 #comment Fixed the null check`, `PROJ-123 #time 1h 30m`, `PROJ-123 #transition Review`.
+
+PR title: include issue key: `[PROJ-123] Add email login to auth service`.
+
+Field notes: Epic Link uses `customfield_10008` (NOT `parent`). Select fields use `{"value": "No"}`.
+
+---
+
+### resource://templates/confluence-pages — Confluence Page Templates
+
+ADR, RFC, Runbook, Retrospective, DACI, and Meeting Notes templates in Confluence wiki markup.
+
+Templates include: ADR (Architecture Decision Record), RFC (Request for Comments), Runbook (with escalation matrix), Retrospective (Start/Stop/Continue), DACI (Driver/Approver/Contributors/Informed), Meeting Notes.
+
+---
+
+## Prompts (5) — Full Reference
+
+### `create_ticket`
+
+Create a Jira ticket with full field setup including custom fields.
+
+Parameters: `project_key` (str), `issue_type` (str)
+Tags: jira, create
+
+Workflow steps:
+1. Check available fields with `jira_list_fields`
+2. Gather information: summary, description, priority, assignee, story points, labels, epic link
+3. Set quality fields: Definition of Done checklist, privacy concerns (Yes/No), security concerns (Yes/No)
+4. Create the issue with `jira_create_issue`
+5. Add links with `jira_create_link` for related tickets
+6. Verify creation and report issue key/URL
+
+Templates by type: Story (user story + AC), Bug (repro steps + expected/actual), Task (objective + approach + DoD), Epic (business goal + scope + metrics).
+
+### `plan_sprint`
+
+Plan a sprint by reviewing backlog, calculating capacity, and moving issues.
+
+Parameters: `board_id` (str), `sprint_id` (str)
+Tags: jira, agile
+
+Workflow steps:
+1. Get sprint details with `jira_get_sprint`
+2. Get board config with `jira_get_board`
+3. Check team availability with `confluence_sprint_capacity`
+4. Review backlog with `jira_backlog`
+5. Calculate scope from velocity, capacity, and carry-over
+6. Suggest sprint scope (prioritized, within capacity, balanced mix, flag missing estimates)
+7. Move issues with `jira_move_to_sprint`
+8. Report total points, capacity utilization, risk items
+
+### `close_ticket`
+
+Close a Jira ticket by verifying DoD, checking linked MRs, and transitioning statuses.
+
+Parameters: `issue_key` (str)
+Tags: jira, workflow
+
+Workflow steps:
+1. Fetch issue details, status, linked MRs, and DoD checklist
+2. Verify each DoD item with evidence (linked MR, test results, documentation)
+3. Verify linked MR: CI passed, approved, merged
+4. Check attachments with `jira_get_attachments`
+5. Transition through statuses: In Progress -> Review -> Test -> Closed
+6. Add closing comment summarizing delivery
+7. Verify closure
+
+### `team_availability`
+
+Check team availability and calculate capacity for a date range.
+
+Parameters: `team_members` (str), `start_date` (str), `end_date` (str)
+Tags: confluence, capacity
+
+Workflow steps:
+1. Check who is out with `confluence_who_is_out`
+2. Get per-person details with `confluence_get_person_time_off`
+3. Calculate capacity with `confluence_sprint_capacity`
+4. Flag conflicts (>50% team out, no coverage for critical roles)
+5. Report per-person availability, team capacity percentage, risk periods
+
+### `manage_attachments`
+
+Manage issue attachments: list, analyze, upload, download, and clean up.
+
+Parameters: `issue_key` (str)
+Tags: jira, attachments
+
+Workflow steps:
+1. List current attachments with `jira_get_attachments`
+2. Analyze: identify stale files, duplicates, large files (>10MB), missing context
+3. Download if needed with `jira_download_attachment`
+4. Upload new files with `jira_upload_attachment`
+5. Clean up with `jira_delete_attachment` (duplicates, superseded, sensitive files)
+6. Report kept/removed attachments and storage freed
+
+---
+
+## Security Considerations
+
+- **Token scope**: Use API tokens with minimum required permissions. PATs with project-level access for Data Center.
+- **Read-only mode**: `ATLASSIAN_READ_ONLY=true` disables all write operations server-side.
+- **File upload validation**: No path traversal, max 100MB, file must exist.
+- **Download path restriction**: Relative paths only, resolved within working directory. Absolute paths and `../` rejected.
+- **Download URL validation**: URLs validated against configured Jira domain to prevent SSRF.
+- **SSL verification**: Enabled by default. Only disable for self-signed certificates in trusted networks.
+- **MCP tool annotations**: Each tool declares `readOnlyHint`, `destructiveHint`, and `idempotentHint`.
+- **No credential storage**: Tokens read from environment variables at startup, never persisted.
+
+## Required Permissions
+
+| Operation | Minimum Jira Permission |
+|-----------|----------------------|
+| List projects, fields, boards | Browse Projects |
+| Search users | Browse Users |
+| Create/update issues, epics | Create Issues + Edit Issues |
+| Create/delete issue links | Link Issues |
+| Upload/delete attachments | Create Attachments + Delete Own Attachments |
+| Move issues to sprint | Manage Sprints |
+| Confluence calendars/time-off | View space content |
+
+## Rate Limits
+
+Jira Cloud enforces per-user rate limits. Tools return 429 with wait hint when rate-limited. Confluence Calendar API calls may be slower due to Team Calendars plugin architecture.
+
+## Related MCP Servers
+
+- [mcp-gitlab](https://github.com/vish288/mcp-gitlab): GitLab integration (76 tools, 6 resources, 5 prompts)
+- [mcp-coda](https://github.com/vish288/mcp-coda): Coda.io integration (54 tools, 12 resources, 5 prompts)
