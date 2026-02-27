@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.7] - 2026-02-27
+
+### Bug Fixes
+- fix: harden resource/prompt loading and add URL support (#33) (0e46b4f)
+
+
 ## [0.6.6] - 2026-02-27
 
 ### Features
