@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.vish288/mcp-atlassian-extended",
-  "description": "MCP server for Jira & Confluence — 23 tools, 15 resources, 5 prompts. Sprints, agile boards, attachments, calendars, time-off, sprint capacity.",
+  "description": "MCP server for Jira and Confluence — sprints, agile boards, attachments, calendars, capacity.",
   "repository": {
     "url": "https://github.com/vish288/mcp-atlassian-extended",
     "source": "github"
