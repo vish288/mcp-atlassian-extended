@@ -1,8 +1,8 @@
-# Close ticket {issue_key}
+# Close ticket $issue_key
 
 ## Steps
 
-1. **Fetch issue details** — retrieve the current status, description, linked merge requests, and Definition of Done checklist for {issue_key}.
+1. **Fetch issue details** — retrieve the current status, description, linked merge requests, and Definition of Done checklist for $issue_key.
 2. **Verify Definition of Done** — check each DoD item:
    - Are all acceptance criteria met?
    - Is there evidence for each item (linked MR, test results, documentation)?
@@ -11,7 +11,7 @@
    - Has passed CI pipeline
    - Has been approved
    - Has been merged to the target branch
-4. **Check attachments** — use `jira_get_attachments` with issue_key="{issue_key}" to verify any required documentation or screenshots are attached.
+4. **Check attachments** — use `jira_get_attachments` with issue_key="$issue_key" to verify any required documentation or screenshots are attached.
 5. **Transition through statuses** — move the issue through required workflow states:
    - If in "In Progress": transition to "Review"
    - If in "Review": transition to "Test"

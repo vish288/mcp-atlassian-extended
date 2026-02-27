@@ -5,20 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import mcp
+from ._helpers import _load_file
 
-_RESOURCES_DIR = Path(__file__).resolve().parent.parent / "resources"
+_RESOURCES_DIR = str(Path(__file__).resolve().parent.parent / "resources")
 
 
 def _load(filename: str) -> str:
     """Load a resource markdown file."""
-    if "/" in filename or "\\" in filename or ".." in filename:
-        msg = f"Invalid resource filename: {filename}"
-        raise ValueError(msg)
-    path = _RESOURCES_DIR / filename
-    if not path.resolve().is_relative_to(_RESOURCES_DIR.resolve()):
-        msg = f"Invalid resource filename: {filename}"
-        raise ValueError(msg)
-    return path.read_text(encoding="utf-8")
+    return _load_file(_RESOURCES_DIR, filename)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -214,3 +208,38 @@ def git_jira_integration_guide() -> str:
 def confluence_page_templates() -> str:
     """Confluence page templates in wiki markup."""
     return _load("confluence-pages.md")
+
+
+# ════════════════════════════════════════════════════════════════════
+# Startup validation
+# ════════════════════════════════════════════════════════════════════
+
+_RESOURCE_FILES = [
+    "jira-hierarchy.md",
+    "jira-ticket-writing.md",
+    "acceptance-criteria.md",
+    "sprint-hygiene.md",
+    "jira-workflow.md",
+    "issue-linking.md",
+    "story-points.md",
+    "definition-of-done.md",
+    "jira-labels.md",
+    "jql-library.md",
+    "custom-fields.md",
+    "confluence-spaces.md",
+    "agile-ceremonies.md",
+    "git-jira-integration.md",
+    "confluence-pages.md",
+]
+
+
+def _validate_resources() -> None:
+    """Verify all expected resource files exist at import time."""
+    _dir = Path(_RESOURCES_DIR)
+    missing = [f for f in _RESOURCE_FILES if not (_dir / f).is_file()]
+    if missing:
+        msg = f"Missing resource files (packaging error): {missing}"
+        raise RuntimeError(msg)
+
+
+_validate_resources()
