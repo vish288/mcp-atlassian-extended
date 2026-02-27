@@ -1,8 +1,8 @@
-# Manage attachments for {issue_key}
+# Manage attachments for $issue_key
 
 ## Steps
 
-1. **List current attachments** — use `jira_get_attachments` with issue_key="{issue_key}" to retrieve all attached files. Note filename, size, author, and upload date.
+1. **List current attachments** — use `jira_get_attachments` with issue_key="$issue_key" to retrieve all attached files. Note filename, size, author, and upload date.
 2. **Analyze attachments** — identify:
    - **Stale files**: attachments older than the last status transition
    - **Duplicates**: files with identical names or very similar sizes
