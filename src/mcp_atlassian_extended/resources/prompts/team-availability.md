@@ -1,11 +1,11 @@
-# Team availability: {start_date} to {end_date}
+# Team availability: $start_date to $end_date
 
 ## Team Members
-{team_members}
+$team_members
 
 ## Steps
 
-1. **Check who is out** — use `confluence_who_is_out` for the period {start_date} to {end_date} to get an overview of team absences.
+1. **Check who is out** — use `confluence_who_is_out` for the period $start_date to $end_date to get an overview of team absences.
 2. **Get per-person details** — for each team member, use `confluence_get_person_time_off` to retrieve:
    - Vacation days
    - Sick leave
