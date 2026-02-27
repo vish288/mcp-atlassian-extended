@@ -5,7 +5,7 @@
 MCP server that complements mcp-atlassian with zero tool overlap. Provides issue CRUD with custom fields, agile board management, Confluence calendar and time-off tracking, and sprint capacity planning. Built with FastMCP, httpx, and Pydantic.
 
 - **Install**: `uvx mcp-atlassian-extended`
-- **Version**: 0.6.9
+- **Version**: 0.6.10
 - **Python**: >=3.10
 - **License**: MIT
 - **Transport**: stdio (default), SSE, streamable-http
