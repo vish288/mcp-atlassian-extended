@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.11] - 2026-03-03
+
+### Features
+- feat: add startup logging with package version and config summary (#38) (adc04be)
+
+
 ## [0.6.10] - 2026-02-27
 
 ### Bug Fixes
