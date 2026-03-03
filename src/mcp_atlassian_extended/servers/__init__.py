@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 from typing import Any
 
 from fastmcp import FastMCP
@@ -13,11 +15,28 @@ from ..clients.confluence import ConfluenceExtendedClient
 from ..clients.jira import JiraExtendedClient
 from ..config import ConfluenceConfig, JiraConfig
 
+_log = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
     jira_config = JiraConfig.from_env()
     confluence_config = ConfluenceConfig.from_env()
+
+    pkg_version = version("mcp-atlassian-extended")
+    _log.info("mcp-atlassian-extended %s starting", pkg_version)
+    _log.info(
+        "Jira: %s (configured: %s, read-only: %s)",
+        jira_config.url or "(none)",
+        jira_config.is_configured,
+        jira_config.read_only,
+    )
+    _log.info(
+        "Confluence: %s (configured: %s, read-only: %s)",
+        confluence_config.url or "(none)",
+        confluence_config.is_configured,
+        confluence_config.read_only,
+    )
 
     jira_client = JiraExtendedClient(jira_config) if jira_config.is_configured else None
     confluence_client = (
