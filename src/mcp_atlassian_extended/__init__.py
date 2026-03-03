@@ -1,6 +1,7 @@
 """Extended MCP tools for Jira and Confluence."""
 
 import asyncio
+import logging
 import os
 
 import click
@@ -66,6 +67,11 @@ def main(
         os.environ["CONFLUENCE_API_TOKEN"] = confluence_api_token
     if read_only:
         os.environ["ATLASSIAN_READ_ONLY"] = "true"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(name)s | %(message)s",
+    )
 
     from .servers import mcp
 
