@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.12] - 2026-03-05
+
+### Features
+- feat: add Jira version CRUD tools using REST API v2 (#39) (d9692be)
+
+
 ## [0.6.11] - 2026-03-03
 
 ### Features
