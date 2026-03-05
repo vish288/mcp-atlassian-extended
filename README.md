@@ -11,7 +11,7 @@
 
 **Install:** `uvx mcp-atlassian-extended` | [PyPI](https://pypi.org/project/mcp-atlassian-extended/) | [MCP Registry](https://registry.modelcontextprotocol.io) | [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases)
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **23 tools**, **15 resources**, and **5 prompts** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **26 tools**, **15 resources**, and **5 prompts** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, project versions (API v2), calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
 
 Supports Jira Cloud, Jira Data Center, Confluence Cloud, and Confluence Data Center (self-hosted). No Atlassian Premium required.
 
@@ -22,7 +22,7 @@ Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.pyt
 This project runs alongside [mcp-atlassian](https://github.com/sooperset/mcp-atlassian), not as a replacement. Configure both servers:
 
 - **mcp-atlassian** handles: issues, search, transitions, comments, worklog, pages, Confluence search
-- **mcp-atlassian-extended** handles: attachments, agile, users, fields, calendars, time-off
+- **mcp-atlassian-extended** handles: attachments, agile, users, fields, versions (API v2), calendars, time-off
 
 There is no tool overlap — this server only implements tools that mcp-atlassian lacks.
 
@@ -151,7 +151,7 @@ The server checks these environment variables in order — first match wins:
 | VS Code Copilot | Yes | `.vscode/mcp.json` |
 | Any MCP client | Yes | stdio or HTTP transport |
 
-## Tools (23)
+## Tools (26)
 
 | Category | Count | Tools |
 |----------|-------|-------|
@@ -161,6 +161,7 @@ The server checks these environment variables in order — first match wins:
 | **Jira Users** | 1 | search by name/email |
 | **Jira Metadata** | 3 | list projects, list fields, backlog |
 | **Jira Agile** | 4 | get board, board config, get sprint, move to sprint |
+| **Jira Versions** | 3 | get project versions, create version, update version |
 | **Confluence Calendars** | 6 | list, search, time-off, who-is-out, person time-off, sprint capacity |
 
 <details>
@@ -206,6 +207,13 @@ The server checks these environment variables in order — first match wins:
 | `jira_board_config` | Get board column configuration |
 | `jira_get_sprint` | Get sprint details |
 | `jira_move_to_sprint` | Move issues to a sprint |
+
+### Jira Versions
+| Tool | Description |
+|------|-------------|
+| `jira_get_project_versions` | List all versions for a project (REST API v2, Server/DC + Cloud) |
+| `jira_create_version` | Create a new version in a project (REST API v2) |
+| `jira_update_version` | Update an existing version (REST API v2) |
 
 ### Confluence Calendars
 | Tool | Description |
@@ -297,6 +305,19 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 → jira_backlog(board_id=42, max_results=50)
 ```
 
+### Version Management
+
+```
+"List versions for project PROJ"
+→ jira_get_project_versions(project_key="PROJ")
+
+"Create a new release version"
+→ jira_create_version(project_key="PROJ", name="v2.0.0", release_date="2026-04-01")
+
+"Mark version as released"
+→ jira_update_version(version_id="200", released=True)
+```
+
 ### Time-Off & Sprint Capacity
 
 ```
@@ -339,6 +360,7 @@ Jira Cloud enforces per-user rate limits. When rate-limited, tools return a 429 
 | Create/delete issue links | Link Issues |
 | Upload/delete attachments | Create Attachments + Delete Own Attachments |
 | Move issues to sprint | Manage Sprints |
+| Create/update versions | Administer Projects |
 | Confluence calendars/time-off | View space content |
 
 ## CLI & Transport Options

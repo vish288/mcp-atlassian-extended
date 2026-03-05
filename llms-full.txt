@@ -1,6 +1,6 @@
 # mcp-atlassian-extended
 
-> MCP server extending mcp-atlassian — 23 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, calendars, time-off tracking, and sprint capacity planning.
+> MCP server extending mcp-atlassian — 26 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, project versions (API v2), calendars, time-off tracking, and sprint capacity planning.
 
 MCP server that complements mcp-atlassian with zero tool overlap. Provides issue CRUD with custom fields, agile board management, Confluence calendar and time-off tracking, and sprint capacity planning. Built with FastMCP, httpx, and Pydantic.
 
@@ -17,7 +17,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. Provides issue
 
 ## Documentation
 
-- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 23 tools, 15 resources, 5 prompts
+- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 26 tools, 15 resources, 5 prompts
 - [PyPI](https://pypi.org/project/mcp-atlassian-extended/): install via `pip install mcp-atlassian-extended` or `uvx mcp-atlassian-extended`
 - [GitHub](https://github.com/vish288/mcp-atlassian-extended): source code, issue tracker, development setup
 - [MCP Registry](https://registry.modelcontextprotocol.io): discover and install MCP servers
@@ -110,7 +110,7 @@ uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx 
 
 ---
 
-## Tools (23) — Full Reference
+## Tools (26) — Full Reference
 
 ### Jira Issues (3)
 
@@ -297,6 +297,47 @@ Parameters:
 
 Tags: jira, agile, write
 Annotations: readOnlyHint=false, openWorldHint=true
+
+### Jira Versions (3)
+
+#### `jira_get_project_versions`
+List all versions for a Jira project (REST API v2, supports Server/DC and Cloud).
+
+Parameters:
+- `project_key` (str, required): Project key (e.g. PROJ)
+
+Tags: jira, versions, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `jira_create_version`
+Create a new version in a Jira project (REST API v2, supports Server/DC and Cloud).
+
+Parameters:
+- `project_key` (str, required): Project key (e.g. PROJ)
+- `name` (str, required): Version name
+- `description` (str, optional): Version description
+- `release_date` (str, optional): Release date (YYYY-MM-DD)
+- `start_date` (str, optional): Start date (YYYY-MM-DD)
+- `released` (bool, optional): Mark as released
+- `archived` (bool, optional): Mark as archived
+
+Tags: jira, versions, write
+Annotations: readOnlyHint=false, openWorldHint=true
+
+#### `jira_update_version`
+Update an existing Jira version (REST API v2, supports Server/DC and Cloud).
+
+Parameters:
+- `version_id` (str, required): Version ID
+- `name` (str, optional): New version name
+- `description` (str, optional): New description
+- `release_date` (str, optional): Release date (YYYY-MM-DD)
+- `start_date` (str, optional): Start date (YYYY-MM-DD)
+- `released` (bool, optional): Mark as released
+- `archived` (bool, optional): Mark as archived
+
+Tags: jira, versions, write
+Annotations: readOnlyHint=false, idempotentHint=true, openWorldHint=true
 
 ### Confluence Calendars (6)
 
@@ -784,6 +825,7 @@ Workflow steps:
 | Create/delete issue links | Link Issues |
 | Upload/delete attachments | Create Attachments + Delete Own Attachments |
 | Move issues to sprint | Manage Sprints |
+| Create/update versions | Administer Projects |
 | Confluence calendars/time-off | View space content |
 
 ## Rate Limits

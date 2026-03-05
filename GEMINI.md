@@ -1,6 +1,6 @@
 # mcp-atlassian-extended — Gemini CLI Extension Context
 
-MCP server providing 23 tools, 15 resources, and 5 prompts for Jira and Confluence operations beyond core CRUD. Focuses on agile workflows, file attachments, team calendars, and sprint planning.
+MCP server providing 26 tools, 15 resources, and 5 prompts for Jira and Confluence operations beyond core CRUD. Focuses on agile workflows, file attachments, project versions, team calendars, and sprint planning.
 
 ## Tool Categories
 
@@ -9,6 +9,7 @@ MCP server providing 23 tools, 15 resources, and 5 prompts for Jira and Confluen
 - **Users & Fields** — search users, list project fields
 - **Agile** — backlog management, get/configure boards, get/create/update sprints, move issues to sprints
 - **Issues** — create, update, create/delete issue links, create epics
+- **Versions** — get project versions, create version, update version (REST API v2, Server/DC + Cloud)
 
 ### Confluence
 - **Calendars** — list and search calendars
@@ -22,6 +23,7 @@ MCP server providing 23 tools, 15 resources, and 5 prompts for Jira and Confluen
 - **Team availability**: `confluence_who_is_out` -> `confluence_get_person_time_off` -> `confluence_sprint_capacity`
 - **Issue linking**: `jira_create_issue` -> `jira_create_link` -> `jira_create_epic` -> `jira_move_to_sprint`
 - **Board configuration**: `jira_get_board` -> `jira_board_config` -> `jira_get_sprint` -> `jira_backlog`
+- **Version management**: `jira_get_project_versions` -> `jira_create_version` -> `jira_update_version`
 
 ## Notes
 
