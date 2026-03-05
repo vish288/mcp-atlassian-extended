@@ -1,6 +1,6 @@
 # mcp-atlassian-extended
 
-> MCP server extending mcp-atlassian — 23 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, calendars, time-off tracking, and sprint capacity planning.
+> MCP server extending mcp-atlassian — 26 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, project versions (API v2), calendars, time-off tracking, and sprint capacity planning.
 
 MCP server that complements mcp-atlassian with zero tool overlap. Provides issue CRUD with custom fields, agile board management, Confluence calendar and time-off tracking, and sprint capacity planning. Built with FastMCP, httpx, and Pydantic.
 
@@ -17,7 +17,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. Provides issue
 
 ## Documentation
 
-- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 23 tools, 15 resources, 5 prompts
+- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 26 tools, 15 resources, 5 prompts
 - [PyPI](https://pypi.org/project/mcp-atlassian-extended/): install via `pip install mcp-atlassian-extended` or `uvx mcp-atlassian-extended`
 - [GitHub](https://github.com/vish288/mcp-atlassian-extended): source code, issue tracker, development setup
 - [MCP Registry](https://registry.modelcontextprotocol.io): discover and install MCP servers
