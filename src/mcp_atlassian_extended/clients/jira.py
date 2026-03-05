@@ -283,3 +283,68 @@ class JiraExtendedClient:
             params={"fields": "issuelinks"},
         )
         return data.get("fields", {}).get("issuelinks", [])
+
+    # ── Versions ──────────────────────────────────────────────────
+
+    async def get_project_versions(self, project_key: str) -> list[dict]:
+        """Get all versions for a project."""
+        return await self.get(f"/rest/api/2/project/{project_key}/versions")
+
+    async def create_version(
+        self,
+        project_key: str,
+        name: str,
+        *,
+        description: str | None = None,
+        release_date: str | None = None,
+        start_date: str | None = None,
+        released: bool | None = None,
+        archived: bool | None = None,
+    ) -> dict:
+        """Create a new version in a project.
+
+        Uses REST API v2 (/rest/api/2/version) which works on both
+        Server/Data Center and Cloud. The upstream mcp-atlassian package
+        uses /rest/api/3/version which is Cloud-only.
+        """
+        payload: dict[str, Any] = {"project": project_key, "name": name}
+        if description is not None:
+            payload["description"] = description
+        if release_date is not None:
+            payload["releaseDate"] = release_date
+        if start_date is not None:
+            payload["startDate"] = start_date
+        if released is not None:
+            payload["released"] = released
+        if archived is not None:
+            payload["archived"] = archived
+        return await self.post("/rest/api/2/version", payload)
+
+    async def update_version(
+        self,
+        version_id: str,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        release_date: str | None = None,
+        start_date: str | None = None,
+        released: bool | None = None,
+        archived: bool | None = None,
+    ) -> dict:
+        """Update an existing version by ID."""
+        payload: dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if release_date is not None:
+            payload["releaseDate"] = release_date
+        if start_date is not None:
+            payload["startDate"] = start_date
+        if released is not None:
+            payload["released"] = released
+        if archived is not None:
+            payload["archived"] = archived
+        if not payload:
+            return await self.get(f"/rest/api/2/version/{version_id}")
+        return await self.put(f"/rest/api/2/version/{version_id}", payload)

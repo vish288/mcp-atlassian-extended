@@ -62,7 +62,8 @@ mcp = FastMCP(
     instructions=(
         "Extended tools for Jira and Confluence that complement mcp-atlassian. "
         "Provides issue creation/update with custom fields, issue links, "
-        "attachments, agile boards/sprints, users, metadata, and calendar tools."
+        "attachments, agile boards/sprints, users, metadata, "
+        "project versions (API v2), and calendar tools."
     ),
     lifespan=lifespan,
 )

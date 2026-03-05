@@ -945,3 +945,85 @@ class TestConfluenceSprintCapacity:
         parsed = _parse(result)
         assert parsed["team"]["total_days_off"] == 0
         assert parsed["team"]["capacity_percentage"] == 100.0
+
+
+# ═══════════════════════════════════════════════════════
+# Versions
+# ═══════════════════════════════════════════════════════
+
+
+class TestGetProjectVersions:
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
+        router.get("/rest/api/2/project/PROJ/versions").mock(
+            return_value=Response(
+                200,
+                json=[
+                    {"id": "100", "name": "v1.0.0", "released": True},
+                    {"id": "101", "name": "v2.0.0", "released": False},
+                ],
+            )
+        )
+        result = await client.call_tool("jira_get_project_versions", {"project_key": "PROJ"})
+        parsed = _parse(result)
+        assert parsed["count"] == 2
+        assert parsed["items"][0]["name"] == "v1.0.0"
+
+
+class TestCreateVersion:
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
+        router.post("/rest/api/2/version").mock(
+            return_value=Response(
+                201,
+                json={"id": "200", "name": "v3.0.0", "project": "PROJ", "released": True},
+            )
+        )
+        result = await client.call_tool(
+            "jira_create_version",
+            {
+                "project_key": "PROJ",
+                "name": "v3.0.0",
+                "release_date": "2026-03-04",
+                "released": True,
+            },
+        )
+        parsed = _parse(result)
+        assert parsed["id"] == "200"
+        assert parsed["name"] == "v3.0.0"
+
+    async def test_read_only_blocked(self, readonly_client):
+        client, router = readonly_client
+        result = await client.call_tool(
+            "jira_create_version",
+            {"project_key": "PROJ", "name": "v1.0.0"},
+        )
+        parsed = _parse(result)
+        assert "error" in parsed
+        assert "read-only" in parsed["hint"].lower()
+
+
+class TestUpdateVersion:
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
+        router.put("/rest/api/2/version/200").mock(
+            return_value=Response(
+                200,
+                json={"id": "200", "name": "v3.0.0", "released": True},
+            )
+        )
+        result = await client.call_tool(
+            "jira_update_version",
+            {"version_id": "200", "released": True},
+        )
+        parsed = _parse(result)
+        assert parsed["released"] is True
+
+    async def test_read_only_blocked(self, readonly_client):
+        client, router = readonly_client
+        result = await client.call_tool(
+            "jira_update_version",
+            {"version_id": "200", "released": True},
+        )
+        parsed = _parse(result)
+        assert "error" in parsed
