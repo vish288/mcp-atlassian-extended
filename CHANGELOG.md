@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.13] - 2026-03-05
+
+### Documentation
+- docs: update tool count 23→26, add Jira Versions category (#40) (e7862a4)
+
+
 ## [0.6.12] - 2026-03-05
 
 ### Features
