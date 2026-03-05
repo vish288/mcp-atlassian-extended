@@ -143,3 +143,57 @@ class TestDownloadUrlValidation:
         client = _make_client()
         result = client._validate_download_url("/rest/api/2/attachment/content/123")
         assert result == "/rest/api/2/attachment/content/123"
+
+
+class TestVersions:
+    @pytest.mark.asyncio
+    async def test_get_project_versions(self):
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/project/PROJ/versions").mock(
+                return_value=httpx.Response(
+                    200, json=[{"id": "100", "name": "v1.0.0", "released": True}]
+                )
+            )
+            client = _make_client()
+            result = await client.get_project_versions("PROJ")
+            assert len(result) == 1
+            assert result[0]["name"] == "v1.0.0"
+
+    @pytest.mark.asyncio
+    async def test_create_version(self):
+        async with respx.mock(base_url=BASE) as router:
+            router.post("/rest/api/2/version").mock(
+                return_value=httpx.Response(
+                    201, json={"id": "200", "name": "v2.0.0", "project": "PROJ"}
+                )
+            )
+            client = _make_client()
+            result = await client.create_version(
+                "PROJ", "v2.0.0", description="New release", release_date="2026-03-04"
+            )
+            assert result["id"] == "200"
+            assert result["name"] == "v2.0.0"
+
+    @pytest.mark.asyncio
+    async def test_create_version_minimal(self):
+        async with respx.mock(base_url=BASE) as router:
+            router.post("/rest/api/2/version").mock(
+                return_value=httpx.Response(
+                    201, json={"id": "201", "name": "v3.0.0", "project": "PROJ"}
+                )
+            )
+            client = _make_client()
+            result = await client.create_version("PROJ", "v3.0.0")
+            assert result["name"] == "v3.0.0"
+
+    @pytest.mark.asyncio
+    async def test_update_version(self):
+        async with respx.mock(base_url=BASE) as router:
+            router.put("/rest/api/2/version/200").mock(
+                return_value=httpx.Response(
+                    200, json={"id": "200", "name": "v2.0.0", "released": True}
+                )
+            )
+            client = _make_client()
+            result = await client.update_version("200", released=True)
+            assert result["released"] is True
