@@ -172,3 +172,84 @@ async def jira_backlog(
         return _ok(data)
     except Exception as e:
         return _err(e)
+
+
+# ── Versions ─────────────────────────────────────────────────────
+
+
+@mcp.tool(
+    tags={"jira", "versions", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
+)
+async def jira_get_project_versions(
+    ctx: Context,
+    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)", min_length=1)],
+) -> str:
+    """List all versions for a Jira project (REST API v2, supports Server/DC and Cloud)."""
+    try:
+        data = await _get_jira(ctx).get_project_versions(project_key)
+        return _paginated(data)
+    except Exception as e:
+        return _err(e)
+
+
+@mcp.tool(
+    tags={"jira", "versions", "write"},
+    annotations={"readOnlyHint": False, "openWorldHint": True},
+)
+async def jira_create_version(
+    ctx: Context,
+    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)", min_length=1)],
+    name: Annotated[str, Field(description="Version name", min_length=1)],
+    description: Annotated[str | None, Field(description="Version description")] = None,
+    release_date: Annotated[str | None, Field(description="Release date (YYYY-MM-DD)")] = None,
+    start_date: Annotated[str | None, Field(description="Start date (YYYY-MM-DD)")] = None,
+    released: Annotated[bool, Field(description="Mark as released")] = False,
+    archived: Annotated[bool, Field(description="Mark as archived")] = False,
+) -> str:
+    """Create a new version in a Jira project (REST API v2, supports Server/DC and Cloud)."""
+    try:
+        _check_write(ctx)
+        data = await _get_jira(ctx).create_version(
+            project_key,
+            name,
+            description=description,
+            release_date=release_date,
+            start_date=start_date,
+            released=released,
+            archived=archived,
+        )
+        return _ok(data)
+    except Exception as e:
+        return _err(e)
+
+
+@mcp.tool(
+    tags={"jira", "versions", "write"},
+    annotations={"readOnlyHint": False, "idempotentHint": True, "openWorldHint": True},
+)
+async def jira_update_version(
+    ctx: Context,
+    version_id: Annotated[str, Field(description="Version ID", min_length=1)],
+    name: Annotated[str | None, Field(description="New version name")] = None,
+    description: Annotated[str | None, Field(description="New description")] = None,
+    release_date: Annotated[str | None, Field(description="Release date (YYYY-MM-DD)")] = None,
+    start_date: Annotated[str | None, Field(description="Start date (YYYY-MM-DD)")] = None,
+    released: Annotated[bool | None, Field(description="Mark as released")] = None,
+    archived: Annotated[bool | None, Field(description="Mark as archived")] = None,
+) -> str:
+    """Update an existing Jira version (REST API v2, supports Server/DC and Cloud)."""
+    try:
+        _check_write(ctx)
+        data = await _get_jira(ctx).update_version(
+            version_id,
+            name=name,
+            description=description,
+            release_date=release_date,
+            start_date=start_date,
+            released=released,
+            archived=archived,
+        )
+        return _ok(data)
+    except Exception as e:
+        return _err(e)
