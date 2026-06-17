@@ -1,11 +1,13 @@
 {
   "name": "mcp-atlassian-extended",
-  "version": "0.6.13",
-  "description": "Extended MCP tools for Jira and Confluence — attachments, agile boards, sprints, calendars",
+  "version": "0.6.14",
+  "description": "Extended MCP tools for Jira and Confluence \u2014 attachments, agile boards, sprints, calendars",
   "mcpServers": {
     "mcp-atlassian-extended": {
       "command": "uvx",
-      "args": ["mcp-atlassian-extended"]
+      "args": [
+        "mcp-atlassian-extended"
+      ]
     }
   },
   "settings": [
