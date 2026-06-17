@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.14] - 2026-06-17
+
+### Bug Fixes
+- fix: sync server.json and gemini-extension.json versions, auto-bump on release (#60) (b45d6a0)
+
+### Chores
+- chore(deps): bump starlette from 0.52.1 to 1.3.1 (#56) (f260bdc)
+- chore(deps): bump fastmcp from 3.0.1 to 3.2.0 (#45) (3d428fa)
+- chore(deps): bump python-multipart from 0.0.22 to 0.0.31 (#59) (7f4f2df)
+- chore(deps): bump cryptography from 46.0.5 to 48.0.1 (#57) (02e1cec)
+- chore(deps): bump authlib from 1.6.8 to 1.6.12 (#53) (eee7601)
+- chore(deps): bump python-dotenv from 1.2.1 to 1.2.2 (#51) (d7916da)
+- chore(deps): bump idna from 3.11 to 3.15 (#54) (2067864)
+- chore(deps): bump pygments from 2.19.2 to 2.20.0 (#44) (ff9f937)
+- chore(deps-dev): bump pytest from 9.0.2 to 9.0.3 (#48) (8ba0c1c)
+- chore(deps): bump pyjwt from 2.11.0 to 2.13.0 (e373ac0)
+- chore(ci): bump softprops/action-gh-release from 2 to 3 (36963db)
+
+
 ## [0.6.13] - 2026-03-05
 
 ### Documentation
