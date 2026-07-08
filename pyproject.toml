@@ -1,6 +1,6 @@
 [project]
 name = "mcp-atlassian-extended"
-version = "0.6.14"
+version = "0.6.15"
 description = "Extended MCP tools for Jira and Confluence — attachments, agile boards, sprints, calendars"
 readme = "README.md"
 license = {text = "MIT"}
