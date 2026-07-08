@@ -1,6 +1,6 @@
 {
   "name": "mcp-atlassian-extended",
-  "version": "0.6.14",
+  "version": "0.6.15",
   "description": "Extended MCP tools for Jira and Confluence \u2014 attachments, agile boards, sprints, calendars",
   "mcpServers": {
     "mcp-atlassian-extended": {
