@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -15,6 +16,8 @@ from httpx import Response
 from mcp_atlassian_extended.clients.confluence import ConfluenceExtendedClient
 from mcp_atlassian_extended.clients.jira import JiraExtendedClient
 from mcp_atlassian_extended.config import ConfluenceConfig, JiraConfig
+from mcp_atlassian_extended.exceptions import WriteDisabledError
+from mcp_atlassian_extended.servers._helpers import _check_write
 
 TEST_JIRA_URL = "https://jira.example.com"
 TEST_CONFLUENCE_URL = "https://confluence.example.com"
@@ -1027,3 +1030,85 @@ class TestUpdateVersion:
         )
         parsed = _parse(result)
         assert "error" in parsed
+
+
+# ═══════════════════════════════════════════════════════
+# Write guard reads the calling tool's own config
+# ═══════════════════════════════════════════════════════
+
+
+def _guard_ctx(*, jira_read_only: bool, confluence_read_only: bool) -> Any:
+    """Minimal stand-in for a FastMCP Context — _check_write only reads the lifespan dict."""
+    lifespan = {
+        "jira_config": JiraConfig(url=TEST_JIRA_URL, token=TEST_TOKEN, read_only=jira_read_only),
+        "confluence_config": ConfluenceConfig(
+            url=TEST_CONFLUENCE_URL, token=TEST_TOKEN, read_only=confluence_read_only
+        ),
+    }
+    return SimpleNamespace(request_context=SimpleNamespace(lifespan_context=lifespan))
+
+
+class TestWriteGuardPerService:
+    """Jira and Confluence read-only flags are independent — each guard reads its own."""
+
+    def test_confluence_read_only_blocks_only_confluence(self):
+        ctx = _guard_ctx(jira_read_only=False, confluence_read_only=True)
+        with pytest.raises(WriteDisabledError):
+            _check_write(ctx, "confluence")
+        _check_write(ctx, "jira")  # Jira is writable — must not raise
+
+    def test_jira_read_only_blocks_only_jira(self):
+        ctx = _guard_ctx(jira_read_only=True, confluence_read_only=False)
+        with pytest.raises(WriteDisabledError):
+            _check_write(ctx, "jira")
+        _check_write(ctx, "confluence")  # Confluence is writable — must not raise
+
+
+# ═══════════════════════════════════════════════════════
+# Team Calendars add-on missing
+# ═══════════════════════════════════════════════════════
+
+
+class TestTeamCalendarsMissing:
+    """All six Confluence tools go through /rest/calendar-services/1.0/ (Team Calendars)."""
+
+    @pytest.mark.parametrize(
+        ("tool", "args"),
+        [
+            ("confluence_list_calendars", {}),
+            ("confluence_search_calendars", {"query": "team"}),
+            (
+                "confluence_get_time_off",
+                {"start_date": "2025-01-01", "end_date": "2025-01-31"},
+            ),
+            ("confluence_who_is_out", {}),
+            (
+                "confluence_get_person_time_off",
+                {
+                    "person": "Alice",
+                    "calendar_name": "Leaves",
+                    "start_date": "2025-01-01",
+                    "end_date": "2025-01-31",
+                },
+            ),
+            (
+                "confluence_sprint_capacity",
+                {
+                    "team_members": ["Alice"],
+                    "sprint_start": "2025-01-01",
+                    "sprint_end": "2025-01-14",
+                },
+            ),
+        ],
+    )
+    async def test_404_explains_the_addon(self, confluence_client, tool, args):
+        client, router = confluence_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(404, text="not found")
+        )
+        parsed = _parse(await client.call_tool(tool, args))
+        assert parsed["status_code"] == 404
+        assert "Team Calendars" in parsed["error"]
+        assert "Team Calendars add-on" in parsed["hint"]
+        # The generic Jira 404 hint must not leak into a Confluence failure.
+        assert "jira_list_projects" not in parsed["hint"]

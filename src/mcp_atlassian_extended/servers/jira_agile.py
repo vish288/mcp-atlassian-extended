@@ -72,7 +72,7 @@ async def jira_move_to_sprint(
 ) -> str:
     """Move issues into a sprint."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         await _get_jira(ctx).move_to_sprint(sprint_id, issue_keys)
         return _ok({"status": "moved", "sprint_id": sprint_id, "issues": issue_keys})
     except Exception as e:
