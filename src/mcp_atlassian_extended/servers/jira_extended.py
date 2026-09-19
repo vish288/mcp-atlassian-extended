@@ -41,7 +41,7 @@ async def jira_upload_attachment(
 ) -> str:
     """Upload a file as an attachment to a Jira issue."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         data = await _get_jira(ctx).upload_attachment(issue_key, file_path, filename)
         return _ok(data)
     except Exception as e:
@@ -59,7 +59,7 @@ async def jira_download_attachment(
 ) -> str:
     """Download a Jira attachment to a local file. Writes to current working directory only."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         from pathlib import Path
 
         save = Path(save_path)
@@ -92,7 +92,7 @@ async def jira_delete_attachment(
 ) -> str:
     """Delete a Jira attachment."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         await _get_jira(ctx).delete_attachment(attachment_id)
         return _ok({"status": "deleted", "attachment_id": attachment_id})
     except Exception as e:
@@ -209,7 +209,7 @@ async def jira_create_version(
 ) -> str:
     """Create a new version in a Jira project (REST API v2, supports Server/DC and Cloud)."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         data = await _get_jira(ctx).create_version(
             project_key,
             name,
@@ -240,7 +240,7 @@ async def jira_update_version(
 ) -> str:
     """Update an existing Jira version (REST API v2, supports Server/DC and Cloud)."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         data = await _get_jira(ctx).update_version(
             version_id,
             name=name,

@@ -109,6 +109,10 @@ The server checks these environment variables in order — first match wins:
 2. `JIRA_PERSONAL_TOKEN`
 3. `JIRA_TOKEN`
 
+Basic auth wins: if both `JIRA_USERNAME` and `JIRA_API_TOKEN` are set, Basic is used and
+any personal access token is ignored. Bearer is used only when the Cloud pair is
+incomplete. Unset `JIRA_USERNAME`/`JIRA_API_TOKEN` to force Bearer.
+
 ### Confluence Cloud (Basic Auth)
 
 | Variable | Required | Default | Description |
@@ -129,6 +133,13 @@ The server checks these environment variables in order — first match wins:
 1. `CONFLUENCE_PAT`
 2. `CONFLUENCE_PERSONAL_TOKEN`
 3. `CONFLUENCE_TOKEN`
+
+Basic auth wins here too: `CONFLUENCE_USERNAME` + `CONFLUENCE_API_TOKEN` take precedence
+over any personal access token.
+
+All Confluence calendar tools require the **Team Calendars** add-on
+(`/rest/calendar-services/1.0/`). On instances without it every calendar tool returns a
+404 with a hint naming the add-on.
 
 ### Optional settings
 

@@ -23,6 +23,21 @@ class AtlassianAuthError(AtlassianApiError):
         super().__init__(status_code, "Authentication failed", body)
 
 
+class TeamCalendarsUnavailableError(AtlassianApiError):
+    """Raised when the Team Calendars add-on endpoints return 404.
+
+    Every Confluence calendar tool goes through ``/rest/calendar-services/1.0/``,
+    which only exists when the Team Calendars add-on is installed.
+    """
+
+    def __init__(self, body: str = "") -> None:
+        super().__init__(
+            404,
+            "Team Calendars add-on not available — /rest/calendar-services/1.0/ returned 404",
+            body,
+        )
+
+
 class WriteDisabledError(AtlassianError):
     """Raised when a write operation is attempted in read-only mode."""
 
