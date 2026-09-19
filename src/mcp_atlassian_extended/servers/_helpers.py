@@ -6,7 +6,7 @@ import functools
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastmcp import Context
 
@@ -51,8 +51,14 @@ def _get_confluence(ctx: Context) -> ConfluenceExtendedClient:
     return client
 
 
-def _check_write(ctx: Context) -> None:
-    if ctx.request_context.lifespan_context["jira_config"].read_only:
+def _check_write(ctx: Context, service: Literal["jira", "confluence"]) -> None:
+    """Block writes when the config for *service* is read-only.
+
+    *service* must name the product the calling tool writes to — Jira tools pass
+    ``"jira"``, Confluence tools pass ``"confluence"``. The two configs are
+    independent, so consulting the wrong one silently ignores the setting.
+    """
+    if ctx.request_context.lifespan_context[f"{service}_config"].read_only:
         raise WriteDisabledError
 
 
@@ -74,7 +80,12 @@ def _paginated(items: list) -> str:
 
 def _err(error: Exception) -> str:
     """Format error as JSON with actionable hints."""
-    from ..exceptions import AtlassianApiError, AtlassianAuthError, WriteDisabledError
+    from ..exceptions import (
+        AtlassianApiError,
+        AtlassianAuthError,
+        TeamCalendarsUnavailableError,
+        WriteDisabledError,
+    )
 
     detail: dict[str, Any] = {"error": str(error)}
 
@@ -84,6 +95,15 @@ def _err(error: Exception) -> str:
         detail["hint"] = (
             "Check authentication. For Jira Data Center use JIRA_PAT; "
             "for Jira Cloud use JIRA_USERNAME + JIRA_API_TOKEN."
+        )
+    elif isinstance(error, TeamCalendarsUnavailableError):
+        detail["status_code"] = error.status_code
+        detail["body"] = error.body
+        detail["hint"] = (
+            "Every Confluence calendar tool requires the Team Calendars add-on, "
+            "which serves /rest/calendar-services/1.0/. Install or enable it on the "
+            "Confluence instance, and check CONFLUENCE_URL — Cloud URLs usually need "
+            "the /wiki suffix."
         )
     elif isinstance(error, WriteDisabledError):
         detail["hint"] = (

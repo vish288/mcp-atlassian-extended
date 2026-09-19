@@ -38,7 +38,7 @@ async def jira_create_issue(
     custom_fields example: {"customfield_10004": 5, "customfield_12345": {"value": "MyTeam"}}
     """
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         data = await _get_jira(ctx).create_issue(
             project_key,
             summary,
@@ -71,7 +71,7 @@ async def jira_update_issue(
 ) -> str:
     """Update a Jira issue's standard and custom fields."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         await _get_jira(ctx).update_issue(issue_key, fields=fields, custom_fields=custom_fields)
         return _ok({"status": "updated", "issue_key": issue_key})
     except Exception as e:
@@ -98,7 +98,7 @@ async def jira_create_epic(
 ) -> str:
     """Create a Jira epic. Sets issue type to Epic automatically."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         data = await _get_jira(ctx).create_issue(
             project_key,
             epic_name,
@@ -134,7 +134,7 @@ async def jira_create_link(
 ) -> str:
     """Create a link between two Jira issues."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         await _get_jira(ctx).create_issue_link(
             link_type, inward_issue, outward_issue, comment=comment
         )
@@ -160,7 +160,7 @@ async def jira_delete_link(
 ) -> str:
     """Delete a Jira issue link by its ID."""
     try:
-        _check_write(ctx)
+        _check_write(ctx, "jira")
         await _get_jira(ctx).delete_issue_link(link_id)
         return _ok({"status": "deleted", "link_id": link_id})
     except Exception as e:

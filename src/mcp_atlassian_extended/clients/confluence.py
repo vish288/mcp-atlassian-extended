@@ -8,9 +8,12 @@ from typing import Any
 import httpx
 
 from ..config import ConfluenceConfig
-from ..exceptions import AtlassianApiError, AtlassianAuthError
+from ..exceptions import AtlassianApiError, AtlassianAuthError, TeamCalendarsUnavailableError
 
 LEAVE_KEYWORDS = ("vacation", "time off", "leaves", "time-off", "pto")
+
+# Every calendar endpoint lives under the Team Calendars add-on namespace.
+CALENDAR_API = "/rest/calendar-services/1.0/calendar"
 
 
 class ConfluenceExtendedClient:
@@ -33,6 +36,8 @@ class ConfluenceExtendedClient:
         resp = await self._client.get(path, params=params)
         if resp.status_code in (401, 403):
             raise AtlassianAuthError(resp.status_code, resp.text)
+        if resp.status_code == 404 and path.startswith(CALENDAR_API):
+            raise TeamCalendarsUnavailableError(resp.text[:500])
         if not resp.is_success:
             raise AtlassianApiError(resp.status_code, resp.reason_phrase or "", resp.text)
         if not resp.content:
@@ -50,7 +55,7 @@ class ConfluenceExtendedClient:
     # ── Calendars ─────────────────────────────────────────────────
 
     async def list_calendars(self) -> list[dict]:
-        data = await self._get("/rest/calendar-services/1.0/calendar/subcalendars.json")
+        data = await self._get(f"{CALENDAR_API}/subcalendars.json")
         if isinstance(data, dict):
             return data.get("payload", [])
         return data or []
@@ -65,10 +70,7 @@ class ConfluenceExtendedClient:
         params: list[tuple[str, str]] = [("start", start), ("end", end)]
         for cal_id in sub_calendar_ids:
             params.append(("subCalendarId", cal_id))
-        data = await self._get(
-            "/rest/calendar-services/1.0/calendar/events.json",
-            params=params,
-        )
+        data = await self._get(f"{CALENDAR_API}/events.json", params=params)
         events = data.get("events", []) if isinstance(data, dict) else data
         return events or []
 

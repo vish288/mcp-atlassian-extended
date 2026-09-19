@@ -7,13 +7,29 @@ import os
 from dataclasses import dataclass
 
 
+def _auth_header(token: str, username: str, api_token: str) -> dict[str, str]:
+    """Build the Authorization header.
+
+    Precedence: Cloud basic auth wins. If both *username* and *api_token* are set,
+    Basic is used and any personal access token is ignored — otherwise a stray
+    ``JIRA_TOKEN``/``CONFLUENCE_TOKEN`` in the environment would silently shadow
+    the Cloud credentials. Bearer is used only when basic auth is incomplete.
+    """
+    if username and api_token:
+        creds = base64.b64encode(f"{username}:{api_token}".encode()).decode()
+        return {"Authorization": f"Basic {creds}"}
+    if token:
+        return {"Authorization": f"Bearer {token}"}
+    return {}
+
+
 @dataclass
 class JiraConfig:
     """Jira connection configuration from environment.
 
     Supports two authentication modes:
+    - Basic auth: Set JIRA_USERNAME + JIRA_API_TOKEN (for Jira Cloud) — takes precedence
     - Bearer token: Set JIRA_PAT or JIRA_PERSONAL_TOKEN (for Jira Data Center / self-hosted)
-    - Basic auth: Set JIRA_USERNAME + JIRA_API_TOKEN (for Jira Cloud)
     """
 
     url: str = ""
@@ -61,13 +77,8 @@ class JiraConfig:
 
     @property
     def auth_header(self) -> dict[str, str]:
-        """Return the appropriate Authorization header."""
-        if self.token:
-            return {"Authorization": f"Bearer {self.token}"}
-        if self.username and self.api_token:
-            creds = base64.b64encode(f"{self.username}:{self.api_token}".encode()).decode()
-            return {"Authorization": f"Basic {creds}"}
-        return {}
+        """Return the Authorization header — Basic (Cloud) wins over Bearer."""
+        return _auth_header(self.token, self.username, self.api_token)
 
 
 @dataclass
@@ -75,8 +86,8 @@ class ConfluenceConfig:
     """Confluence connection configuration from environment.
 
     Supports two authentication modes:
+    - Basic auth: Set CONFLUENCE_USERNAME + CONFLUENCE_API_TOKEN (Cloud) — takes precedence
     - Bearer token: Set CONFLUENCE_PAT or CONFLUENCE_PERSONAL_TOKEN (Data Center)
-    - Basic auth: Set CONFLUENCE_USERNAME + CONFLUENCE_API_TOKEN (Cloud)
     """
 
     url: str = ""
@@ -126,10 +137,5 @@ class ConfluenceConfig:
 
     @property
     def auth_header(self) -> dict[str, str]:
-        """Return the appropriate Authorization header."""
-        if self.token:
-            return {"Authorization": f"Bearer {self.token}"}
-        if self.username and self.api_token:
-            creds = base64.b64encode(f"{self.username}:{self.api_token}".encode()).decode()
-            return {"Authorization": f"Basic {creds}"}
-        return {}
+        """Return the Authorization header — Basic (Cloud) wins over Bearer."""
+        return _auth_header(self.token, self.username, self.api_token)
