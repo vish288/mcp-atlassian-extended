@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0] - 2026-09-20
+
+### Bug Fixes
+- fix: client Content-Type broke attachment uploads; correct auth error messages (cbda978)
+- fix: scope write guard per service and stop PAT shadowing cloud basic auth (da81fee)
+
+
 ## [0.6.16] - 2026-08-22
 
 ### Chores
