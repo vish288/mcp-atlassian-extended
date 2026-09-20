@@ -110,11 +110,14 @@ async def jira_search_users(
     ctx: Context,
     query: Annotated[str, Field(description="Search by name, email, or username", min_length=1)],
     max_results: Annotated[int, Field(description="Maximum results", ge=1, le=100)] = 10,
+    start_at: Annotated[
+        int, Field(description="Index of the first result (use next_start_at to page)", ge=0)
+    ] = 0,
 ) -> str:
     """Search for Jira users."""
     try:
-        data = await _get_jira(ctx).search_users(query, max_results)
-        return _paginated(data)
+        data = await _get_jira(ctx).search_users(query, max_results, start_at)
+        return _paginated(data, start_at=start_at, max_results=max_results)
     except Exception as e:
         return _err(e)
 
@@ -165,11 +168,19 @@ async def jira_backlog(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID", ge=1)],
     max_results: Annotated[int, Field(description="Maximum results", ge=1, le=100)] = 50,
+    start_at: Annotated[
+        int, Field(description="Index of the first result (use next_start_at to page)", ge=0)
+    ] = 0,
 ) -> str:
     """Get backlog issues for a board."""
     try:
-        data = await _get_jira(ctx).get_backlog(board_id, max_results)
-        return _ok(data)
+        data = await _get_jira(ctx).get_backlog(board_id, max_results, start_at)
+        return _paginated(
+            data.get("issues", []),
+            start_at=data.get("startAt", start_at),
+            total=data.get("total"),
+            max_results=max_results,
+        )
     except Exception as e:
         return _err(e)
 

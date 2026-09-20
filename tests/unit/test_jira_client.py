@@ -144,6 +144,33 @@ class TestDownloadUrlValidation:
         result = client._validate_download_url("/rest/api/2/attachment/content/123")
         assert result == "/rest/api/2/attachment/content/123"
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            # Same host, downgraded to cleartext.
+            "http://jira.example.com/rest/api/2/attachment/content/123",
+            # Same host and scheme, different port.
+            "https://jira.example.com:9999/rest/api/2/attachment/content/123",
+            # Both.
+            "http://jira.example.com:9999/rest/api/2/attachment/content/123",
+        ],
+    )
+    def test_rejects_same_host_different_origin(self, url):
+        """The request that follows carries the Bearer token.
+
+        Comparing hostname alone let a cleartext downgrade, or another port on
+        the same host, through -- leaking the credential the check protects.
+        """
+        client = _make_client()
+        with pytest.raises(ValueError, match="doesn't match"):
+            client._validate_download_url(url)
+
+    def test_accepts_explicit_default_port(self):
+        """https://host and https://host:443 are the same origin."""
+        client = _make_client()
+        url = "https://jira.example.com:443/rest/api/2/attachment/content/123"
+        assert client._validate_download_url(url) == url
+
 
 class TestVersions:
     @pytest.mark.asyncio
