@@ -120,10 +120,16 @@ jobs:
           ENTRY="## [${NEXT_VERSION}] - ${DATE}"$'\n'
 
           # Collect commits grouped by type
+          # Classify on the SUBJECT only. `git log --grep` matches the whole
+          # commit message, so a wrapped body line beginning "test ..." filed the
+          # same commit under both "Bug Fixes" and "Tests".
+          ALL_COMMITS=$(git log "$RANGE" --pretty=format:"%s|%h" 2>/dev/null || true)
           for type_label in "feat:Features" "fix:Bug Fixes" "refactor:Refactoring" "docs:Documentation" "perf:Performance" "test:Tests" "chore:Chores"; do
             type="${type_label%%:*}"
             label="${type_label#*:}"
-            commits=$(git log "$RANGE" --pretty=format:"- %s (%h)" --grep="^${type}" 2>/dev/null || true)
+            commits=$(printf '%s\n' "$ALL_COMMITS" \
+              | { grep -E "^${type}(\(.*\))?!?:" || true; } \
+              | while IFS='|' read -r msg hash; do printf -- "- %s (%s)\n" "$msg" "$hash"; done)
             if [ -n "$commits" ]; then
               ENTRY+=$'\n'"### ${label}"$'\n'
               ENTRY+="${commits}"$'\n'
@@ -131,8 +137,8 @@ jobs:
           done
 
           # Collect commits that don't match any conventional type
-          other=$(git log "$RANGE" --pretty=format:"%s|%h" 2>/dev/null | \
-            grep -v -E "^(feat|fix|refactor|docs|perf|test|chore)(\(.*\))?:" || true)
+          other=$(printf '%s\n' "$ALL_COMMITS" \
+            | { grep -v -E "^(feat|fix|refactor|docs|perf|test|chore)(\(.*\))?!?:" || true; })
           if [ -n "$other" ]; then
             ENTRY+=$'\n'"### Other"$'\n'
             echo "$other" | while IFS='|' read -r msg hash; do
