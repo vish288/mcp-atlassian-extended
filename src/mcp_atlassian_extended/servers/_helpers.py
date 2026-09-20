@@ -95,6 +95,10 @@ def _paginated(
             has_more = next_start_at < total
         elif max_results is not None:
             # No total from the API: a full page implies there may be more.
+            # Deliberately over-reports by one page when the result count is an
+            # exact multiple of max_results -- the follow-up call returns an
+            # empty page and stops. Do not "fix" this to `>`: under-reporting
+            # would silently drop the tail, which is the bug being fixed here.
             has_more = len(items) == max_results
         else:
             has_more = False
