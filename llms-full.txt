@@ -71,7 +71,15 @@ MCP server that complements mcp-atlassian with zero tool overlap. Provides issue
 | `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
 | `CONFLUENCE_SSL_VERIFY` | `true` | Skip SSL verification for Confluence |
 
-Partial configuration is supported: set only Jira credentials for Jira-only tools, or only Confluence credentials for calendar/time-off tools. The server loads `.env` files from the working directory automatically.
+### Auth precedence
+
+Basic auth wins. If both `JIRA_USERNAME` and `JIRA_API_TOKEN` are set, Basic is used and any personal access token (`JIRA_PAT`, `JIRA_PERSONAL_TOKEN`, `JIRA_TOKEN`) is ignored. Bearer is used only when the Cloud pair is incomplete. Unset `JIRA_USERNAME`/`JIRA_API_TOKEN` to force Bearer. `CONFLUENCE_*` follows the same rule.
+
+### Team Calendars add-on
+
+All six Confluence tools call `/rest/calendar-services/1.0/`, which only exists when the **Team Calendars** add-on is installed. Without it every Confluence tool returns a 404 whose hint names the add-on.
+
+Partial configuration is supported: Jira and Confluence are configured independently, so set either or both. All 26 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set. The server loads `.env` files from the working directory automatically.
 
 ## Configuration Example
 

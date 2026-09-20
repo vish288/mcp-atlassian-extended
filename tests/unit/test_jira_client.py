@@ -197,3 +197,33 @@ class TestVersions:
             client = _make_client()
             result = await client.update_version("200", released=True)
             assert result["released"] is True
+
+
+class TestContentType:
+    """A client-level Content-Type would override httpx's per-request value."""
+
+    @pytest.mark.asyncio
+    async def test_upload_sends_multipart(self, tmp_path):
+        f = tmp_path / "note.txt"
+        f.write_text("hello")
+        async with respx.mock(base_url=BASE) as router:
+            route = router.post("/rest/api/2/issue/PROJ-123/attachments").mock(
+                return_value=httpx.Response(200, json=[{"id": "9", "filename": "note.txt"}])
+            )
+            client = _make_client()
+            await client.upload_attachment("PROJ-123", str(f))
+            sent = route.calls.last.request
+            content_type = sent.headers["content-type"]
+            assert content_type.startswith("multipart/form-data")
+            assert "boundary=" in content_type
+            assert sent.headers["x-atlassian-token"] == "no-check"
+
+    @pytest.mark.asyncio
+    async def test_json_request_still_sends_json(self):
+        async with respx.mock(base_url=BASE) as router:
+            route = router.post("/rest/api/2/issue").mock(
+                return_value=httpx.Response(201, json={"key": "PROJ-1"})
+            )
+            client = _make_client()
+            await client.create_issue("PROJ", "Summary")
+            assert route.calls.last.request.headers["content-type"] == "application/json"

@@ -390,7 +390,7 @@ uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx 
 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 
-**Partial configuration**: If only Jira credentials are set, the server starts with Jira tools only (no Confluence tools). The reverse also works — set only Confluence credentials to get calendar/time-off tools without Jira.
+**Partial configuration**: Jira and Confluence are configured independently — set either or both. All 26 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set, rather than failing at startup.
 
 ## Related MCP Servers
 
