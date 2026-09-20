@@ -6,6 +6,7 @@ import json
 import mimetypes
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -17,6 +18,20 @@ MIME_OVERRIDES = {
     ".txt": "text/plain",
     ".json": "application/json",
 }
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _origin(url: str) -> tuple[str, str, int | None]:
+    """Return (scheme, host, port) with the scheme's default port filled in.
+
+    Comparing full origins rather than bare hostnames: a downgrade to http, or a
+    different port on the same host, is a different destination, and the request
+    that follows carries the Bearer token.
+    """
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    return (scheme, (parsed.hostname or "").lower(), parsed.port or _DEFAULT_PORTS.get(scheme))
 
 
 class JiraExtendedClient:
@@ -117,16 +132,21 @@ class JiraExtendedClient:
         return resolved
 
     def _validate_download_url(self, url: str) -> str:
-        """Validate download URL domain matches configured Jira URL."""
-        if url.startswith(("http://", "https://")):
-            from urllib.parse import urlparse
+        """Validate a download URL points at the configured Jira instance.
 
-            parsed = urlparse(url)
-            expected = urlparse(self.config.url)
-            if parsed.hostname != expected.hostname:
+        The whole origin must match, not just the host. Checking the hostname
+        alone let ``http://jira.example.com:9999/...`` through against an
+        ``https://jira.example.com`` config -- and the request that follows
+        sends the Bearer token, so a downgrade to cleartext or a redirect to
+        another port on the same host leaked the credential this check exists
+        to protect.
+        """
+        if url.startswith(("http://", "https://")):
+            actual, expected = _origin(url), _origin(self.config.url)
+            if actual != expected:
                 msg = (
-                    f"URL domain {parsed.hostname} doesn't match "
-                    f"configured Jira URL {expected.hostname}"
+                    f"URL origin {actual[0]}://{actual[1]}:{actual[2]} doesn't match "
+                    f"configured Jira URL {expected[0]}://{expected[1]}:{expected[2]}"
                 )
                 raise ValueError(msg)
         return url
@@ -178,10 +198,12 @@ class JiraExtendedClient:
 
     # ── Users ─────────────────────────────────────────────────────
 
-    async def search_users(self, query: str, max_results: int = 10) -> list[dict]:
+    async def search_users(
+        self, query: str, max_results: int = 10, start_at: int = 0
+    ) -> list[dict]:
         return await self.get(
             "/rest/api/2/user/search",
-            params={"username": query, "maxResults": max_results},
+            params={"username": query, "maxResults": max_results, "startAt": start_at},
         )
 
     # ── Metadata ──────────────────────────────────────────────────
@@ -200,10 +222,10 @@ class JiraExtendedClient:
     async def get_board_config(self, board_id: int) -> dict:
         return await self.get(f"/rest/agile/1.0/board/{board_id}/configuration")
 
-    async def get_backlog(self, board_id: int, max_results: int = 50) -> dict:
+    async def get_backlog(self, board_id: int, max_results: int = 50, start_at: int = 0) -> dict:
         return await self.get(
             f"/rest/agile/1.0/board/{board_id}/backlog",
-            params={"fields": "*all", "maxResults": max_results},
+            params={"fields": "*all", "maxResults": max_results, "startAt": start_at},
         )
 
     # ── Agile: Sprints ────────────────────────────────────────────
