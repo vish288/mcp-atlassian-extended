@@ -17,7 +17,7 @@ from mcp_atlassian_extended.clients.confluence import ConfluenceExtendedClient
 from mcp_atlassian_extended.clients.jira import JiraExtendedClient
 from mcp_atlassian_extended.config import ConfluenceConfig, JiraConfig
 from mcp_atlassian_extended.exceptions import WriteDisabledError
-from mcp_atlassian_extended.servers._helpers import _check_write
+from mcp_atlassian_extended.servers._helpers import _check_write, _get_confluence, _get_jira
 
 TEST_JIRA_URL = "https://jira.example.com"
 TEST_CONFLUENCE_URL = "https://confluence.example.com"
@@ -456,6 +456,19 @@ class TestErrorHints:
         assert "error" in parsed
         assert "hint" in parsed
         assert "authentication" in parsed["hint"].lower() or "PAT" in parsed["hint"]
+        # The hint must name Confluence vars — a Confluence 401 used to be answered
+        # with a Jira-only hint.
+        assert "CONFLUENCE_PAT" in parsed["hint"]
+        assert "CONFLUENCE_API_TOKEN" in parsed["hint"]
+
+    async def test_auth_hint_states_basic_beats_pat(self, tool_client):
+        """A complete Cloud pair wins over a PAT — the hint must say so."""
+        client, router = tool_client
+        router.get("/rest/api/2/issue/PROJ-123").mock(return_value=Response(403, text="Forbidden"))
+        result = await client.call_tool("jira_get_attachments", {"issue_key": "PROJ-123"})
+        parsed = _parse(result)
+        assert "precedence" in parsed["hint"].lower()
+        assert "JIRA_API_TOKEN" in parsed["hint"]
 
     async def test_validation_422_hint(self, tool_client):
         client, router = tool_client
@@ -1062,6 +1075,29 @@ class TestWriteGuardPerService:
         with pytest.raises(WriteDisabledError):
             _check_write(ctx, "jira")
         _check_write(ctx, "confluence")  # Confluence is writable — must not raise
+
+
+class TestNotConfiguredMessage:
+    """Cloud basic auth is a supported way to configure either product — say so."""
+
+    @staticmethod
+    def _ctx() -> Any:
+        lifespan = {"jira_client": None, "confluence_client": None}
+        return SimpleNamespace(request_context=SimpleNamespace(lifespan_context=lifespan))
+
+    def test_jira_message_names_both_auth_modes(self):
+        with pytest.raises(ValueError, match="not configured") as exc:
+            _get_jira(self._ctx())
+        assert "JIRA_USERNAME" in str(exc.value)
+        assert "JIRA_API_TOKEN" in str(exc.value)
+        assert "JIRA_PAT" in str(exc.value)
+
+    def test_confluence_message_names_both_auth_modes(self):
+        with pytest.raises(ValueError, match="not configured") as exc:
+            _get_confluence(self._ctx())
+        assert "CONFLUENCE_USERNAME" in str(exc.value)
+        assert "CONFLUENCE_API_TOKEN" in str(exc.value)
+        assert "CONFLUENCE_PAT" in str(exc.value)
 
 
 # ═══════════════════════════════════════════════════════

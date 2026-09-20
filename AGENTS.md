@@ -23,7 +23,7 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 | `src/mcp_atlassian_extended/servers/prompts.py` | 5 MCP prompts |
 | `src/mcp_atlassian_extended/resources/*.md` | resource bodies (+ `prompts/` subdir for prompt bodies) |
 | `src/mcp_atlassian_extended/models/` | empty package (see Known Limitations) |
-| `tests/unit/` | unit + FastMCP in-process client tests (~135 tests; `test_tools.py` alone has 55) |
+| `tests/unit/` | unit + FastMCP in-process client tests (~155 tests; `test_tools.py` alone has 66) |
 | `tests/test_links.py` | CI link checker — fetches every URL in README, pyproject, server.json, llms*.txt |
 | `evaluations/eval.xml` | tool-selection eval fixtures |
 
@@ -115,11 +115,12 @@ delete, move, upload, download.
 
 ### Read-only mode
 
-- Every write tool calls `_check_write(ctx)` before any mutation.
+- Every write tool calls `_check_write(ctx, "jira")` or `_check_write(ctx, "confluence")`
+  before any mutation. The second argument is mandatory and must name the product the
+  tool writes to — the helper reads that product's config, and the two read-only flags
+  are independent even though both default from `ATLASSIAN_READ_ONLY`.
 - `jira_download_attachment` is tagged `write` because it writes to local disk.
-- **Gotcha:** `_check_write` reads `jira_config.read_only` only. `ATLASSIAN_READ_ONLY`
-  is read by both configs, so the shared env var makes this work in practice — but a
-  Confluence-only deployment gated through `confluence_config` would not be checked.
+- All current write tools are Jira tools; the six Confluence tools are read-only.
 
 ### Errors
 
@@ -227,7 +228,8 @@ Gotchas:
   the user gets an explanation instead of a bare 404.
 - Jira and Confluence are configured independently. An unconfigured client is `None`,
   and its tools return a "not configured" error rather than failing at startup.
-- `.env` is loaded by the CLI via `load_dotenv()`; see `.env.example`.
+- `.env` is loaded by the CLI via `load_dotenv()` from the working directory. The repo
+  ships no `.env.example`; the variable tables above are the reference.
 
 ## Release workflow
 
@@ -265,8 +267,8 @@ of these in the same commit:
 - `llms.txt` — count in the tagline and documentation link
 - `llms-full.txt` — count in the tagline, documentation link, and full tool reference
 - `AGENTS.md` — count in the intro, layout table, Tools table
-- `GEMINI.md` — count in the intro, tool categories, common workflows
-- `server.json` — `description` (≤100 chars)
+- `server.json` — `description` (≤100 chars) and `environmentVariables`
+- `gemini-extension.json` — `description` and `settings`
 
 Checklist: registered tool count matches the documented count; the category list is
 complete; new tools appear in every reference section with their parameters and
