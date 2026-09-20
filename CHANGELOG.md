@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.2] - 2026-09-20
+
+### Bug Fixes
+- fix(deps): bump click to clear PYSEC-2026-2132 (d3b1ca6)
+- fix(ci): changelog classified commits by whole message, not subject (9b455ce)
+
+### Chores
+- chore(release): 0.7.1 (542faf8)
+- chore(deps): bump anyio in the uv group across 1 directory (5e7297b)
+
+
 ## [0.7.1] - 2026-09-20
 
 ### Bug Fixes
