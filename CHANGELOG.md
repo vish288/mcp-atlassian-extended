@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0] - 2026-09-20
+
+### Bug Fixes
+- fix: compare full origin on attachment URLs, and report real paging state (55e113b)
+
+### Documentation
+- docs: record the has_more over-report as deliberate (efbeceb)
+
+
 ## [0.7.2] - 2026-09-20
 
 ### Bug Fixes
