@@ -24,7 +24,11 @@ class JiraExtendedClient:
 
     def __init__(self, config: JiraConfig | None = None) -> None:
         self.config = config or JiraConfig.from_env()
-        headers = {"Content-Type": "application/json", **self.config.auth_header}
+        # No client-level Content-Type: httpx sets it per request — application/json
+        # for ``json=`` bodies, multipart/form-data (with boundary) for ``files=``.
+        # A client-level value wins over both and would send attachment uploads
+        # labelled application/json with no boundary.
+        headers = dict(self.config.auth_header)
         self._client = httpx.AsyncClient(
             base_url=self.config.url,
             headers=headers,

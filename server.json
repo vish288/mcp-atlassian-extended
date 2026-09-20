@@ -24,22 +24,50 @@
           "isSecret": false
         },
         {
-          "name": "JIRA_TOKEN",
-          "description": "Jira personal access token (also accepts JIRA_PAT)",
-          "isRequired": true,
-          "format": "string",
-          "isSecret": true
-        },
-        {
-          "name": "CONFLUENCE_URL",
-          "description": "Confluence instance URL (optional, for Confluence tools)",
+          "name": "JIRA_USERNAME",
+          "description": "Jira Cloud account email. With JIRA_API_TOKEN this takes precedence over any token below.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
         },
         {
-          "name": "CONFLUENCE_TOKEN",
-          "description": "Confluence personal access token (also accepts CONFLUENCE_PAT)",
+          "name": "JIRA_API_TOKEN",
+          "description": "Jira Cloud API token, used with JIRA_USERNAME (basic auth)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "JIRA_PAT",
+          "description": "Jira personal access token for Data Center (aliases: JIRA_PERSONAL_TOKEN, JIRA_TOKEN). Ignored when JIRA_USERNAME and JIRA_API_TOKEN are both set.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "CONFLUENCE_URL",
+          "description": "Confluence instance URL (optional, for Confluence tools). Cloud URLs usually need the /wiki suffix.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CONFLUENCE_USERNAME",
+          "description": "Confluence Cloud account email. With CONFLUENCE_API_TOKEN this takes precedence over any token below.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CONFLUENCE_API_TOKEN",
+          "description": "Confluence Cloud API token, used with CONFLUENCE_USERNAME (basic auth)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "CONFLUENCE_PAT",
+          "description": "Confluence personal access token for Data Center (aliases: CONFLUENCE_PERSONAL_TOKEN, CONFLUENCE_TOKEN). Confluence tools also require the Team Calendars add-on.",
           "isRequired": false,
           "format": "string",
           "isSecret": true

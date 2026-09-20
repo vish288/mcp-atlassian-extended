@@ -18,21 +18,45 @@
       "sensitive": false
     },
     {
+      "name": "JIRA_USERNAME",
+      "description": "Jira Cloud account email. With JIRA_API_TOKEN it takes precedence over JIRA_PAT.",
+      "required": false,
+      "sensitive": false
+    },
+    {
+      "name": "JIRA_API_TOKEN",
+      "description": "Jira Cloud API token, used with JIRA_USERNAME (basic auth)",
+      "required": false,
+      "sensitive": true
+    },
+    {
       "name": "JIRA_PAT",
-      "description": "Jira personal access token",
-      "required": true,
+      "description": "Jira personal access token for Data Center. Ignored when JIRA_USERNAME and JIRA_API_TOKEN are both set.",
+      "required": false,
       "sensitive": true
     },
     {
       "name": "CONFLUENCE_URL",
-      "description": "Confluence instance URL (e.g., https://your-org.atlassian.net/wiki)",
-      "required": true,
+      "description": "Confluence instance URL (e.g., https://your-org.atlassian.net/wiki). Optional: only needed for the Confluence tools.",
+      "required": false,
       "sensitive": false
     },
     {
+      "name": "CONFLUENCE_USERNAME",
+      "description": "Confluence Cloud account email. With CONFLUENCE_API_TOKEN it takes precedence over CONFLUENCE_PAT.",
+      "required": false,
+      "sensitive": false
+    },
+    {
+      "name": "CONFLUENCE_API_TOKEN",
+      "description": "Confluence Cloud API token, used with CONFLUENCE_USERNAME (basic auth)",
+      "required": false,
+      "sensitive": true
+    },
+    {
       "name": "CONFLUENCE_PAT",
-      "description": "Confluence personal access token",
-      "required": true,
+      "description": "Confluence personal access token for Data Center. Confluence tools also require the Team Calendars add-on.",
+      "required": false,
       "sensitive": true
     }
   ]

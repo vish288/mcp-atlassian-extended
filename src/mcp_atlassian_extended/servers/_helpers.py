@@ -35,7 +35,10 @@ def _load_file(base_dir: str, filename: str) -> str:
 def _get_jira(ctx: Context) -> JiraExtendedClient:
     client = ctx.request_context.lifespan_context["jira_client"]
     if client is None:
-        msg = "Jira is not configured. Set JIRA_URL and JIRA_PAT environment variables."
+        msg = (
+            "Jira is not configured. Set JIRA_URL plus either "
+            "JIRA_USERNAME + JIRA_API_TOKEN (Cloud) or JIRA_PAT (Data Center)."
+        )
         raise ValueError(msg)
     return client
 
@@ -44,8 +47,9 @@ def _get_confluence(ctx: Context) -> ConfluenceExtendedClient:
     client = ctx.request_context.lifespan_context["confluence_client"]
     if client is None:
         msg = (
-            "Confluence is not configured."
-            " Set CONFLUENCE_URL and CONFLUENCE_PAT environment variables."
+            "Confluence is not configured. Set CONFLUENCE_URL plus either "
+            "CONFLUENCE_USERNAME + CONFLUENCE_API_TOKEN (Cloud) or "
+            "CONFLUENCE_PAT (Data Center)."
         )
         raise ValueError(msg)
     return client
@@ -93,8 +97,10 @@ def _err(error: Exception) -> str:
         detail["status_code"] = error.status_code
         detail["body"] = error.body
         detail["hint"] = (
-            "Check authentication. For Jira Data Center use JIRA_PAT; "
-            "for Jira Cloud use JIRA_USERNAME + JIRA_API_TOKEN."
+            "Check the credentials for the product this tool targets. "
+            "Cloud: JIRA_USERNAME + JIRA_API_TOKEN, or CONFLUENCE_USERNAME + "
+            "CONFLUENCE_API_TOKEN — a complete Cloud pair takes precedence over a PAT. "
+            "Data Center: JIRA_PAT or CONFLUENCE_PAT."
         )
     elif isinstance(error, TeamCalendarsUnavailableError):
         detail["status_code"] = error.status_code
@@ -129,8 +135,8 @@ def _err(error: Exception) -> str:
         msg = str(error).lower()
         if "not configured" in msg:
             detail["hint"] = (
-                "Client not configured. Set required environment variables "
-                "(JIRA_URL, JIRA_PAT, etc.)."
+                "Client not configured. Set the URL and credentials for that product "
+                "(JIRA_URL / CONFLUENCE_URL plus a Cloud username + API token, or a PAT)."
             )
         elif "traversal" in msg:
             detail["hint"] = "Path traversal is not allowed for security reasons."
