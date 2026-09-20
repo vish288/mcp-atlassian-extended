@@ -635,7 +635,32 @@ class TestBacklog:
         )
         result = await client.call_tool("jira_backlog", {"board_id": 42})
         parsed = _parse(result)
-        assert parsed["issues"][0]["key"] == "PROJ-10"
+        # jira_backlog now returns the same envelope as every other list tool
+        # instead of leaking the raw Agile payload.
+        assert parsed["items"][0]["key"] == "PROJ-10"
+        assert parsed["count"] == 1
+        assert parsed["total"] == 1
+        assert parsed["has_more"] is False
+        assert parsed["next_start_at"] is None
+
+    async def test_reports_more_pages(self, tool_client):
+        """A capped page must say so, and say where to resume."""
+        client, router = tool_client
+        router.get("/rest/agile/1.0/board/42/backlog").mock(
+            return_value=Response(
+                200,
+                json={
+                    "issues": [{"key": f"PROJ-{n}"} for n in range(50)],
+                    "startAt": 0,
+                    "total": 120,
+                },
+            )
+        )
+        result = await client.call_tool("jira_backlog", {"board_id": 42})
+        parsed = _parse(result)
+        assert parsed["has_more"] is True
+        assert parsed["next_start_at"] == 50
+        assert parsed["total"] == 120
 
 
 # ═══════════════════════════════════════════════════════

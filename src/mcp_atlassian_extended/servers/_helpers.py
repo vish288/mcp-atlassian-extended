@@ -70,16 +70,41 @@ def _ok(data: Any) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False)
 
 
-def _paginated(items: list) -> str:
-    """Wrap a list response with pagination metadata."""
-    return json.dumps(
-        {
-            "items": items,
-            "count": len(items),
-        },
-        indent=2,
-        ensure_ascii=False,
-    )
+def _paginated(
+    items: list,
+    *,
+    start_at: int | None = None,
+    total: int | None = None,
+    max_results: int | None = None,
+) -> str:
+    """Wrap a list response, reporting real paging state when the API has one.
+
+    ``count`` is the size of *this* page, never a grand total. Callers hitting a
+    genuinely paged endpoint pass ``start_at`` (and ``total``/``max_results``
+    when the API returns them), which adds ``has_more`` and ``next_start_at`` so
+    a truncated result can actually be continued. Endpoints that return their
+    full collection in one response (``/rest/api/2/field``,
+    ``/rest/api/2/project``) pass nothing and get a bare count -- which is the
+    honest answer for them.
+    """
+    payload: dict[str, Any] = {"items": items, "count": len(items)}
+
+    if start_at is not None:
+        next_start_at = start_at + len(items)
+        if total is not None:
+            has_more = next_start_at < total
+        elif max_results is not None:
+            # No total from the API: a full page implies there may be more.
+            has_more = len(items) == max_results
+        else:
+            has_more = False
+        payload["start_at"] = start_at
+        if total is not None:
+            payload["total"] = total
+        payload["has_more"] = has_more
+        payload["next_start_at"] = next_start_at if has_more else None
+
+    return json.dumps(payload, indent=2, ensure_ascii=False)
 
 
 def _err(error: Exception) -> str:
