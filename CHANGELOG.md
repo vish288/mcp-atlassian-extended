@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.1] - 2026-09-21
+
+### Bug Fixes
+- fix: make link checks opt-in and run them weekly (fac8baa)
+
+
 ## [0.8.0] - 2026-09-20
 
 ### Bug Fixes
