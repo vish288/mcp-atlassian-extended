@@ -90,6 +90,7 @@ dev = [
 ]
 
 [tool.coverage.run]
+source = ["src"]
 omit = [
     "src/mcp_atlassian_extended/__init__.py",
     "src/mcp_atlassian_extended/__main__.py",
