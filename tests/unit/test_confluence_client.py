@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import httpx
-import pytest
 import respx
 
 from mcp_atlassian_extended.clients.confluence import ConfluenceExtendedClient
@@ -17,7 +16,6 @@ def _make_client() -> ConfluenceExtendedClient:
 
 
 class TestConfluenceClient:
-    @pytest.mark.asyncio
     async def test_list_calendars(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
@@ -42,7 +40,6 @@ class TestConfluenceClient:
             assert len(result) == 1
             assert result[0]["subCalendar"]["name"] == "Team Calendar"
 
-    @pytest.mark.asyncio
     async def test_get_leave_calendars(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
@@ -75,7 +72,6 @@ class TestConfluenceClient:
             assert len(result) == 1
             assert result[0]["subCalendar"]["name"] == "Team Vacation"
 
-    @pytest.mark.asyncio
     async def test_get_events(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/calendar-services/1.0/calendar/events.json").mock(

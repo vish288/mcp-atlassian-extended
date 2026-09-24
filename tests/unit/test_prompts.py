@@ -185,7 +185,6 @@ class TestURLParsing:
 class TestPromptRendering:
     """Verify prompts render via FastMCP."""
 
-    @pytest.mark.asyncio
     async def test_list_prompts(self) -> None:
         from mcp_atlassian_extended.servers import mcp
 
@@ -194,7 +193,6 @@ class TestPromptRendering:
         for name in EXPECTED_PROMPTS:
             assert name in prompt_names, f"Prompt {name} not listed"
 
-    @pytest.mark.asyncio
     async def test_render_create_ticket(self) -> None:
         from mcp_atlassian_extended.servers import mcp
 
