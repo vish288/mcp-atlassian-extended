@@ -1,41 +1,36 @@
-"""Tests for date resolution utility."""
+"""Tests for date resolution — clock frozen at Wednesday 2026-03-04."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
+import pytest
+
+from mcp_atlassian_extended.servers import confluence_extended
 from mcp_atlassian_extended.servers.confluence_extended import _resolve_date
 
 
-def test_resolve_today():
-    result = _resolve_date("today")
-    assert result == datetime.now().strftime("%Y-%m-%d")
+class _Frozen(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 3, 4, 12, 0, tzinfo=tz)
 
 
-def test_resolve_tomorrow():
-    result = _resolve_date("tomorrow")
-    expected = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-    assert result == expected
+@pytest.fixture(autouse=True)
+def _freeze(monkeypatch):
+    monkeypatch.setattr(confluence_extended, "datetime", _Frozen)
 
 
-def test_resolve_plus_days():
-    result = _resolve_date("+7d")
-    expected = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-    assert result == expected
-
-
-def test_resolve_minus_days():
-    result = _resolve_date("-3d")
-    expected = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
-    assert result == expected
-
-
-def test_resolve_iso_date():
-    result = _resolve_date("2026-06-15")
-    assert result == "2026-06-15"
-
-
-def test_resolve_next_week():
-    result = _resolve_date("next week")
-    d = datetime.strptime(result, "%Y-%m-%d")
-    assert d.weekday() == 0  # Monday
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("today", "2026-03-04"),
+        ("tomorrow", "2026-03-05"),
+        ("+7d", "2026-03-11"),
+        ("-3d", "2026-03-01"),
+        ("next week", "2026-03-09"),
+        ("2026-06-15", "2026-06-15"),
+    ],
+)
+def test_resolve(value, expected):
+    assert _resolve_date(value) == expected
