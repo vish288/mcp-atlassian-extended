@@ -18,7 +18,6 @@ def _make_client() -> JiraExtendedClient:
 
 
 class TestJiraClient:
-    @pytest.mark.asyncio
     async def test_get_attachments(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/api/2/issue/PROJ-123").mock(
@@ -31,7 +30,6 @@ class TestJiraClient:
             assert len(result) == 1
             assert result[0]["filename"] == "test.txt"
 
-    @pytest.mark.asyncio
     async def test_search_users(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/api/2/user/search").mock(
@@ -44,7 +42,6 @@ class TestJiraClient:
             assert len(result) == 1
             assert result[0]["displayName"] == "John Doe"
 
-    @pytest.mark.asyncio
     async def test_list_projects(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/api/2/project").mock(
@@ -54,7 +51,6 @@ class TestJiraClient:
             result = await client.list_projects()
             assert result[0]["key"] == "PROJ"
 
-    @pytest.mark.asyncio
     async def test_get_board(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/agile/1.0/board/42").mock(
@@ -64,7 +60,6 @@ class TestJiraClient:
             result = await client.get_board(42)
             assert result["id"] == 42
 
-    @pytest.mark.asyncio
     async def test_auth_error(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/api/2/project").mock(
@@ -74,7 +69,6 @@ class TestJiraClient:
             with pytest.raises(AtlassianAuthError):
                 await client.list_projects()
 
-    @pytest.mark.asyncio
     async def test_delete_attachment(self):
         async with respx.mock(base_url=BASE) as router:
             router.delete("/rest/api/2/attachment/123").mock(return_value=httpx.Response(204))
@@ -82,7 +76,6 @@ class TestJiraClient:
             result = await client.delete_attachment("123")
             assert result is None
 
-    @pytest.mark.asyncio
     async def test_get_sprint(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/agile/1.0/sprint/10").mock(
@@ -94,7 +87,6 @@ class TestJiraClient:
             result = await client.get_sprint(10)
             assert result["state"] == "active"
 
-    @pytest.mark.asyncio
     async def test_move_to_sprint(self):
         async with respx.mock(base_url=BASE) as router:
             router.post("/rest/agile/1.0/sprint/10/issue").mock(return_value=httpx.Response(204))
@@ -173,7 +165,6 @@ class TestDownloadUrlValidation:
 
 
 class TestVersions:
-    @pytest.mark.asyncio
     async def test_get_project_versions(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/api/2/project/PROJ/versions").mock(
@@ -186,7 +177,6 @@ class TestVersions:
             assert len(result) == 1
             assert result[0]["name"] == "v1.0.0"
 
-    @pytest.mark.asyncio
     async def test_create_version(self):
         async with respx.mock(base_url=BASE) as router:
             router.post("/rest/api/2/version").mock(
@@ -201,7 +191,6 @@ class TestVersions:
             assert result["id"] == "200"
             assert result["name"] == "v2.0.0"
 
-    @pytest.mark.asyncio
     async def test_create_version_minimal(self):
         async with respx.mock(base_url=BASE) as router:
             router.post("/rest/api/2/version").mock(
@@ -213,7 +202,6 @@ class TestVersions:
             result = await client.create_version("PROJ", "v3.0.0")
             assert result["name"] == "v3.0.0"
 
-    @pytest.mark.asyncio
     async def test_update_version(self):
         async with respx.mock(base_url=BASE) as router:
             router.put("/rest/api/2/version/200").mock(
@@ -229,7 +217,6 @@ class TestVersions:
 class TestContentType:
     """A client-level Content-Type would override httpx's per-request value."""
 
-    @pytest.mark.asyncio
     async def test_upload_sends_multipart(self, tmp_path):
         f = tmp_path / "note.txt"
         f.write_text("hello")
@@ -245,7 +232,6 @@ class TestContentType:
             assert "boundary=" in content_type
             assert sent.headers["x-atlassian-token"] == "no-check"
 
-    @pytest.mark.asyncio
     async def test_json_request_still_sends_json(self):
         async with respx.mock(base_url=BASE) as router:
             route = router.post("/rest/api/2/issue").mock(

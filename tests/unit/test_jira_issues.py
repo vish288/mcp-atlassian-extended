@@ -18,7 +18,6 @@ def _make_client() -> JiraExtendedClient:
 
 
 class TestJiraIssues:
-    @pytest.mark.asyncio
     async def test_create_issue(self):
         async with respx.mock(base_url=BASE) as router:
             router.post("/rest/api/2/issue").mock(
@@ -30,7 +29,6 @@ class TestJiraIssues:
             result = await client.create_issue("PROJ", "Test issue")
             assert result["key"] == "PROJ-1"
 
-    @pytest.mark.asyncio
     async def test_create_issue_with_custom_fields(self):
         async with respx.mock(base_url=BASE) as router:
             route = router.post("/rest/api/2/issue").mock(
@@ -53,7 +51,6 @@ class TestJiraIssues:
             assert payload["fields"]["customfield_10004"] == 5
             assert payload["fields"]["customfield_12345"] == {"value": "MyTeam"}
 
-    @pytest.mark.asyncio
     async def test_update_issue(self):
         async with respx.mock(base_url=BASE) as router:
             router.put("/rest/api/2/issue/PROJ-1").mock(return_value=httpx.Response(204))
@@ -63,7 +60,6 @@ class TestJiraIssues:
             )
             assert result is None
 
-    @pytest.mark.asyncio
     async def test_create_issue_link(self):
         async with respx.mock(base_url=BASE) as router:
             router.post("/rest/api/2/issueLink").mock(return_value=httpx.Response(201))
@@ -71,7 +67,6 @@ class TestJiraIssues:
             result = await client.create_issue_link("Relates", "PROJ-1", "PROJ-2")
             assert result is None
 
-    @pytest.mark.asyncio
     async def test_delete_issue_link(self):
         async with respx.mock(base_url=BASE) as router:
             router.delete("/rest/api/2/issueLink/456").mock(return_value=httpx.Response(204))
@@ -79,7 +74,6 @@ class TestJiraIssues:
             result = await client.delete_issue_link("456")
             assert result is None
 
-    @pytest.mark.asyncio
     async def test_get_issue_links(self):
         async with respx.mock(base_url=BASE) as router:
             router.get("/rest/api/2/issue/PROJ-1").mock(
@@ -103,7 +97,6 @@ class TestJiraIssues:
             assert len(result) == 1
             assert result[0]["type"]["name"] == "Relates"
 
-    @pytest.mark.asyncio
     async def test_create_issue_auth_error(self):
         async with respx.mock(base_url=BASE) as router:
             router.post("/rest/api/2/issue").mock(
@@ -113,7 +106,6 @@ class TestJiraIssues:
             with pytest.raises(AtlassianAuthError):
                 await client.create_issue("PROJ", "Fail")
 
-    @pytest.mark.asyncio
     async def test_create_issue_link_with_comment(self):
         async with respx.mock(base_url=BASE) as router:
             route = router.post("/rest/api/2/issueLink").mock(return_value=httpx.Response(201))
