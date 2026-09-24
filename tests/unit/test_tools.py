@@ -1,20 +1,17 @@
-"""Tool-level tests — call @mcp.tool functions via FastMCP Client with mocked API."""
+"""Tool-level tests — call @mcp.tool functions via FastMCP Client with mocked API.
+
+Fixtures ``tool_client`` / ``readonly_client`` live in ``tests/conftest.py``.
+"""
 
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
-import respx
-from fastmcp import Client, FastMCP
 from httpx import Response
 
-from mcp_atlassian_extended.clients.confluence import ConfluenceExtendedClient
-from mcp_atlassian_extended.clients.jira import JiraExtendedClient
 from mcp_atlassian_extended.config import ConfluenceConfig, JiraConfig
 from mcp_atlassian_extended.exceptions import WriteDisabledError
 from mcp_atlassian_extended.servers._helpers import _check_write, _get_confluence, _get_jira
@@ -22,65 +19,6 @@ from mcp_atlassian_extended.servers._helpers import _check_write, _get_confluenc
 TEST_JIRA_URL = "https://jira.example.com"
 TEST_CONFLUENCE_URL = "https://confluence.example.com"
 TEST_TOKEN = "test-token"
-
-
-def _make_mcp(*, read_only: bool = False) -> tuple[FastMCP, Any]:
-    """Build a FastMCP server with mocked lifespan."""
-    jira_config = JiraConfig(url=TEST_JIRA_URL, token=TEST_TOKEN, read_only=read_only)
-    confluence_config = ConfluenceConfig(
-        url=TEST_CONFLUENCE_URL, token=TEST_TOKEN, read_only=read_only
-    )
-    jira_client = JiraExtendedClient(jira_config)
-    confluence_client = ConfluenceExtendedClient(confluence_config)
-
-    @asynccontextmanager
-    async def mock_lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
-        try:
-            yield {
-                "jira_client": jira_client,
-                "jira_config": jira_config,
-                "confluence_client": confluence_client,
-                "confluence_config": confluence_config,
-            }
-        finally:
-            await jira_client.close()
-            await confluence_client.close()
-
-    from mcp_atlassian_extended.servers import mcp
-
-    original_lifespan = mcp._lifespan
-    mcp._lifespan = mock_lifespan
-    return mcp, original_lifespan
-
-
-@pytest.fixture
-async def tool_client():
-    """FastMCP test client with mocked lifespan and respx-mocked HTTP."""
-    mcp, original_lifespan = _make_mcp()
-    with respx.mock(base_url=TEST_JIRA_URL) as router:
-        async with Client(mcp) as client:
-            yield client, router
-    mcp._lifespan = original_lifespan
-
-
-@pytest.fixture
-async def readonly_client():
-    """FastMCP test client in read-only mode."""
-    mcp, original_lifespan = _make_mcp(read_only=True)
-    with respx.mock(base_url=TEST_JIRA_URL) as router:
-        async with Client(mcp) as client:
-            yield client, router
-    mcp._lifespan = original_lifespan
-
-
-@pytest.fixture
-async def confluence_client():
-    """FastMCP test client with Confluence router."""
-    mcp, original_lifespan = _make_mcp()
-    with respx.mock(base_url=TEST_CONFLUENCE_URL) as router:
-        async with Client(mcp) as client:
-            yield client, router
-    mcp._lifespan = original_lifespan
 
 
 def _parse(result: Any) -> dict | list:
@@ -346,143 +284,70 @@ class TestListProjects:
 # ═══════════════════════════════════════════════════════
 
 
+_ATTACH = ("jira_get_attachments", {"issue_key": "PROJ-123"})
+_ATTACH_ROUTE = ("get", "/rest/api/2/issue/PROJ-123")
+_CREATE = ("jira_create_issue", {"project_key": "PROJ", "summary": "x"})
+_CREATE_ROUTE = ("post", "/rest/api/2/issue")
+
+
 class TestErrorHints:
-    async def test_auth_error_hint(self, tool_client):
-        client, router = tool_client
-        router.get("/rest/api/2/issue/PROJ-123").mock(
-            return_value=Response(401, text="Unauthorized")
-        )
-        result = await client.call_tool("jira_get_attachments", {"issue_key": "PROJ-123"})
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "authentication" in parsed["hint"].lower() or "JIRA_PAT" in parsed["hint"]
+    """Each failure mode surfaces a hint naming the fix. Match on a stable fragment,
+    not the whole sentence, so rewording a hint does not break the test."""
 
-    async def test_not_found_hint(self, tool_client):
-        client, router = tool_client
-        router.get("/rest/api/2/issue/GONE-404").mock(
-            return_value=Response(404, json={"errorMessages": ["Issue Does Not Exist"]})
-        )
-        result = await client.call_tool("jira_get_attachments", {"issue_key": "GONE-404"})
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "not found" in parsed["hint"].lower() or "PROJ-123" in parsed["hint"]
-
-    async def test_rate_limit_hint(self, tool_client):
-        client, router = tool_client
-        router.get("/rest/api/2/issue/PROJ-123").mock(
-            return_value=Response(429, text="Too Many Requests")
-        )
-        result = await client.call_tool("jira_get_attachments", {"issue_key": "PROJ-123"})
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "rate" in parsed["hint"].lower() or "wait" in parsed["hint"].lower()
-
-    async def test_conflict_hint(self, tool_client):
-        client, router = tool_client
-        router.post("/rest/api/2/issue").mock(return_value=Response(409, text="Conflict"))
-        result = await client.call_tool(
-            "jira_create_issue",
-            {"project_key": "PROJ", "summary": "Dup"},
-        )
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "conflict" in parsed["hint"].lower()
-
-    async def test_write_disabled_hint(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_create_issue",
-            {"project_key": "PROJ", "summary": "Test"},
-        )
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "read-only" in parsed["hint"].lower()
-
-    async def test_bad_request_hint(self, tool_client):
-        client, router = tool_client
-        router.put("/rest/api/2/issue/PROJ-123").mock(
-            return_value=Response(400, json={"errors": {"summary": "Field required"}})
-        )
-        result = await client.call_tool(
-            "jira_update_issue",
-            {"issue_key": "PROJ-123", "fields": {"summary": ""}},
-        )
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "bad request" in parsed["hint"].lower() or "required" in parsed["hint"].lower()
-
-    async def test_path_traversal_hint(self, tool_client, tmp_path, monkeypatch):
-        """Download with '..' path triggers ValueError with traversal hint."""
+    @pytest.mark.parametrize(
+        ("call", "route", "status", "needles"),
+        [
+            (_ATTACH, _ATTACH_ROUTE, 401, ["JIRA_PAT"]),
+            # The read-only flag is covered by TestReadOnlyGuards below.
+            (_ATTACH, _ATTACH_ROUTE, 403, ["precedence", "JIRA_API_TOKEN"]),
+            (_ATTACH, _ATTACH_ROUTE, 404, ["not found"]),
+            (_ATTACH, _ATTACH_ROUTE, 429, ["Rate limited"]),
+            (_CREATE, _CREATE_ROUTE, 409, ["Conflict"]),
+            (_CREATE, _CREATE_ROUTE, 422, ["Validation failed"]),
+            (
+                ("jira_update_issue", {"issue_key": "PROJ-123", "fields": {"summary": ""}}),
+                ("put", "/rest/api/2/issue/PROJ-123"),
+                400,
+                ["Bad request"],
+            ),
+            # A Confluence 401 must name the Confluence vars, not a Jira-only hint.
+            (
+                ("confluence_list_calendars", {}),
+                ("get", "/rest/calendar-services/1.0/calendar/subcalendars.json"),
+                401,
+                ["CONFLUENCE_PAT", "CONFLUENCE_API_TOKEN"],
+            ),
+            # Local validation — no HTTP route is ever hit.
+            (
+                (
+                    "jira_download_attachment",
+                    {
+                        "content_url": f"{TEST_JIRA_URL}/secure/attachment/1/f.txt",
+                        "save_path": "../../../etc/passwd",
+                    },
+                ),
+                None,
+                0,
+                ["traversal"],
+            ),
+            (
+                ("jira_upload_attachment", {"issue_key": "PROJ-123", "file_path": "/no/file"}),
+                None,
+                0,
+                ["File not found"],
+            ),
+        ],
+    )
+    async def test_hint(self, tool_client, tmp_path, monkeypatch, call, route, status, needles):
         client, router = tool_client
         monkeypatch.chdir(tmp_path)
-        result = await client.call_tool(
-            "jira_download_attachment",
-            {
-                "content_url": f"{TEST_JIRA_URL}/secure/attachment/1/f.txt",
-                "save_path": "../../../etc/passwd",
-            },
-        )
-        parsed = _parse(result)
+        if route:
+            method, path = route
+            getattr(router, method)(path).mock(return_value=Response(status, text="nope"))
+        parsed = _parse(await client.call_tool(*call))
         assert "error" in parsed
-        assert "hint" in parsed
-        assert "traversal" in parsed["hint"].lower()
-
-    async def test_file_not_found_hint(self, tool_client):
-        """Upload with non-existent file triggers FileNotFoundError hint."""
-        client, router = tool_client
-        result = await client.call_tool(
-            "jira_upload_attachment",
-            {"issue_key": "PROJ-123", "file_path": "/nonexistent/path/file.txt"},
-        )
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "file" in parsed["hint"].lower() or "not found" in parsed["hint"].lower()
-
-    async def test_confluence_auth_error_hint(self, confluence_client):
-        """Confluence 401 triggers auth hint."""
-        client, router = confluence_client
-        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
-            return_value=Response(401, text="Unauthorized")
-        )
-        result = await client.call_tool("confluence_list_calendars", {})
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "authentication" in parsed["hint"].lower() or "PAT" in parsed["hint"]
-        # The hint must name Confluence vars — a Confluence 401 used to be answered
-        # with a Jira-only hint.
-        assert "CONFLUENCE_PAT" in parsed["hint"]
-        assert "CONFLUENCE_API_TOKEN" in parsed["hint"]
-
-    async def test_auth_hint_states_basic_beats_pat(self, tool_client):
-        """A complete Cloud pair wins over a PAT — the hint must say so."""
-        client, router = tool_client
-        router.get("/rest/api/2/issue/PROJ-123").mock(return_value=Response(403, text="Forbidden"))
-        result = await client.call_tool("jira_get_attachments", {"issue_key": "PROJ-123"})
-        parsed = _parse(result)
-        assert "precedence" in parsed["hint"].lower()
-        assert "JIRA_API_TOKEN" in parsed["hint"]
-
-    async def test_validation_422_hint(self, tool_client):
-        client, router = tool_client
-        router.post("/rest/api/2/issue").mock(
-            return_value=Response(422, json={"errors": {"field": "invalid"}})
-        )
-        result = await client.call_tool(
-            "jira_create_issue",
-            {"project_key": "PROJ", "summary": "Bad fields"},
-        )
-        parsed = _parse(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "validation" in parsed["hint"].lower() or "format" in parsed["hint"].lower()
+        for needle in needles:
+            assert needle in parsed["hint"]
 
 
 # ═══════════════════════════════════════════════════════
@@ -824,8 +689,8 @@ def _mock_confluence_calendars_and_events(router):
 
 
 class TestConfluenceListCalendars:
-    async def test_happy_path(self, confluence_client):
-        client, router = confluence_client
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(200, json=_SAMPLE_CALENDARS)
         )
@@ -835,8 +700,8 @@ class TestConfluenceListCalendars:
         assert parsed["items"][0]["name"] == "Team Leaves"
         assert parsed["items"][0]["child_count"] == 1
 
-    async def test_filter_type(self, confluence_client):
-        client, router = confluence_client
+    async def test_filter_type(self, tool_client):
+        client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(200, json=_SAMPLE_CALENDARS)
         )
@@ -847,8 +712,8 @@ class TestConfluenceListCalendars:
 
 
 class TestConfluenceSearchCalendars:
-    async def test_happy_path(self, confluence_client):
-        client, router = confluence_client
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(200, json=_SAMPLE_CALENDARS)
         )
@@ -857,8 +722,8 @@ class TestConfluenceSearchCalendars:
         assert parsed["count"] == 1
         assert parsed["items"][0]["name"] == "Release Calendar"
 
-    async def test_search_by_space(self, confluence_client):
-        client, router = confluence_client
+    async def test_search_by_space(self, tool_client):
+        client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(200, json=_SAMPLE_CALENDARS)
         )
@@ -869,8 +734,8 @@ class TestConfluenceSearchCalendars:
 
 
 class TestConfluenceGetTimeOff:
-    async def test_happy_path(self, confluence_client):
-        client, router = confluence_client
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool(
             "confluence_get_time_off",
@@ -881,8 +746,8 @@ class TestConfluenceGetTimeOff:
         assert parsed["end"] == "2024-03-10"
         assert len(parsed["events"]) == 2
 
-    async def test_group_by_person(self, confluence_client):
-        client, router = confluence_client
+    async def test_group_by_person(self, tool_client):
+        client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool(
             "confluence_get_time_off",
@@ -899,8 +764,8 @@ class TestConfluenceGetTimeOff:
 
 
 class TestConfluenceWhoIsOut:
-    async def test_happy_path(self, confluence_client):
-        client, router = confluence_client
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool("confluence_who_is_out", {"date": "2024-03-03"})
         parsed = _parse(result)
@@ -911,8 +776,8 @@ class TestConfluenceWhoIsOut:
 
 
 class TestConfluenceGetPersonTimeOff:
-    async def test_happy_path(self, confluence_client):
-        client, router = confluence_client
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool(
             "confluence_get_person_time_off",
@@ -928,8 +793,8 @@ class TestConfluenceGetPersonTimeOff:
         assert len(parsed["events"]) == 1
         assert parsed["events"][0]["person_name"] == "Alice Smith"
 
-    async def test_no_match(self, confluence_client):
-        client, router = confluence_client
+    async def test_no_match(self, tool_client):
+        client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool(
             "confluence_get_person_time_off",
@@ -945,8 +810,8 @@ class TestConfluenceGetPersonTimeOff:
 
 
 class TestConfluenceSprintCapacity:
-    async def test_happy_path(self, confluence_client):
-        client, router = confluence_client
+    async def test_happy_path(self, tool_client):
+        client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool(
             "confluence_sprint_capacity",
@@ -966,8 +831,8 @@ class TestConfluenceSprintCapacity:
         alice = next(m for m in parsed["member_breakdown"] if m["member"] == "Alice Smith")
         assert alice["days_off"] >= 1
 
-    async def test_no_time_off(self, confluence_client):
-        client, router = confluence_client
+    async def test_no_time_off(self, tool_client):
+        client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(200, json=_SAMPLE_CALENDARS)
         )
@@ -1162,8 +1027,8 @@ class TestTeamCalendarsMissing:
             ),
         ],
     )
-    async def test_404_explains_the_addon(self, confluence_client, tool, args):
-        client, router = confluence_client
+    async def test_404_explains_the_addon(self, tool_client, tool, args):
+        client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(404, text="not found")
         )
