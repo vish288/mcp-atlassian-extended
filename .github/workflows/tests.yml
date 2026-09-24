@@ -12,4 +12,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --all-extras
-      - run: uv run pytest --cov --cov-report=xml
+      - run: uv run pytest --cov --cov-report=xml --cov-fail-under=95
