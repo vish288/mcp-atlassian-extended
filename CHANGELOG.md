@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.2] - 2026-09-25
+
+### Tests
+- test: remove assertions that cannot fail, freeze the clock, drop redundant marks (09b9bda)
+- test: pin every tool's outgoing request and failure envelope (2b37323)
+
+### Chores
+- chore: ignore the .internal ticket tracker (f4f6af0)
+
+### Other
+
+
 ## [0.8.1] - 2026-09-21
 
 ### Bug Fixes
