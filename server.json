@@ -6,12 +6,12 @@
     "url": "https://github.com/vish288/mcp-atlassian-extended",
     "source": "github"
   },
-  "version": "0.8.2",
+  "version": "0.9.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "mcp-atlassian-extended",
-      "version": "0.8.2",
+      "version": "0.9.0",
       "transport": {
         "type": "stdio"
       },
