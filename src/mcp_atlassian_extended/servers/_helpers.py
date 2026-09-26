@@ -4,15 +4,23 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 import re
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Literal
 
 from fastmcp import Context
+from fastmcp.exceptions import ToolError
 
 from ..clients.confluence import ConfluenceExtendedClient
 from ..clients.jira import JiraExtendedClient
-from ..exceptions import WriteDisabledError
+from ..exceptions import AtlassianError, WriteDisabledError
+
+_log = logging.getLogger(__name__)
+
+# Failures a tool is expected to report as structured JSON. Everything else is a bug.
+_EXPECTED = (AtlassianError, ValueError, FileNotFoundError)
 
 
 @functools.cache
@@ -175,6 +183,40 @@ def _err(error: Exception) -> str:
         detail["hint"] = "File not found. Check the file path exists and is accessible."
 
     return json.dumps(detail, indent=2, ensure_ascii=False)
+
+
+def tool_result(
+    fn: Callable[..., Awaitable[str]] | None = None,
+    *,
+    write: Literal["jira", "confluence"] | None = None,
+) -> Any:
+    """Apply under ``@mcp.tool``. Expected failures become ``_err`` JSON; bugs raise.
+
+    *write* names the product the tool writes to; the read-only guard runs
+    before the body. ``AtlassianError`` subclasses, ``ValueError`` (validation,
+    not-configured, path checks) and ``FileNotFoundError`` keep today's
+    structured envelope with hints. Anything else is logged with a traceback
+    and re-raised as ``ToolError`` so the client sees ``isError: true`` instead
+    of a successful result that happens to contain the word "error".
+    """
+
+    def wrap(f: Callable[..., Awaitable[str]]) -> Callable[..., Awaitable[str]]:
+        @functools.wraps(f)
+        async def inner(ctx: Context, *args: Any, **kwargs: Any) -> str:
+            try:
+                if write:
+                    _check_write(ctx, write)
+                return await f(ctx, *args, **kwargs)
+            except _EXPECTED as e:
+                return _err(e)
+            except Exception as e:
+                _log.exception("%s failed", f.__name__)
+                msg = f"{type(e).__name__}: {e}"
+                raise ToolError(msg) from e
+
+        return inner
+
+    return wrap(fn) if fn else wrap
 
 
 # ════════════════════════════════════════════════════════════════════

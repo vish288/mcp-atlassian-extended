@@ -8,61 +8,56 @@ from fastmcp import Context
 from pydantic import Field
 
 from . import mcp
-from ._helpers import _check_write, _err, _get_jira, _ok
+from ._helpers import _get_jira, _ok, tool_result
 
 
 @mcp.tool(
     tags={"jira", "agile", "read"},
     annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
+@tool_result
 async def jira_get_board(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID", ge=1)],
 ) -> str:
     """Get details of a Jira agile board."""
-    try:
-        data = await _get_jira(ctx).get_board(board_id)
-        return _ok(data)
-    except Exception as e:
-        return _err(e)
+    data = await _get_jira(ctx).get_board(board_id)
+    return _ok(data)
 
 
 @mcp.tool(
     tags={"jira", "agile", "read"},
     annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
+@tool_result
 async def jira_board_config(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID", ge=1)],
 ) -> str:
     """Get board column/status configuration."""
-    try:
-        data = await _get_jira(ctx).get_board_config(board_id)
-        return _ok(data)
-    except Exception as e:
-        return _err(e)
+    data = await _get_jira(ctx).get_board_config(board_id)
+    return _ok(data)
 
 
 @mcp.tool(
     tags={"jira", "agile", "read"},
     annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
+@tool_result
 async def jira_get_sprint(
     ctx: Context,
     sprint_id: Annotated[int, Field(description="Sprint ID", ge=1)],
 ) -> str:
     """Get details of a specific sprint."""
-    try:
-        data = await _get_jira(ctx).get_sprint(sprint_id)
-        return _ok(data)
-    except Exception as e:
-        return _err(e)
+    data = await _get_jira(ctx).get_sprint(sprint_id)
+    return _ok(data)
 
 
 @mcp.tool(
     tags={"jira", "agile", "write"},
     annotations={"readOnlyHint": False, "openWorldHint": True},
 )
+@tool_result(write="jira")
 async def jira_move_to_sprint(
     ctx: Context,
     sprint_id: Annotated[int, Field(description="Target sprint ID", ge=1)],
@@ -71,9 +66,5 @@ async def jira_move_to_sprint(
     ],
 ) -> str:
     """Move issues into a sprint."""
-    try:
-        _check_write(ctx, "jira")
-        await _get_jira(ctx).move_to_sprint(sprint_id, issue_keys)
-        return _ok({"status": "moved", "sprint_id": sprint_id, "issues": issue_keys})
-    except Exception as e:
-        return _err(e)
+    await _get_jira(ctx).move_to_sprint(sprint_id, issue_keys)
+    return _ok({"status": "moved", "sprint_id": sprint_id, "issues": issue_keys})
