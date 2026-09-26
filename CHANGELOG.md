@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.0] - 2026-09-26
+
+### Features
+- feat: report unexpected tool failures as MCP tool errors (64cde46)
+
+
 ## [0.8.2] - 2026-09-25
 
 ### Tests
