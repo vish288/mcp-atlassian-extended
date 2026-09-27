@@ -179,8 +179,8 @@ traversal-guarded `_load_file()`. URI namespaces:
   jql-library, custom-fields, confluence-spaces, agile-ceremonies, git-jira-integration
 - `resource://templates/…` (1) — confluence-pages
 
-Adding one means adding the `.md`, the `@mcp.resource` function, **and** the filename
-to `_RESOURCE_FILES` — otherwise `_validate_resources()` will not catch a packaging miss.
+Adding one means adding the `.md` and one `Resource(...)` row to `RESOURCES` in
+`servers/resources.py`; the loop registers it and `_validate_resources()` checks the file.
 
 ## Prompts (5)
 

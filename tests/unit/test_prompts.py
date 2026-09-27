@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from mcp_atlassian_extended.servers.prompts import (
+    _PROMPT_FILES,
     _PROMPTS_DIR,
     _load_prompt,
     close_ticket,
@@ -19,22 +20,18 @@ from mcp_atlassian_extended.servers.prompts import (
 EXPECTED_PROMPTS = {
     "create_ticket": {
         "fn": create_ticket,
-        "file": "create-ticket.md",
         "args": {"project_key": "PROJ", "issue_type": "Story"},
     },
     "plan_sprint": {
         "fn": plan_sprint,
-        "file": "plan-sprint.md",
         "args": {"board_id": "10", "sprint_id": "50"},
     },
     "close_ticket": {
         "fn": close_ticket,
-        "file": "close-ticket.md",
         "args": {"issue_key": "PROJ-100"},
     },
     "team_availability": {
         "fn": team_availability,
-        "file": "team-availability.md",
         "args": {
             "team_members": "Alice, Bob, Carol",
             "start_date": "2026-03-01",
@@ -43,12 +40,11 @@ EXPECTED_PROMPTS = {
     },
     "manage_attachments": {
         "fn": manage_attachments,
-        "file": "manage-attachments.md",
         "args": {"issue_key": "PROJ-200"},
     },
 }
 
-PROMPT_FILES = [info["file"] for info in EXPECTED_PROMPTS.values()]
+PROMPT_FILES = _PROMPT_FILES
 
 
 class TestPromptFiles:

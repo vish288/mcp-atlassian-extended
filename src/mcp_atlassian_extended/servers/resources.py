@@ -1,8 +1,14 @@
-"""MCP resources for Atlassian — curated rules and guides for Jira/Confluence workflows."""
+"""MCP resources for Atlassian — curated rules and guides for Jira/Confluence workflows.
+
+Every resource is a markdown file under ``resources/``; the table below is the
+single place that names them. Adding one means adding the ``.md`` and one row.
+"""
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
+from typing import NamedTuple
 
 from . import mcp
 from ._helpers import _load_file
@@ -15,228 +21,135 @@ def _load(filename: str) -> str:
     return _load_file(_RESOURCES_DIR, filename)
 
 
-# ════════════════════════════════════════════════════════════════════
-# Rules
-# ════════════════════════════════════════════════════════════════════
+class Resource(NamedTuple):
+    uri: str
+    name: str
+    description: str
+    tags: set[str]
+    file: str
 
 
-@mcp.resource(
-    "resource://rules/jira-hierarchy",
-    name="Jira Issue Hierarchy",
-    description="Epic → Story → Task → Subtask structure, splitting rules, and type selection",
-    mime_type="text/markdown",
-    tags={"rule", "jira"},
-)
-def jira_hierarchy_rules() -> str:
-    """Jira issue hierarchy and type definitions."""
-    return _load("jira-hierarchy.md")
-
-
-@mcp.resource(
-    "resource://rules/jira-ticket-writing",
-    name="Jira Ticket Writing Standards",
-    description="Summary format, Story/Bug/Task/Spike description templates, comment policy",
-    mime_type="text/markdown",
-    tags={"rule", "jira"},
-)
-def jira_ticket_writing_rules() -> str:
-    """Jira ticket writing standards and templates."""
-    return _load("jira-ticket-writing.md")
-
-
-@mcp.resource(
-    "resource://rules/acceptance-criteria",
-    name="Acceptance Criteria Standards",
-    description="Given/When/Then format, rule-oriented criteria, writing rules",
-    mime_type="text/markdown",
-    tags={"rule", "jira"},
-)
-def acceptance_criteria_rules() -> str:
-    """Acceptance criteria standards and formats."""
-    return _load("acceptance-criteria.md")
-
-
-@mcp.resource(
-    "resource://rules/sprint-hygiene",
-    name="Sprint Hygiene Rules",
-    description="Definition of Ready, WIP limits, carry-over policy, refinement standards",
-    mime_type="text/markdown",
-    tags={"rule", "jira", "agile"},
-)
-def sprint_hygiene_rules() -> str:
-    """Sprint hygiene rules and practices."""
-    return _load("sprint-hygiene.md")
-
-
-@mcp.resource(
-    "resource://rules/jira-workflow",
-    name="Jira Workflow & Automation",
-    description="Status transitions, automation rule patterns, workflow governance",
-    mime_type="text/markdown",
-    tags={"rule", "jira"},
-)
-def jira_workflow_rules() -> str:
-    """Jira workflow transitions and automation patterns."""
-    return _load("jira-workflow.md")
-
-
-@mcp.resource(
-    "resource://rules/issue-linking",
-    name="Issue Linking Best Practices",
-    description="Link types, correct usage, cross-team patterns, cleanup",
-    mime_type="text/markdown",
-    tags={"rule", "jira"},
-)
-def issue_linking_rules() -> str:
-    """Issue linking best practices and cross-team patterns."""
-    return _load("issue-linking.md")
-
-
-# ════════════════════════════════════════════════════════════════════
-# Guides
-# ════════════════════════════════════════════════════════════════════
-
-
-@mcp.resource(
-    "resource://guides/story-points",
-    name="Story Point Estimation",
-    description="Fibonacci scale, Planning Poker, relative sizing, velocity",
-    mime_type="text/markdown",
-    tags={"guide", "jira", "agile"},
-)
-def story_points_guide() -> str:
-    """Story point estimation guide."""
-    return _load("story-points.md")
-
-
-@mcp.resource(
-    "resource://guides/definition-of-done",
-    name="Definition of Done Checklists",
-    description="Story/Bug/Task DoD templates, enforcement rules, governance",
-    mime_type="text/markdown",
-    tags={"guide", "jira", "agile"},
-)
-def definition_of_done_guide() -> str:
-    """Definition of Done checklists and governance."""
-    return _load("definition-of-done.md")
-
-
-@mcp.resource(
-    "resource://guides/jira-labels",
-    name="Jira Label Taxonomy",
-    description="Standard labels, naming rules, governance, JQL usage",
-    mime_type="text/markdown",
-    tags={"guide", "jira"},
-)
-def jira_labels_guide() -> str:
-    """Jira label taxonomy and governance."""
-    return _load("jira-labels.md")
-
-
-@mcp.resource(
-    "resource://guides/jql-library",
-    name="JQL Query Library",
-    description="15 query patterns for sprint management, blockers, stale tickets, reporting",
-    mime_type="text/markdown",
-    tags={"guide", "jira"},
-)
-def jql_library_guide() -> str:
-    """JQL query library with reusable patterns."""
-    return _load("jql-library.md")
-
-
-@mcp.resource(
-    "resource://guides/custom-fields",
-    name="Jira Custom Field Governance",
-    description="Creation process, naming conventions, field contexts, audit",
-    mime_type="text/markdown",
-    tags={"guide", "jira"},
-)
-def custom_fields_guide() -> str:
-    """Jira custom field governance guide."""
-    return _load("custom-fields.md")
-
-
-@mcp.resource(
-    "resource://guides/confluence-spaces",
-    name="Confluence Space Organization",
-    description="Space taxonomy, page hierarchy, naming conventions, maintenance",
-    mime_type="text/markdown",
-    tags={"guide", "confluence"},
-)
-def confluence_spaces_guide() -> str:
-    """Confluence space organization guide."""
-    return _load("confluence-spaces.md")
-
-
-@mcp.resource(
-    "resource://guides/agile-ceremonies",
-    name="Agile Ceremony Standards",
-    description="Sprint planning, standup, review, retrospective formats and rules",
-    mime_type="text/markdown",
-    tags={"guide", "jira", "agile"},
-)
-def agile_ceremonies_guide() -> str:
-    """Agile ceremony standards and formats."""
-    return _load("agile-ceremonies.md")
-
-
-@mcp.resource(
-    "resource://guides/git-jira-integration",
-    name="Git-Jira Integration Patterns",
-    description="Branch naming for auto-linking, smart commits, automation rules, macros",
-    mime_type="text/markdown",
-    tags={"guide", "jira", "git"},
-)
-def git_jira_integration_guide() -> str:
-    """Git-Jira integration patterns."""
-    return _load("git-jira-integration.md")
-
-
-# ════════════════════════════════════════════════════════════════════
-# Templates
-# ════════════════════════════════════════════════════════════════════
-
-
-@mcp.resource(
-    "resource://templates/confluence-pages",
-    name="Confluence Page Templates",
-    description="ADR, RFC, Runbook, Retrospective, DACI, and Meeting Notes templates",
-    mime_type="text/markdown",
-    tags={"template", "confluence"},
-)
-def confluence_page_templates() -> str:
-    """Confluence page templates in wiki markup."""
-    return _load("confluence-pages.md")
-
-
-# ════════════════════════════════════════════════════════════════════
-# Startup validation
-# ════════════════════════════════════════════════════════════════════
-
-_RESOURCE_FILES = [
-    "jira-hierarchy.md",
-    "jira-ticket-writing.md",
-    "acceptance-criteria.md",
-    "sprint-hygiene.md",
-    "jira-workflow.md",
-    "issue-linking.md",
-    "story-points.md",
-    "definition-of-done.md",
-    "jira-labels.md",
-    "jql-library.md",
-    "custom-fields.md",
-    "confluence-spaces.md",
-    "agile-ceremonies.md",
-    "git-jira-integration.md",
-    "confluence-pages.md",
+RESOURCES = [
+    # ── Rules ──
+    Resource(
+        "resource://rules/jira-hierarchy",
+        "Jira Issue Hierarchy",
+        "Epic → Story → Task → Subtask structure, splitting rules, and type selection",
+        {"rule", "jira"},
+        "jira-hierarchy.md",
+    ),
+    Resource(
+        "resource://rules/jira-ticket-writing",
+        "Jira Ticket Writing Standards",
+        "Summary format, Story/Bug/Task/Spike description templates, comment policy",
+        {"rule", "jira"},
+        "jira-ticket-writing.md",
+    ),
+    Resource(
+        "resource://rules/acceptance-criteria",
+        "Acceptance Criteria Standards",
+        "Given/When/Then format, rule-oriented criteria, writing rules",
+        {"rule", "jira"},
+        "acceptance-criteria.md",
+    ),
+    Resource(
+        "resource://rules/sprint-hygiene",
+        "Sprint Hygiene Rules",
+        "Definition of Ready, WIP limits, carry-over policy, refinement standards",
+        {"rule", "jira", "agile"},
+        "sprint-hygiene.md",
+    ),
+    Resource(
+        "resource://rules/jira-workflow",
+        "Jira Workflow & Automation",
+        "Status transitions, automation rule patterns, workflow governance",
+        {"rule", "jira"},
+        "jira-workflow.md",
+    ),
+    Resource(
+        "resource://rules/issue-linking",
+        "Issue Linking Best Practices",
+        "Link types, correct usage, cross-team patterns, cleanup",
+        {"rule", "jira"},
+        "issue-linking.md",
+    ),
+    # ── Guides ──
+    Resource(
+        "resource://guides/story-points",
+        "Story Point Estimation",
+        "Fibonacci scale, Planning Poker, relative sizing, velocity",
+        {"guide", "jira", "agile"},
+        "story-points.md",
+    ),
+    Resource(
+        "resource://guides/definition-of-done",
+        "Definition of Done Checklists",
+        "Story/Bug/Task DoD templates, enforcement rules, governance",
+        {"guide", "jira", "agile"},
+        "definition-of-done.md",
+    ),
+    Resource(
+        "resource://guides/jira-labels",
+        "Jira Label Taxonomy",
+        "Standard labels, naming rules, governance, JQL usage",
+        {"guide", "jira"},
+        "jira-labels.md",
+    ),
+    Resource(
+        "resource://guides/jql-library",
+        "JQL Query Library",
+        "15 query patterns for sprint management, blockers, stale tickets, reporting",
+        {"guide", "jira"},
+        "jql-library.md",
+    ),
+    Resource(
+        "resource://guides/custom-fields",
+        "Jira Custom Field Governance",
+        "Creation process, naming conventions, field contexts, audit",
+        {"guide", "jira"},
+        "custom-fields.md",
+    ),
+    Resource(
+        "resource://guides/confluence-spaces",
+        "Confluence Space Organization",
+        "Space taxonomy, page hierarchy, naming conventions, maintenance",
+        {"guide", "confluence"},
+        "confluence-spaces.md",
+    ),
+    Resource(
+        "resource://guides/agile-ceremonies",
+        "Agile Ceremony Standards",
+        "Sprint planning, standup, review, retrospective formats and rules",
+        {"guide", "jira", "agile"},
+        "agile-ceremonies.md",
+    ),
+    Resource(
+        "resource://guides/git-jira-integration",
+        "Git-Jira Integration Patterns",
+        "Branch naming for auto-linking, smart commits, automation rules, macros",
+        {"guide", "jira", "git"},
+        "git-jira-integration.md",
+    ),
+    # ── Templates ──
+    Resource(
+        "resource://templates/confluence-pages",
+        "Confluence Page Templates",
+        "ADR, RFC, Runbook, Retrospective, DACI, and Meeting Notes templates",
+        {"template", "confluence"},
+        "confluence-pages.md",
+    ),
 ]
+
+for _r in RESOURCES:
+    mcp.resource(
+        _r.uri, name=_r.name, description=_r.description, mime_type="text/markdown", tags=_r.tags
+    )(functools.partial(_load, _r.file))
 
 
 def _validate_resources() -> None:
-    """Verify all expected resource files exist at import time."""
+    """Verify every resource file exists at import time."""
     _dir = Path(_RESOURCES_DIR)
-    missing = [f for f in _RESOURCE_FILES if not (_dir / f).is_file()]
+    missing = [r.file for r in RESOURCES if not (_dir / r.file).is_file()]
     if missing:
         msg = f"Missing resource files (packaging error): {missing}"
         raise RuntimeError(msg)
