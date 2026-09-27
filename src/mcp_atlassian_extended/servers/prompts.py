@@ -138,10 +138,9 @@ def manage_attachments(issue_key: str) -> list[Message]:
     ]
 
 
-# ════════════════════════════════════════════════════════════════════
-# Startup validation
-# ════════════════════════════════════════════════════════════════════
-
+# The expected prompt bodies. A missing file surfaces on first render (and in
+# the assembly/prompt tests); no import-time check that could take down the
+# whole server for one absent file.
 _PROMPT_FILES = [
     "create-ticket.md",
     "plan-sprint.md",
@@ -149,15 +148,3 @@ _PROMPT_FILES = [
     "team-availability.md",
     "manage-attachments.md",
 ]
-
-
-def _validate_prompts() -> None:
-    """Verify all expected prompt files exist at import time."""
-    _dir = Path(_PROMPTS_DIR)
-    missing = [f for f in _PROMPT_FILES if not (_dir / f).is_file()]
-    if missing:
-        msg = f"Missing prompt files (packaging error): {missing}"
-        raise RuntimeError(msg)
-
-
-_validate_prompts()

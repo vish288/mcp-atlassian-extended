@@ -46,8 +46,12 @@ async def confluence_list_calendars(
     filter_type: Annotated[
         str | None, Field(description="Filter by calendar type (e.g. 'leaves')")
     ] = None,
+    search: Annotated[
+        str | None,
+        Field(description="Filter by calendar name, space name, or space key (case-insensitive)"),
+    ] = None,
 ) -> str:
-    """List all Confluence calendars."""
+    """List Confluence calendars, optionally narrowed by type or a name/space search."""
     data = await _get_confluence(ctx).list_calendars()
     if filter_type:
         ft = filter_type.lower()
@@ -56,6 +60,16 @@ async def confluence_list_calendars(
             for w in data
             if ft in w.get("subCalendar", {}).get("typeKey", "").lower()
             or ft in w.get("subCalendar", {}).get("name", "").lower()
+        ]
+    if search:
+        q = search.lower()
+        data = [
+            w
+            for w in data
+            if any(
+                q in w.get("subCalendar", {}).get(k, "").lower()
+                for k in ("name", "spaceName", "spaceKey")
+            )
         ]
     # Simplify output
     result = []
@@ -77,40 +91,6 @@ async def confluence_list_calendars(
 
 
 @mcp.tool(
-    tags={"confluence", "calendars", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
-)
-@tool_result
-async def confluence_search_calendars(
-    ctx: Context,
-    query: Annotated[
-        str, Field(description="Search by calendar name, space name, or space key", min_length=1)
-    ],
-) -> str:
-    """Search Confluence calendars by name or space."""
-    data = await _get_confluence(ctx).list_calendars()
-    q = query.lower()
-    matched = []
-    for wrapper in data:
-        sub = wrapper.get("subCalendar", {})
-        if (
-            q in sub.get("name", "").lower()
-            or q in sub.get("spaceName", "").lower()
-            or q in sub.get("spaceKey", "").lower()
-        ):
-            matched.append(
-                {
-                    "id": sub.get("id"),
-                    "name": sub.get("name"),
-                    "type": sub.get("typeKey"),
-                    "space_key": sub.get("spaceKey"),
-                    "space_name": sub.get("spaceName"),
-                }
-            )
-    return _paginated(matched)
-
-
-@mcp.tool(
     tags={"confluence", "time_off", "read"},
     annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
@@ -120,12 +100,24 @@ async def confluence_get_time_off(
     start_date: Annotated[str, Field(description="Start date (YYYY-MM-DD, 'today', '+14d', etc.)")],
     end_date: Annotated[str, Field(description="End date (YYYY-MM-DD, 'today', '+14d', etc.)")],
     calendar_name: Annotated[str | None, Field(description="Filter by calendar name")] = None,
+    person: Annotated[
+        str | None,
+        Field(description="Return only this person's events (exact, case-insensitive name match)"),
+    ] = None,
     group_by_person: Annotated[bool, Field(description="Group results by person")] = False,
 ) -> str:
-    """Get time-off events for a date range across all leave calendars."""
+    """Get time-off events for a date range across all leave calendars.
+
+    Pass ``person`` for one person's events, or a single day for ``start_date`` and
+    ``end_date`` to see who is out on that day.
+    """
     start = _resolve_date(start_date)
     end = _resolve_date(end_date)
     events = await _get_confluence(ctx).get_time_off_events(start, end, calendar_name)
+
+    if person:
+        pl = person.lower()
+        events = [e for e in events if e["person_name"].lower() == pl]
 
     if group_by_person:
         grouped: dict[str, list[dict]] = {}
@@ -135,43 +127,6 @@ async def confluence_get_time_off(
         return _ok({"start": start, "end": end, "people": grouped})
 
     return _ok({"start": start, "end": end, "events": events})
-
-
-@mcp.tool(
-    tags={"confluence", "time_off", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
-)
-@tool_result
-async def confluence_who_is_out(
-    ctx: Context,
-    date: Annotated[str, Field(description="Date to check (default: 'today')")] = "today",
-) -> str:
-    """Check who is out on a specific date."""
-    d = _resolve_date(date)
-    events = await _get_confluence(ctx).get_time_off_events(d, d)
-    people = list({e["person_name"] for e in events})
-    return _ok({"date": d, "people_out": people, "count": len(people)})
-
-
-@mcp.tool(
-    tags={"confluence", "time_off", "read"},
-    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
-)
-@tool_result
-async def confluence_get_person_time_off(
-    ctx: Context,
-    person: Annotated[str, Field(description="Person name to search for", min_length=1)],
-    calendar_name: Annotated[str, Field(description="Calendar name to search in", min_length=1)],
-    start_date: Annotated[str, Field(description="Start date")],
-    end_date: Annotated[str, Field(description="End date")],
-) -> str:
-    """Get a specific person's time-off events."""
-    start = _resolve_date(start_date)
-    end = _resolve_date(end_date)
-    all_events = await _get_confluence(ctx).get_time_off_events(start, end, calendar_name)
-    person_lower = person.lower()
-    matched = [e for e in all_events if person_lower in e["person_name"].lower()]
-    return _ok({"person": person, "start": start, "end": end, "events": matched})
 
 
 @mcp.tool(
@@ -213,7 +168,8 @@ async def confluence_sprint_capacity(
 
     for member in team_members:
         member_lower = member.lower()
-        member_events = [e for e in all_events if member_lower in e["person_name"].lower()]
+        # Exact match: a substring test counts John's leave for member "Jo" too.
+        member_events = [e for e in all_events if e["person_name"].lower() == member_lower]
 
         # Count unique off-days (within sprint working days)
         off_dates: set[str] = set()

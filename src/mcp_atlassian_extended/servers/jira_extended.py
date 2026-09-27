@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
 from fastmcp import Context
@@ -54,8 +55,6 @@ async def jira_download_attachment(
     save_path: Annotated[str, Field(description="Local path to save the file", min_length=1)],
 ) -> str:
     """Download a Jira attachment to a local file. Writes to current working directory only."""
-    from pathlib import Path
-
     save = Path(save_path)
     if save.is_absolute():
         msg = "Absolute paths are not allowed. Use a relative path from the working directory."

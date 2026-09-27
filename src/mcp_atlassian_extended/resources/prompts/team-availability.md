@@ -5,8 +5,8 @@ $team_members
 
 ## Steps
 
-1. **Check who is out** — use `confluence_who_is_out` for the period $start_date to $end_date to get an overview of team absences.
-2. **Get per-person details** — for each team member, use `confluence_get_person_time_off` to retrieve:
+1. **Check who is out** — use `confluence_get_time_off` for the period $start_date to $end_date with `group_by_person=true` to get an overview of team absences.
+2. **Get per-person details** — call `confluence_get_time_off` with `person` set to a team member's full name to retrieve:
    - Vacation days
    - Sick leave
    - Public holidays

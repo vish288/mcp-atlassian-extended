@@ -1,6 +1,6 @@
 # mcp-atlassian-extended
 
-> MCP server extending mcp-atlassian — 26 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, project versions (API v2), calendars, time-off tracking, and sprint capacity planning.
+> MCP server extending mcp-atlassian — 22 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, project versions (API v2), calendars, time-off tracking, and sprint capacity planning.
 
 MCP server that complements mcp-atlassian with zero tool overlap. Provides issue CRUD with custom fields, agile board management, Confluence calendar and time-off tracking, and sprint capacity planning. Built with FastMCP, httpx, and Pydantic.
 
@@ -17,7 +17,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. Provides issue
 
 ## Documentation
 
-- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 26 tools, 15 resources, 5 prompts
+- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 22 tools, 15 resources, 5 prompts
 - [PyPI](https://pypi.org/project/mcp-atlassian-extended/): install via `pip install mcp-atlassian-extended` or `uvx mcp-atlassian-extended`
 - [GitHub](https://github.com/vish288/mcp-atlassian-extended): source code, issue tracker, development setup
 - [MCP Registry](https://registry.modelcontextprotocol.io): discover and install MCP servers
@@ -77,9 +77,9 @@ Basic auth wins. If both `JIRA_USERNAME` and `JIRA_API_TOKEN` are set, Basic is 
 
 ### Team Calendars add-on
 
-All six Confluence tools call `/rest/calendar-services/1.0/`, which only exists when the **Team Calendars** add-on is installed. Without it every Confluence tool returns a 404 whose hint names the add-on.
+All three Confluence tools call `/rest/calendar-services/1.0/`, which only exists when the **Team Calendars** add-on is installed. Without it every Confluence tool returns a 404 whose hint names the add-on.
 
-Partial configuration is supported: Jira and Confluence are configured independently, so set either or both. All 26 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set. The server loads `.env` files from the working directory automatically.
+Partial configuration is supported: Jira and Confluence are configured independently, so set either or both. All 22 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set. The server loads `.env` files from the working directory automatically.
 
 ## Configuration Example
 
@@ -118,17 +118,17 @@ uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx 
 
 ---
 
-## Tools (26) — Full Reference
+## Tools (22) — Full Reference
 
-### Jira Issues (3)
+### Jira Issues (2)
 
 #### `jira_create_issue`
-Create a Jira issue with standard and custom fields.
+Create a Jira issue with standard and custom fields. Pass `issue_type="Epic"` to create an epic, setting the Epic Name custom field through `custom_fields`.
 
 Parameters:
 - `project_key` (str, required): Project key (e.g. PROJ)
 - `summary` (str, required): Issue title/summary
-- `issue_type` (str, default "Story"): Issue type name
+- `issue_type` (str, default "Story"): Issue type name (e.g. Story, Bug, Task, Epic)
 - `description` (str, optional): Issue description
 - `labels` (list[str], optional): Labels to set
 - `priority` (str, optional): Priority name
@@ -147,19 +147,6 @@ Parameters:
 
 Tags: jira, issues, write
 Annotations: readOnlyHint=false, idempotentHint=true, openWorldHint=true
-
-#### `jira_create_epic`
-Create a Jira epic. Sets issue type to Epic automatically.
-
-Parameters:
-- `project_key` (str, required): Project key (e.g. PROJ)
-- `epic_name` (str, required): Epic name/title
-- `description` (str, optional): Epic description
-- `labels` (list[str], optional): Labels to set
-- `custom_fields` (dict, optional): Additional custom fields. Pass your instance's Epic Name field (e.g. `{"customfield_10009": "My Epic"}`) to set it explicitly.
-
-Tags: jira, issues, write
-Annotations: readOnlyHint=false, openWorldHint=true
 
 ### Jira Links (2)
 
@@ -347,55 +334,27 @@ Parameters:
 Tags: jira, versions, write
 Annotations: readOnlyHint=false, idempotentHint=true, openWorldHint=true
 
-### Confluence Calendars (6)
+### Confluence Calendars (3)
 
 #### `confluence_list_calendars`
-List all Confluence calendars.
+List Confluence calendars, optionally narrowed by type or a name/space search.
 
 Parameters:
 - `filter_type` (str, optional): Filter by calendar type (e.g. "leaves")
-
-Tags: confluence, calendars, read
-Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
-
-#### `confluence_search_calendars`
-Search Confluence calendars by name or space.
-
-Parameters:
-- `query` (str, required): Search by calendar name, space name, or space key
+- `search` (str, optional): Filter by calendar name, space name, or space key (case-insensitive)
 
 Tags: confluence, calendars, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 #### `confluence_get_time_off`
-Get time-off events for a date range across all leave calendars. Supports relative dates: "today", "tomorrow", "next week", "+14d", "-7d".
+Get time-off events for a date range across all leave calendars. Supports relative dates: "today", "tomorrow", "next week", "+14d", "-7d". Pass `person` for one person's events, or a single day for `start_date`/`end_date` to see who is out that day.
 
 Parameters:
 - `start_date` (str, required): Start date (YYYY-MM-DD, "today", "+14d", etc.)
 - `end_date` (str, required): End date (YYYY-MM-DD, "today", "+14d", etc.)
 - `calendar_name` (str, optional): Filter by calendar name
+- `person` (str, optional): Return only this person's events (exact, case-insensitive name match)
 - `group_by_person` (bool, default false): Group results by person
-
-Tags: confluence, time_off, read
-Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
-
-#### `confluence_who_is_out`
-Check who is out on a specific date.
-
-Parameters:
-- `date` (str, default "today"): Date to check
-
-Tags: confluence, time_off, read
-Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
-
-#### `confluence_get_person_time_off`
-Get a specific person's time-off events.
-
-Parameters:
-- `person` (str, required): Person name to search for
-- `calendar_name` (str, required): Calendar name to search in
-- `start_date` (str, required): Start date
-- `end_date` (str, required): End date
 
 Tags: confluence, time_off, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
@@ -789,8 +748,8 @@ Parameters: `team_members` (str), `start_date` (str), `end_date` (str)
 Tags: confluence, capacity
 
 Workflow steps:
-1. Check who is out with `confluence_who_is_out`
-2. Get per-person details with `confluence_get_person_time_off`
+1. Check who is out with `confluence_get_time_off` (group_by_person=true)
+2. Get per-person details with `confluence_get_time_off` (person set to a full name)
 3. Calculate capacity with `confluence_sprint_capacity`
 4. Flag conflicts (>50% team out, no coverage for critical roles)
 5. Report per-person availability, team capacity percentage, risk periods

@@ -15,7 +15,13 @@ from fastmcp.exceptions import ToolError
 
 from ..clients.confluence import ConfluenceExtendedClient
 from ..clients.jira import JiraExtendedClient
-from ..exceptions import AtlassianError, WriteDisabledError
+from ..exceptions import (
+    AtlassianApiError,
+    AtlassianAuthError,
+    AtlassianError,
+    TeamCalendarsUnavailableError,
+    WriteDisabledError,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -121,13 +127,6 @@ def _paginated(
 
 def _err(error: Exception) -> str:
     """Format error as JSON with actionable hints."""
-    from ..exceptions import (
-        AtlassianApiError,
-        AtlassianAuthError,
-        TeamCalendarsUnavailableError,
-        WriteDisabledError,
-    )
-
     detail: dict[str, Any] = {"error": str(error)}
 
     if isinstance(error, AtlassianAuthError):

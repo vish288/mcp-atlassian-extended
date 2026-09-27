@@ -17,11 +17,26 @@ from ..config import ConfluenceConfig, JiraConfig
 
 _log = logging.getLogger(__name__)
 
+# Configs the lifespan uses. The CLI (``__init__.main``) injects pre-built,
+# CLI-overridden configs here so the values reach the lifespan directly instead
+# of round-tripping through ``os.environ``. Left unset, the lifespan reads the
+# environment itself — the path tests and ``uvx`` take.
+_injected_configs: tuple[JiraConfig, ConfluenceConfig] | None = None
+
+
+def configure(jira: JiraConfig, confluence: ConfluenceConfig) -> None:
+    """Hand the lifespan pre-built configs instead of re-reading the environment."""
+    global _injected_configs
+    _injected_configs = (jira, confluence)
+
 
 @asynccontextmanager
 async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
-    jira_config = JiraConfig.from_env()
-    confluence_config = ConfluenceConfig.from_env()
+    if _injected_configs is not None:
+        jira_config, confluence_config = _injected_configs
+    else:
+        jira_config = JiraConfig.from_env()
+        confluence_config = ConfluenceConfig.from_env()
 
     pkg_version = version("mcp-atlassian-extended")
     _log.info("mcp-atlassian-extended %s starting", pkg_version)

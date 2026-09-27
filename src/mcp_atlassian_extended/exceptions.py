@@ -13,7 +13,8 @@ class AtlassianApiError(AtlassianError):
     def __init__(self, status_code: int, message: str, body: str = "") -> None:
         self.status_code = status_code
         self.body = body
-        super().__init__(f"Atlassian API Error {status_code}: {message}")
+        detail = f": {message}" if message else ""
+        super().__init__(f"Atlassian API Error {status_code}{detail}")
 
 
 class AtlassianAuthError(AtlassianApiError):

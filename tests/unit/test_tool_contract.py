@@ -152,9 +152,10 @@ ROWS = [
         "/rest/api/2/issue/PROJ-1",
         body={"fields": {"summary": "s", "customfield_1": 5}},
     ),
+    # jira_create_issue with issue_type="Epic" covers what jira_create_epic did.
     Row(
-        "jira_create_epic",
-        {"project_key": "PROJ", "epic_name": "E", "labels": ["a"]},
+        "jira_create_issue",
+        {"project_key": "PROJ", "summary": "E", "issue_type": "Epic", "labels": ["a"]},
         "POST",
         "/rest/api/2/issue",
         body={
@@ -196,33 +197,22 @@ ROWS = [
         body={"issues": ["PROJ-1", "PROJ-2"]},
     ),
     # ── confluence_extended.py ──
-    Row("confluence_list_calendars", {"filter_type": "leaves"}, "GET", SUBCALS, host=CONFLUENCE),
-    Row("confluence_search_calendars", {"query": "team"}, "GET", SUBCALS, host=CONFLUENCE),
+    # filter_type and search both filter the fetched list client-side — same request.
+    Row(
+        "confluence_list_calendars",
+        {"filter_type": "leaves", "search": "team"},
+        "GET",
+        SUBCALS,
+        host=CONFLUENCE,
+    ),
+    # person filters the fetched events client-side — the wire request is unchanged.
     Row(
         "confluence_get_time_off",
-        {"start_date": "2024-03-01", "end_date": "2024-03-10", "calendar_name": "Leaves"},
-        "GET",
-        EVENTS,
-        [("start", "2024-03-01"), ("end", "2024-03-10"), ("subCalendarId", "child-1")],
-        host=CONFLUENCE,
-        prelude=_EVENTS_PRELUDE,
-    ),
-    Row(
-        "confluence_who_is_out",
-        {"date": "2024-03-03"},
-        "GET",
-        EVENTS,
-        [("start", "2024-03-03"), ("end", "2024-03-03"), ("subCalendarId", "child-1")],
-        host=CONFLUENCE,
-        prelude=_EVENTS_PRELUDE,
-    ),
-    Row(
-        "confluence_get_person_time_off",
         {
-            "person": "Alice",
-            "calendar_name": "Leaves",
             "start_date": "2024-03-01",
             "end_date": "2024-03-10",
+            "calendar_name": "Leaves",
+            "person": "Alice Smith",
         },
         "GET",
         EVENTS,
