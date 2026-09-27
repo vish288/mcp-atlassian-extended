@@ -755,6 +755,17 @@ class TestConfluenceGetTimeOff:
         assert "Alice Smith" in parsed["people"]
         assert "Bob Jones" in parsed["people"]
 
+    async def test_free_text_date_rejected(self, tool_client):
+        """Free-text dates return a structured error naming the accepted formats."""
+        client, _ = tool_client
+        result = await client.call_tool(
+            "confluence_get_time_off",
+            {"start_date": "Jan 1, 2024", "end_date": "2024-03-10"},
+        )
+        parsed = _parse(result)
+        assert "Unrecognised date 'Jan 1, 2024'" in parsed["error"]
+        assert "YYYY-MM-DD" in parsed["error"]
+
 
 class TestConfluenceGetTimeOffPerson:
     """The person filter (formerly confluence_get_person_time_off) matches names exactly."""
