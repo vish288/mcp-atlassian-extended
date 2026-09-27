@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.0] - 2026-09-27
+
+### Bug Fixes
+- fix: date parameters accept YYYY-MM-DD and the documented keywords only (ae70bcf)
+
+### Refactoring
+- refactor: merge the Jira URL parsers and two small cuts (1d46559)
+- refactor: fold Confluence filter tools, drop jira_create_epic, and housekeeping (72f0258)
+
+### Documentation
+- docs: record the test-confidence and error-contract spec (f54198a)
+
+### Tests
+- test: match the who-is-out eval to the replacement tool's output keys (1c1c19f)
+- test: point the who-is-out eval at confluence_get_time_off (bb145aa)
+
+### Other
+
+
 ## [0.9.1] - 2026-09-27
 
 ### Refactoring
