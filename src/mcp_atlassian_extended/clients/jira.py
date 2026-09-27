@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import mimetypes
 from pathlib import Path
 from typing import Any
@@ -11,7 +10,7 @@ from urllib.parse import urlparse
 import httpx
 
 from ..config import JiraConfig
-from ..exceptions import AtlassianApiError, AtlassianAuthError
+from ._http import _parse_json, _raise_for_atlassian
 
 MIME_OVERRIDES = {
     ".md": "text/markdown",
@@ -76,30 +75,10 @@ class JiraExtendedClient:
             kwargs["content"] = content
 
         resp = await self._client.request(method, path, **kwargs)
-
-        if resp.status_code in (401, 403):
-            raise AtlassianAuthError(resp.status_code, resp.text)
-        if not resp.is_success:
-            raise AtlassianApiError(resp.status_code, resp.reason_phrase or "", resp.text)
-
-        if resp.status_code == 204 or not resp.content:
-            return None
-
+        _raise_for_atlassian(resp)
         if raw:
             return resp.content
-
-        content_type = resp.headers.get("content-type", "")
-        if "text/html" in content_type:
-            raise AtlassianApiError(
-                resp.status_code, "Unexpected HTML response — check auth", resp.text[:500]
-            )
-
-        try:
-            return resp.json()
-        except json.JSONDecodeError as e:
-            raise AtlassianApiError(
-                resp.status_code, f"JSON parse error: {e}", resp.text[:500]
-            ) from e
+        return _parse_json(resp)
 
     async def get(self, path: str, params: dict[str, Any] | None = None, **kw: Any) -> Any:
         return await self._request("GET", path, params=params, **kw)
@@ -177,19 +156,15 @@ class JiraExtendedClient:
                 **self.config.auth_header,
             },
         )
-        if not resp.is_success:
-            raise AtlassianApiError(resp.status_code, resp.reason_phrase or "", resp.text)
-        return resp.json()
+        _raise_for_atlassian(resp)
+        return _parse_json(resp)
 
     async def download_attachment(self, content_url: str) -> bytes:
         """Download attachment content. Handles both absolute and relative URLs."""
         content_url = self._validate_download_url(content_url)
         if content_url.startswith(("http://", "https://")):
             resp = await self._client.request("GET", content_url, headers=self.config.auth_header)
-            if resp.status_code in (401, 403):
-                raise AtlassianAuthError(resp.status_code, resp.text)
-            if not resp.is_success:
-                raise AtlassianApiError(resp.status_code, resp.reason_phrase or "", resp.text)
+            _raise_for_atlassian(resp)
             return resp.content
         return await self.get(content_url, raw=True)
 

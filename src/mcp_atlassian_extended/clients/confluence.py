@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import httpx
 
 from ..config import ConfluenceConfig
-from ..exceptions import AtlassianApiError, AtlassianAuthError, TeamCalendarsUnavailableError
+from ..exceptions import TeamCalendarsUnavailableError
+from ._http import _parse_json, _raise_for_atlassian
 
 LEAVE_KEYWORDS = ("vacation", "time off", "leaves", "time-off", "pto")
 
@@ -34,23 +34,10 @@ class ConfluenceExtendedClient:
 
     async def _get(self, path: str, params: Any = None) -> Any:
         resp = await self._client.get(path, params=params)
-        if resp.status_code in (401, 403):
-            raise AtlassianAuthError(resp.status_code, resp.text)
-        if resp.status_code == 404 and path.startswith(CALENDAR_API):
-            raise TeamCalendarsUnavailableError(resp.text[:500])
-        if not resp.is_success:
-            raise AtlassianApiError(resp.status_code, resp.reason_phrase or "", resp.text)
-        if not resp.content:
-            return None
-        content_type = resp.headers.get("content-type", "")
-        if "text/html" in content_type:
-            raise AtlassianApiError(resp.status_code, "Unexpected HTML response", resp.text[:500])
-        try:
-            return resp.json()
-        except json.JSONDecodeError as e:
-            raise AtlassianApiError(
-                resp.status_code, f"JSON parse error: {e}", resp.text[:500]
-            ) from e
+        # Only the Team Calendars namespace turns a 404 into "add-on not installed".
+        not_found = TeamCalendarsUnavailableError if path.startswith(CALENDAR_API) else None
+        _raise_for_atlassian(resp, not_found=not_found)
+        return _parse_json(resp)
 
     # ── Calendars ─────────────────────────────────────────────────
 
