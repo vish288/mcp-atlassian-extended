@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from mcp_atlassian_extended.servers.resources import _RESOURCE_FILES, _RESOURCES_DIR, _load
+from mcp_atlassian_extended.servers.resources import _RESOURCES_DIR, RESOURCES, _load
 
 
 class TestResourceFiles:
@@ -20,17 +20,17 @@ class TestResourceFiles:
         assert Path(_RESOURCES_DIR).is_dir(), f"Resources directory missing: {_RESOURCES_DIR}"
 
     def test_all_files_exist(self) -> None:
-        for filename in _RESOURCE_FILES:
+        for filename in (r.file for r in RESOURCES):
             path = Path(_RESOURCES_DIR) / filename
             assert path.is_file(), f"Missing resource file: {path}"
 
     def test_load_returns_content(self) -> None:
-        for filename in _RESOURCE_FILES:
+        for filename in (r.file for r in RESOURCES):
             content = _load(filename)
             assert len(content) > 100, f"{filename} too short ({len(content)} chars)"
 
     def test_content_starts_with_heading(self) -> None:
-        for filename in _RESOURCE_FILES:
+        for filename in (r.file for r in RESOURCES):
             content = _load(filename)
             assert content.lstrip().startswith("#"), (
                 f"{filename} should start with markdown heading"
@@ -38,7 +38,7 @@ class TestResourceFiles:
 
     def test_no_python_escape_artifacts(self) -> None:
         """Ensure extracted .md files don't contain Python string artifacts."""
-        for filename in _RESOURCE_FILES:
+        for filename in (r.file for r in RESOURCES):
             content = _load(filename)
             assert '"""' not in content, f"{filename} contains triple-quote artifact"
 
