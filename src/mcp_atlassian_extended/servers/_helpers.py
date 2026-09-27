@@ -230,17 +230,23 @@ _PROJECT_URL_RE = re.compile(r"https?://[^/]+/(?:jira/software/)?projects/([A-Z]
 _BOARD_URL_RE = re.compile(r"/boards/(\d+)")
 
 
+def _parse(rx: re.Pattern[str], value: str, *, search: bool = False) -> str:
+    """Extract matched group from a URL using *rx*, or return *value* unchanged.
+
+    Uses ``search`` if *search* is True, otherwise ``match``.
+    """
+    if not value.startswith(("http://", "https://")):
+        return value
+    m = rx.search(value) if search else rx.match(value)
+    return m.group(1) if m else value
+
+
 def _parse_jira_issue_url(value: str) -> str:
     """Extract issue key from a Jira browse URL.
 
     If *value* is not a URL, returns it unchanged (assumes it's already a key).
     """
-    if not value.startswith(("http://", "https://")):
-        return value
-    m = _ISSUE_URL_RE.match(value)
-    if m:
-        return m.group(1)
-    return value
+    return _parse(_ISSUE_URL_RE, value)
 
 
 def _parse_jira_project_url(value: str) -> str:
@@ -248,12 +254,7 @@ def _parse_jira_project_url(value: str) -> str:
 
     If *value* is not a URL, returns it unchanged.
     """
-    if not value.startswith(("http://", "https://")):
-        return value
-    m = _PROJECT_URL_RE.match(value)
-    if m:
-        return m.group(1)
-    return value
+    return _parse(_PROJECT_URL_RE, value)
 
 
 def _parse_jira_board_url(value: str) -> str:
@@ -261,9 +262,4 @@ def _parse_jira_board_url(value: str) -> str:
 
     If *value* is not a URL, returns it unchanged.
     """
-    if not value.startswith(("http://", "https://")):
-        return value
-    m = _BOARD_URL_RE.search(value)
-    if m:
-        return m.group(1)
-    return value
+    return _parse(_BOARD_URL_RE, value, search=True)

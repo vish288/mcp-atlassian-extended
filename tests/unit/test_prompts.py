@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from mcp_atlassian_extended.servers._helpers import _load_file
 from mcp_atlassian_extended.servers.prompts import (
     _PROMPT_FILES,
     _PROMPTS_DIR,
-    _load_prompt,
     close_ticket,
     create_ticket,
     manage_attachments,
@@ -60,12 +60,12 @@ class TestPromptFiles:
 
     def test_load_returns_content(self) -> None:
         for filename in PROMPT_FILES:
-            content = _load_prompt(filename)
+            content = _load_file(_PROMPTS_DIR, filename)
             assert len(content) > 100, f"{filename} too short ({len(content)} chars)"
 
     def test_content_starts_with_heading(self) -> None:
         for filename in PROMPT_FILES:
-            content = _load_prompt(filename)
+            content = _load_file(_PROMPTS_DIR, filename)
             assert content.lstrip().startswith("#"), (
                 f"{filename} should start with markdown heading"
             )
@@ -73,28 +73,28 @@ class TestPromptFiles:
     def test_no_python_escape_artifacts(self) -> None:
         """Ensure .md files don't contain Python string artifacts."""
         for filename in PROMPT_FILES:
-            content = _load_prompt(filename)
+            content = _load_file(_PROMPTS_DIR, filename)
             assert '"""' not in content, f"{filename} contains triple-quote artifact"
 
 
 class TestLoadPromptSecurity:
-    """Verify _load_prompt() rejects path traversal attempts."""
+    """Verify _load_file() rejects path traversal attempts."""
 
     def test_rejects_directory_traversal(self) -> None:
         with pytest.raises(ValueError, match="Invalid filename"):
-            _load_prompt("../../../etc/passwd")
+            _load_file(_PROMPTS_DIR, "../../../etc/passwd")
 
     def test_rejects_forward_slash(self) -> None:
         with pytest.raises(ValueError, match="Invalid filename"):
-            _load_prompt("subdir/file.md")
+            _load_file(_PROMPTS_DIR, "subdir/file.md")
 
     def test_rejects_backslash(self) -> None:
         with pytest.raises(ValueError, match="Invalid filename"):
-            _load_prompt("subdir\\file.md")
+            _load_file(_PROMPTS_DIR, "subdir\\file.md")
 
     def test_rejects_dotdot_only(self) -> None:
         with pytest.raises(ValueError, match="Invalid filename"):
-            _load_prompt("..")
+            _load_file(_PROMPTS_DIR, "..")
 
 
 class TestPromptRegistration:
