@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1] - 2026-09-27
+
+### Refactoring
+- refactor: declare resources once, in a table (ef5ac3b)
+- refactor: share Atlassian response handling between the two clients (9a6b907)
+- refactor: one AtlassianConfig dataclass for both products (4ccfd53)
+
+
 ## [0.9.0] - 2026-09-26
 
 ### Features
