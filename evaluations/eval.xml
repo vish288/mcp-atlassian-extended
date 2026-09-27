@@ -50,7 +50,7 @@
   <qa_pair id="8">
     <question>Who is out of office today?</question>
     <expected_tools>confluence_get_time_off</expected_tools>
-    <answer_contains>date, people_out, count</answer_contains>
+    <answer_contains>start, end, people</answer_contains>
   </qa_pair>
 
   <qa_pair id="9">
