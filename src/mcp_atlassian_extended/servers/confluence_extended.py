@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Annotated
 
-from dateutil.parser import parse as parse_date
 from fastmcp import Context
 from pydantic import Field
 
@@ -32,8 +31,15 @@ def _resolve_date(value: str) -> str:
         days = int(v[1:-1])
         return (now - timedelta(days=days)).strftime("%Y-%m-%d")
 
-    # Try ISO parse
-    return parse_date(value).strftime("%Y-%m-%d")
+    # Beyond the documented keywords, only ISO dates (YYYY-MM-DD) are accepted.
+    try:
+        return date.fromisoformat(v).strftime("%Y-%m-%d")
+    except ValueError:
+        msg = (
+            f"Unrecognised date {value!r}; use YYYY-MM-DD, 'today', "
+            "'tomorrow', '+Nd', '-Nd' or 'next week'"
+        )
+        raise ValueError(msg) from None
 
 
 @mcp.tool(
@@ -148,8 +154,8 @@ async def confluence_sprint_capacity(
     end = _resolve_date(sprint_end)
 
     # Calculate working days
-    start_dt = parse_date(start)
-    end_dt = parse_date(end)
+    start_dt = date.fromisoformat(start)
+    end_dt = date.fromisoformat(end)
     total_days = 0
     current = start_dt
     # Map working_days_per_week to non-working weekdays.
@@ -174,8 +180,8 @@ async def confluence_sprint_capacity(
         # Count unique off-days (within sprint working days)
         off_dates: set[str] = set()
         for event in member_events:
-            ev_start = max(parse_date(event["start_date"]), start_dt)
-            ev_end = min(parse_date(event["end_date"]), end_dt)
+            ev_start = max(date.fromisoformat(event["start_date"]), start_dt)
+            ev_end = min(date.fromisoformat(event["end_date"]), end_dt)
             d = ev_start
             while d <= ev_end:
                 if d.weekday() not in weekend_days:
