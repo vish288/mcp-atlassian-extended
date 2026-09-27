@@ -18,18 +18,13 @@ from ._helpers import (
 _PROMPTS_DIR = str(Path(__file__).resolve().parent.parent / "resources" / "prompts")
 
 
-def _load_prompt(filename: str) -> str:
-    """Load a prompt markdown file from the prompts directory."""
-    return _load_file(_PROMPTS_DIR, filename)
-
-
 def _render(filename: str, **kwargs: str) -> str:
     """Load a prompt template and substitute variables safely.
 
     Uses string.Template ($var) instead of str.format({var}) to avoid
     KeyError when parameter values contain curly braces.
     """
-    return Template(_load_prompt(filename)).safe_substitute(kwargs)
+    return Template(_load_file(_PROMPTS_DIR, filename)).safe_substitute(kwargs)
 
 
 @mcp.prompt(tags={"jira", "create"})
