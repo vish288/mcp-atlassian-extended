@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import os
 from dataclasses import dataclass
+from typing import Any, ClassVar
 
 
 def _auth_header(token: str, username: str, api_token: str) -> dict[str, str]:
@@ -23,14 +24,37 @@ def _auth_header(token: str, username: str, api_token: str) -> dict[str, str]:
     return {}
 
 
-@dataclass
-class JiraConfig:
-    """Jira connection configuration from environment.
+def _config_for(prefix: str) -> dict[str, Any]:
+    """Read ``<prefix>_*`` environment variables into constructor kwargs.
 
-    Supports two authentication modes:
-    - Basic auth: Set JIRA_USERNAME + JIRA_API_TOKEN (for Jira Cloud) — takes precedence
-    - Bearer token: Set JIRA_PAT or JIRA_PERSONAL_TOKEN (for Jira Data Center / self-hosted)
+    ``ATLASSIAN_READ_ONLY`` is deliberately unprefixed: one switch covers both
+    products.
     """
+
+    def env(name: str, default: str = "") -> str:
+        return os.getenv(f"{prefix}_{name}", default)
+
+    return {
+        "url": env("URL").rstrip("/"),
+        "token": env("PAT") or env("PERSONAL_TOKEN") or env("TOKEN"),
+        "username": env("USERNAME"),
+        "api_token": env("API_TOKEN"),
+        "read_only": os.getenv("ATLASSIAN_READ_ONLY", "false").lower() in ("true", "1", "yes"),
+        "timeout": int(env("TIMEOUT", "30")),
+        "ssl_verify": env("SSL_VERIFY", "true").lower() not in ("false", "0", "no"),
+    }
+
+
+@dataclass
+class AtlassianConfig:
+    """Connection settings for one Atlassian product.
+
+    Supports two authentication modes, read from ``<PREFIX>_*`` variables:
+    - Basic auth: ``<PREFIX>_USERNAME`` + ``<PREFIX>_API_TOKEN`` (Cloud) — takes precedence
+    - Bearer token: ``<PREFIX>_PAT`` or ``<PREFIX>_PERSONAL_TOKEN`` (Data Center / self-hosted)
+    """
+
+    _prefix: ClassVar[str] = ""
 
     url: str = ""
     token: str = ""
@@ -41,33 +65,8 @@ class JiraConfig:
     ssl_verify: bool = True
 
     @classmethod
-    def from_env(cls) -> JiraConfig:
-        url = os.getenv("JIRA_URL", "").rstrip("/")
-        token = (
-            os.getenv("JIRA_PAT") or os.getenv("JIRA_PERSONAL_TOKEN") or os.getenv("JIRA_TOKEN", "")
-        )
-        username = os.getenv("JIRA_USERNAME", "")
-        api_token = os.getenv("JIRA_API_TOKEN", "")
-        read_only = os.getenv("ATLASSIAN_READ_ONLY", "false").lower() in (
-            "true",
-            "1",
-            "yes",
-        )
-        timeout = int(os.getenv("JIRA_TIMEOUT", "30"))
-        ssl_verify = os.getenv("JIRA_SSL_VERIFY", "true").lower() not in (
-            "false",
-            "0",
-            "no",
-        )
-        return cls(
-            url=url,
-            token=token,
-            username=username,
-            api_token=api_token,
-            read_only=read_only,
-            timeout=timeout,
-            ssl_verify=ssl_verify,
-        )
+    def from_env(cls):
+        return cls(**_config_for(cls._prefix))
 
     @property
     def is_configured(self) -> bool:
@@ -81,61 +80,13 @@ class JiraConfig:
         return _auth_header(self.token, self.username, self.api_token)
 
 
-@dataclass
-class ConfluenceConfig:
-    """Confluence connection configuration from environment.
+class JiraConfig(AtlassianConfig):
+    """Jira connection configuration: ``JIRA_URL`` plus ``JIRA_*`` credentials."""
 
-    Supports two authentication modes:
-    - Basic auth: Set CONFLUENCE_USERNAME + CONFLUENCE_API_TOKEN (Cloud) — takes precedence
-    - Bearer token: Set CONFLUENCE_PAT or CONFLUENCE_PERSONAL_TOKEN (Data Center)
-    """
+    _prefix = "JIRA"
 
-    url: str = ""
-    token: str = ""
-    username: str = ""
-    api_token: str = ""
-    read_only: bool = False
-    timeout: int = 30
-    ssl_verify: bool = True
 
-    @classmethod
-    def from_env(cls) -> ConfluenceConfig:
-        url = os.getenv("CONFLUENCE_URL", "").rstrip("/")
-        token = (
-            os.getenv("CONFLUENCE_PAT")
-            or os.getenv("CONFLUENCE_PERSONAL_TOKEN")
-            or os.getenv("CONFLUENCE_TOKEN", "")
-        )
-        username = os.getenv("CONFLUENCE_USERNAME", "")
-        api_token = os.getenv("CONFLUENCE_API_TOKEN", "")
-        read_only = os.getenv("ATLASSIAN_READ_ONLY", "false").lower() in (
-            "true",
-            "1",
-            "yes",
-        )
-        timeout = int(os.getenv("CONFLUENCE_TIMEOUT", "30"))
-        ssl_verify = os.getenv("CONFLUENCE_SSL_VERIFY", "true").lower() not in (
-            "false",
-            "0",
-            "no",
-        )
-        return cls(
-            url=url,
-            token=token,
-            username=username,
-            api_token=api_token,
-            read_only=read_only,
-            timeout=timeout,
-            ssl_verify=ssl_verify,
-        )
+class ConfluenceConfig(AtlassianConfig):
+    """Confluence connection configuration: ``CONFLUENCE_URL`` plus ``CONFLUENCE_*`` credentials."""
 
-    @property
-    def is_configured(self) -> bool:
-        has_bearer = bool(self.url and self.token)
-        has_basic = bool(self.url and self.username and self.api_token)
-        return has_bearer or has_basic
-
-    @property
-    def auth_header(self) -> dict[str, str]:
-        """Return the Authorization header — Basic (Cloud) wins over Bearer."""
-        return _auth_header(self.token, self.username, self.api_token)
+    _prefix = "CONFLUENCE"
