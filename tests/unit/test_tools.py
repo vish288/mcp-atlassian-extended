@@ -128,21 +128,25 @@ class TestUpdateIssue:
         assert parsed["status"] == "updated"
 
 
-class TestCreateEpic:
-    async def test_happy_path(self, tool_client):
+class TestCreateEpicViaIssueType:
+    """jira_create_epic was removed; issue_type="Epic" on jira_create_issue covers it."""
+
+    async def test_epic_issue_type(self, tool_client):
         client, router = tool_client
-        router.post("/rest/api/2/issue").mock(
+        route = router.post("/rest/api/2/issue").mock(
             return_value=Response(
                 201,
                 json={"id": "10002", "key": "PROJ-125", "self": "https://..."},
             )
         )
         result = await client.call_tool(
-            "jira_create_epic",
-            {"project_key": "PROJ", "epic_name": "Q1 Auth Overhaul"},
+            "jira_create_issue",
+            {"project_key": "PROJ", "summary": "Q1 Auth Overhaul", "issue_type": "Epic"},
         )
         parsed = _parse(result)
         assert parsed["key"] == "PROJ-125"
+        body = json.loads(route.calls.last.request.content)
+        assert body["fields"]["issuetype"]["name"] == "Epic"
 
 
 # ═══════════════════════════════════════════════════════
@@ -587,15 +591,6 @@ class TestReadOnlyGuards:
         parsed = _parse(result)
         assert "error" in parsed
 
-    async def test_create_epic_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_create_epic",
-            {"project_key": "PROJ", "epic_name": "Blocked Epic"},
-        )
-        parsed = _parse(result)
-        assert "error" in parsed
-
 
 # ═══════════════════════════════════════════════════════
 # Delete Link happy path
@@ -710,14 +705,12 @@ class TestConfluenceListCalendars:
         assert parsed["count"] == 1
         assert parsed["items"][0]["name"] == "Team Leaves"
 
-
-class TestConfluenceSearchCalendars:
-    async def test_happy_path(self, tool_client):
+    async def test_search_by_name(self, tool_client):
         client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(200, json=_SAMPLE_CALENDARS)
         )
-        result = await client.call_tool("confluence_search_calendars", {"query": "release"})
+        result = await client.call_tool("confluence_list_calendars", {"search": "release"})
         parsed = _parse(result)
         assert parsed["count"] == 1
         assert parsed["items"][0]["name"] == "Release Calendar"
@@ -727,7 +720,7 @@ class TestConfluenceSearchCalendars:
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(200, json=_SAMPLE_CALENDARS)
         )
-        result = await client.call_tool("confluence_search_calendars", {"query": "ENG"})
+        result = await client.call_tool("confluence_list_calendars", {"search": "ENG"})
         parsed = _parse(result)
         assert parsed["count"] == 1
         assert parsed["items"][0]["space_key"] == "ENG"
@@ -763,50 +756,39 @@ class TestConfluenceGetTimeOff:
         assert "Bob Jones" in parsed["people"]
 
 
-class TestConfluenceWhoIsOut:
-    async def test_happy_path(self, tool_client):
-        client, router = tool_client
-        _mock_confluence_calendars_and_events(router)
-        result = await client.call_tool("confluence_who_is_out", {"date": "2024-03-03"})
-        parsed = _parse(result)
-        assert parsed["date"] == "2024-03-03"
-        assert parsed["count"] == 2
-        assert "Alice Smith" in parsed["people_out"]
-        assert "Bob Jones" in parsed["people_out"]
+class TestConfluenceGetTimeOffPerson:
+    """The person filter (formerly confluence_get_person_time_off) matches names exactly."""
 
-
-class TestConfluenceGetPersonTimeOff:
-    async def test_happy_path(self, tool_client):
+    async def test_person_exact_match(self, tool_client):
         client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool(
-            "confluence_get_person_time_off",
-            {
-                "person": "Alice",
-                "calendar_name": "Leaves",
-                "start_date": "2024-03-01",
-                "end_date": "2024-03-10",
-            },
+            "confluence_get_time_off",
+            {"start_date": "2024-03-01", "end_date": "2024-03-10", "person": "Alice Smith"},
         )
         parsed = _parse(result)
-        assert parsed["person"] == "Alice"
         assert len(parsed["events"]) == 1
         assert parsed["events"][0]["person_name"] == "Alice Smith"
 
-    async def test_no_match(self, tool_client):
+    async def test_person_partial_name_does_not_match(self, tool_client):
         client, router = tool_client
         _mock_confluence_calendars_and_events(router)
         result = await client.call_tool(
-            "confluence_get_person_time_off",
-            {
-                "person": "Charlie",
-                "calendar_name": "Leaves",
-                "start_date": "2024-03-01",
-                "end_date": "2024-03-10",
-            },
+            "confluence_get_time_off",
+            {"start_date": "2024-03-01", "end_date": "2024-03-10", "person": "Alice"},
         )
         parsed = _parse(result)
         assert parsed["events"] == []
+
+    async def test_who_is_out_via_single_day(self, tool_client):
+        client, router = tool_client
+        _mock_confluence_calendars_and_events(router)
+        result = await client.call_tool(
+            "confluence_get_time_off",
+            {"start_date": "2024-03-03", "end_date": "2024-03-03", "group_by_person": True},
+        )
+        parsed = _parse(result)
+        assert set(parsed["people"]) == {"Alice Smith", "Bob Jones"}
 
 
 class TestConfluenceSprintCapacity:
@@ -996,26 +978,15 @@ class TestNotConfiguredMessage:
 
 
 class TestTeamCalendarsMissing:
-    """All six Confluence tools go through /rest/calendar-services/1.0/ (Team Calendars)."""
+    """All three Confluence tools go through /rest/calendar-services/1.0/ (Team Calendars)."""
 
     @pytest.mark.parametrize(
         ("tool", "args"),
         [
             ("confluence_list_calendars", {}),
-            ("confluence_search_calendars", {"query": "team"}),
             (
                 "confluence_get_time_off",
                 {"start_date": "2025-01-01", "end_date": "2025-01-31"},
-            ),
-            ("confluence_who_is_out", {}),
-            (
-                "confluence_get_person_time_off",
-                {
-                    "person": "Alice",
-                    "calendar_name": "Leaves",
-                    "start_date": "2025-01-01",
-                    "end_date": "2025-01-31",
-                },
             ),
             (
                 "confluence_sprint_capacity",

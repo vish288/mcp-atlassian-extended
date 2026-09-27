@@ -11,7 +11,7 @@
 
 **Install:** `uvx mcp-atlassian-extended` | [PyPI](https://pypi.org/project/mcp-atlassian-extended/) | [MCP Registry](https://registry.modelcontextprotocol.io) | [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases)
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **26 tools**, **15 resources**, and **5 prompts** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, project versions (API v2), calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **22 tools**, **15 resources**, and **5 prompts** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, project versions (API v2), calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
 
 Supports Jira Cloud, Jira Data Center, Confluence Cloud, and Confluence Data Center (self-hosted). No Atlassian Premium required.
 
@@ -162,18 +162,18 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | VS Code Copilot | Yes | `.vscode/mcp.json` |
 | Any MCP client | Yes | stdio or HTTP transport |
 
-## Tools (26)
+## Tools (22)
 
 | Category | Count | Tools |
 |----------|-------|-------|
-| **Jira Issues** | 3 | create (with custom fields), update (with custom fields), create epic |
+| **Jira Issues** | 2 | create (with custom fields; `issue_type="Epic"` for epics), update (with custom fields) |
 | **Jira Links** | 2 | create link, delete link |
 | **Jira Attachments** | 4 | get, upload, download, delete |
 | **Jira Users** | 1 | search by name/email |
 | **Jira Metadata** | 3 | list projects, list fields, backlog |
 | **Jira Agile** | 4 | get board, board config, get sprint, move to sprint |
 | **Jira Versions** | 3 | get project versions, create version, update version |
-| **Confluence Calendars** | 6 | list, search, time-off, who-is-out, person time-off, sprint capacity |
+| **Confluence Calendars** | 3 | list (type/search filter), time-off (date range, per-person), sprint capacity |
 
 <details>
 <summary>Full tool reference (click to expand)</summary>
@@ -181,9 +181,8 @@ All Confluence calendar tools require the **Team Calendars** add-on
 ### Jira Issues
 | Tool | Description |
 |------|-------------|
-| `jira_create_issue` | Create issue with standard and custom fields |
+| `jira_create_issue` | Create issue with standard and custom fields (`issue_type="Epic"` creates an epic) |
 | `jira_update_issue` | Update issue fields and custom fields |
-| `jira_create_epic` | Create an epic (sets issue type automatically) |
 
 ### Jira Links
 | Tool | Description |
@@ -229,11 +228,8 @@ All Confluence calendar tools require the **Team Calendars** add-on
 ### Confluence Calendars
 | Tool | Description |
 |------|-------------|
-| `confluence_list_calendars` | List all calendars |
-| `confluence_search_calendars` | Search calendars by name/space |
-| `confluence_get_time_off` | Get time-off events for date range |
-| `confluence_who_is_out` | Check who is out on a date |
-| `confluence_get_person_time_off` | Get person's time-off events |
+| `confluence_list_calendars` | List calendars; optional `filter_type` and name/space `search` |
+| `confluence_get_time_off` | Time-off events for a date range; optional `person` (exact match) and `group_by_person` |
 | `confluence_sprint_capacity` | Calculate sprint capacity with time-off |
 
 </details>
@@ -285,7 +281,7 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 → jira_update_issue(issue_key="PROJ-123", fields={"priority": {"name": "High"}, "labels": ["urgent"]})
 
 "Create an epic and link related stories"
-→ jira_create_epic(project_key="PROJ", epic_name="Q1 Auth Overhaul")
+→ jira_create_issue(project_key="PROJ", summary="Q1 Auth Overhaul", issue_type="Epic")
 → jira_create_link(link_type="Relates", inward_issue="PROJ-100", outward_issue="PROJ-200")
 ```
 
@@ -333,7 +329,7 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 
 ```
 "Who is out today?"
-→ confluence_who_is_out(date="today")
+→ confluence_get_time_off(start_date="today", end_date="today", group_by_person=True)
 
 "Get team time-off for the next two weeks"
 → confluence_get_time_off(start_date="today", end_date="+14d", group_by_person=True)
@@ -390,7 +386,7 @@ uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx 
 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 
-**Partial configuration**: Jira and Confluence are configured independently — set either or both. All 26 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set, rather than failing at startup.
+**Partial configuration**: Jira and Confluence are configured independently — set either or both. All 22 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set, rather than failing at startup.
 
 ## Related MCP Servers
 

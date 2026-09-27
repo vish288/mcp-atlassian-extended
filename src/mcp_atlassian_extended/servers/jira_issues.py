@@ -36,6 +36,9 @@ async def jira_create_issue(
 ) -> str:
     """Create a Jira issue with standard and custom fields.
 
+    Pass ``issue_type="Epic"`` to create an epic; set your instance's Epic Name
+    custom field through ``custom_fields`` (e.g. {"customfield_10009": "My Epic"}).
+
     custom_fields example: {"customfield_10004": 5, "customfield_12345": {"value": "MyTeam"}}
     """
     data = await _get_jira(ctx).create_issue(
@@ -70,37 +73,6 @@ async def jira_update_issue(
     """Update a Jira issue's standard and custom fields."""
     await _get_jira(ctx).update_issue(issue_key, fields=fields, custom_fields=custom_fields)
     return _ok({"status": "updated", "issue_key": issue_key})
-
-
-@mcp.tool(
-    tags={"jira", "issues", "write"},
-    annotations={"readOnlyHint": False, "openWorldHint": True},
-)
-@tool_result(write="jira")
-async def jira_create_epic(
-    ctx: Context,
-    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)", min_length=1)],
-    epic_name: Annotated[str, Field(description="Epic name/title", min_length=1)],
-    description: Annotated[str | None, Field(description="Epic description")] = None,
-    labels: Annotated[list[str] | None, Field(description="Labels to set")] = None,
-    custom_fields: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description="Additional custom fields. Pass your instance's Epic Name field "
-            '(e.g. {"customfield_10009": "My Epic"}) to set it explicitly.'
-        ),
-    ] = None,
-) -> str:
-    """Create a Jira epic. Sets issue type to Epic automatically."""
-    data = await _get_jira(ctx).create_issue(
-        project_key,
-        epic_name,
-        "Epic",
-        description=description,
-        labels=labels,
-        custom_fields=custom_fields,
-    )
-    return _ok(data)
 
 
 # ── Issue Links ────────────────────────────────────────────────────

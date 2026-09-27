@@ -144,15 +144,3 @@ for _r in RESOURCES:
     mcp.resource(
         _r.uri, name=_r.name, description=_r.description, mime_type="text/markdown", tags=_r.tags
     )(functools.partial(_load, _r.file))
-
-
-def _validate_resources() -> None:
-    """Verify every resource file exists at import time."""
-    _dir = Path(_RESOURCES_DIR)
-    missing = [r.file for r in RESOURCES if not (_dir / r.file).is_file()]
-    if missing:
-        msg = f"Missing resource files (packaging error): {missing}"
-        raise RuntimeError(msg)
-
-
-_validate_resources()

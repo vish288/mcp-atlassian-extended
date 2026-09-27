@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 from fastmcp import Client
 
+import mcp_atlassian_extended.servers as servers
+from mcp_atlassian_extended.config import ConfluenceConfig, JiraConfig
 from mcp_atlassian_extended.servers import mcp
 
 _SERVERS_DIR = Path(__file__).resolve().parents[2] / "src" / "mcp_atlassian_extended" / "servers"
@@ -58,3 +60,16 @@ async def test_boots_with_nothing_configured_and_tools_say_so():
         parsed = json.loads(result.content[0].text)
         assert "not configured" in parsed["error"]
         assert "JIRA_URL" in parsed["hint"]
+
+
+async def test_configure_injects_configs_into_lifespan():
+    """The CLI hands pre-built configs to the lifespan instead of the env round-trip."""
+    jira = JiraConfig(url="https://j.example.com", token="t")
+    confluence = ConfluenceConfig(url="https://c.example.com", token="t")
+    servers.configure(jira, confluence)
+    try:
+        async with servers.lifespan(mcp) as ctx:
+            assert ctx["jira_config"] is jira
+            assert ctx["confluence_config"] is confluence
+    finally:
+        servers._injected_configs = None

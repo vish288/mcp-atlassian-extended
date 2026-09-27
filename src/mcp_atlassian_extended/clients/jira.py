@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import mimetypes
 from pathlib import Path
 from typing import Any
@@ -147,14 +148,13 @@ class JiraExtendedClient:
             or "application/octet-stream"
         )
 
-        files = {"file": (fname, p.read_bytes(), content_type)}
+        data = await asyncio.to_thread(p.read_bytes)
+        files = {"file": (fname, data, content_type)}
+        # Auth header is already set client-side; only the CSRF opt-out is per request.
         resp = await self._client.post(
             f"/rest/api/2/issue/{issue_key}/attachments",
             files=files,
-            headers={
-                "X-Atlassian-Token": "no-check",
-                **self.config.auth_header,
-            },
+            headers={"X-Atlassian-Token": "no-check"},
         )
         _raise_for_atlassian(resp)
         return _parse_json(resp)
@@ -163,7 +163,8 @@ class JiraExtendedClient:
         """Download attachment content. Handles both absolute and relative URLs."""
         content_url = self._validate_download_url(content_url)
         if content_url.startswith(("http://", "https://")):
-            resp = await self._client.request("GET", content_url, headers=self.config.auth_header)
+            # Auth header is already set client-side; no need to repeat it here.
+            resp = await self._client.request("GET", content_url)
             _raise_for_atlassian(resp)
             return resp.content
         return await self.get(content_url, raw=True)

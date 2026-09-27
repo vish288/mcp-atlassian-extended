@@ -1,6 +1,6 @@
 # mcp-atlassian-extended — Agent Context
 
-MCP server exposing 26 tools, 15 resources, and 5 prompts for Jira and Confluence
+MCP server exposing 22 tools, 15 resources, and 5 prompts for Jira and Confluence
 operations beyond core CRUD. Complements [mcp-atlassian](https://github.com/sooperset/mcp-atlassian)
 with zero tool overlap: issue creation/update with custom fields, issue links,
 attachments, agile boards and sprints, project versions, team calendars, and sprint
@@ -17,12 +17,11 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 | `src/mcp_atlassian_extended/servers/_helpers.py` | shared `_get_jira`, `_get_confluence`, `_check_write`, `_ok`, `_err`, `_paginated`, `_load_file`, Jira URL parsers |
 | `src/mcp_atlassian_extended/servers/jira_extended.py` | 11 tools — attachments, users, metadata, versions, backlog |
 | `src/mcp_atlassian_extended/servers/jira_agile.py` | 4 tools — boards, sprints |
-| `src/mcp_atlassian_extended/servers/jira_issues.py` | 5 tools — issues, epics, links |
-| `src/mcp_atlassian_extended/servers/confluence_extended.py` | 6 tools — calendars, time off, capacity |
+| `src/mcp_atlassian_extended/servers/jira_issues.py` | 4 tools — issues, links |
+| `src/mcp_atlassian_extended/servers/confluence_extended.py` | 3 tools — calendars, time off, capacity |
 | `src/mcp_atlassian_extended/servers/resources.py` | 15 MCP resources |
 | `src/mcp_atlassian_extended/servers/prompts.py` | 5 MCP prompts |
 | `src/mcp_atlassian_extended/resources/*.md` | resource bodies (+ `prompts/` subdir for prompt bodies) |
-| `src/mcp_atlassian_extended/models/` | empty package (see Known Limitations) |
 | `tests/unit/` | unit + FastMCP in-process client tests (~155 tests; `test_tools.py` alone has 66) |
 | `tests/test_links.py` | CI link checker — fetches every URL in README, pyproject, server.json, llms*.txt |
 | `evaluations/eval.xml` | tool-selection eval fixtures |
@@ -31,8 +30,9 @@ Tools are registered purely by import side effect: `_register_tools()` in
 `servers/__init__.py` imports each module so its `@mcp.tool` decorators run. A new
 module is invisible until added there.
 
-`resources.py` runs `_validate_resources()` at import and raises `RuntimeError` if any
-expected `.md` is missing — a packaging error fails at startup, not at first read.
+A missing resource `.md` surfaces when that resource is first read (and in the
+assembly test, which reads every URI) — not at import, so one absent file never
+takes down the whole server.
 
 ## Development
 
@@ -61,7 +61,8 @@ uvx mcp-atlassian-extended --read-only
 ```
 
 `--host`/`--port` are ignored on stdio. Every connection CLI flag has an env-var
-equivalent and simply writes into `os.environ` before the server module is imported.
+equivalent; the CLI builds the configs from the environment, applies any explicit
+flags on top, and hands them to the lifespan directly.
 
 ## Patterns
 
@@ -120,24 +121,24 @@ delete, move, upload, download.
   tool writes to — the helper reads that product's config, and the two read-only flags
   are independent even though both default from `ATLASSIAN_READ_ONLY`.
 - `jira_download_attachment` is tagged `write` because it writes to local disk.
-- All current write tools are Jira tools; the six Confluence tools are read-only.
+- All current write tools are Jira tools; the three Confluence tools are read-only.
 
 ### Errors
 
 Never leak stack traces, tokens, or internal paths in error text.
 
-## Tools (26)
+## Tools (22)
 
 | Category | Count | Tools |
 | --- | --- | --- |
-| Jira Issues | 3 | `jira_create_issue`, `jira_update_issue`, `jira_create_epic` (all support custom fields) |
+| Jira Issues | 2 | `jira_create_issue` (custom fields; `issue_type="Epic"` for epics), `jira_update_issue` |
 | Jira Links | 2 | `jira_create_link`, `jira_delete_link` |
 | Jira Attachments | 4 | `jira_get_attachments`, `jira_upload_attachment`, `jira_download_attachment`, `jira_delete_attachment` |
 | Jira Users | 1 | `jira_search_users` |
 | Jira Metadata | 3 | `jira_list_projects`, `jira_list_fields`, `jira_backlog` |
 | Jira Agile | 4 | `jira_get_board`, `jira_board_config`, `jira_get_sprint`, `jira_move_to_sprint` |
 | Jira Versions | 3 | `jira_get_project_versions`, `jira_create_version`, `jira_update_version` |
-| Confluence Calendars | 6 | `confluence_list_calendars`, `confluence_search_calendars`, `confluence_get_time_off`, `confluence_who_is_out`, `confluence_get_person_time_off`, `confluence_sprint_capacity` |
+| Confluence Calendars | 3 | `confluence_list_calendars` (type/search filter), `confluence_get_time_off` (date range, optional `person`), `confluence_sprint_capacity` |
 
 ### Upstream APIs
 
@@ -145,7 +146,7 @@ Never leak stack traces, tokens, or internal paths in error text.
   (v2, not v3 — works on both Server/DC and Cloud).
 - Boards, sprints, backlog: `/rest/agile/1.0/…`.
 - Confluence calendars and time off: `/rest/calendar-services/1.0/…` — this is the
-  **Team Calendars** add-on. Confluence instances without it return 404 for all six
+  **Team Calendars** add-on. Confluence instances without it return 404 for all three
   Confluence tools.
 - Attachment uploads are capped at 100 MB client-side (`clients/jira.py`).
 
@@ -154,8 +155,8 @@ Never leak stack traces, tokens, or internal paths in error text.
 - Sprint planning: `jira_get_board` → `jira_backlog` → `confluence_sprint_capacity` → `jira_move_to_sprint`
 - Board inspection: `jira_get_board` → `jira_board_config` → `jira_get_sprint` → `jira_backlog`
 - Attachments: `jira_get_attachments` → `jira_download_attachment` → `jira_upload_attachment` → `jira_delete_attachment`
-- Team availability: `confluence_who_is_out` → `confluence_get_person_time_off` → `confluence_sprint_capacity`
-- Issue linking: `jira_create_issue` → `jira_create_link` → `jira_create_epic` → `jira_move_to_sprint`
+- Team availability: `confluence_get_time_off` (group_by_person) → `confluence_get_time_off` (per `person`) → `confluence_sprint_capacity`
+- Issue linking: `jira_create_issue` → `jira_create_link` → `jira_move_to_sprint`
 - Versions: `jira_get_project_versions` → `jira_create_version` → `jira_update_version`
 
 Sprint *creation* is not exposed — create sprints in Jira, then use `jira_move_to_sprint`.
@@ -180,7 +181,7 @@ traversal-guarded `_load_file()`. URI namespaces:
 - `resource://templates/…` (1) — confluence-pages
 
 Adding one means adding the `.md` and one `Resource(...)` row to `RESOURCES` in
-`servers/resources.py`; the loop registers it and `_validate_resources()` checks the file.
+`servers/resources.py`; the loop registers it and the assembly test reads it back.
 
 ## Prompts (5)
 
@@ -223,7 +224,7 @@ Gotchas:
 - `_check_write(ctx, service)` takes the service explicitly (`"jira"` or `"confluence"`)
   and reads that product's config. Pass the one the calling tool writes to — the two
   read-only flags are independent even though both default from `ATLASSIAN_READ_ONLY`.
-- All six Confluence calendar tools hit `/rest/calendar-services/1.0/`, which only exists
+- All three Confluence calendar tools hit `/rest/calendar-services/1.0/`, which only exists
   with the Team Calendars add-on. A 404 there raises `TeamCalendarsUnavailableError` so
   the user gets an explanation instead of a bare 404.
 - Jira and Confluence are configured independently. An unconfigured client is `None`,
@@ -276,8 +277,6 @@ annotations.
 
 ## Known limitations
 
-- `models/` is an empty package. Add Pydantic response models there if responses ever
-  need trimming or validation.
 - `jira_search_users` uses the `username` query parameter, which works on Data Center but
   may not on Jira Cloud (which prefers `query`/`accountId`).
 - Errors come back as *successful* tool results carrying `{"error": …, "hint": …}` (soft

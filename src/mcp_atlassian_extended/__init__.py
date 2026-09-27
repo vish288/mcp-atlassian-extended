@@ -2,10 +2,11 @@
 
 import asyncio
 import logging
-import os
 
 import click
 from dotenv import load_dotenv
+
+from .config import ConfluenceConfig, JiraConfig
 
 
 @click.command()
@@ -49,31 +50,38 @@ def main(
     """Run the Atlassian Extended MCP server."""
     load_dotenv()
 
+    # Start from the environment (picks up timeout/ssl/token aliases and .env),
+    # then let explicit CLI flags win — no writing back through os.environ.
+    jira_config = JiraConfig.from_env()
+    confluence_config = ConfluenceConfig.from_env()
     if jira_url:
-        os.environ["JIRA_URL"] = jira_url
+        jira_config.url = jira_url.rstrip("/")
     if jira_token:
-        os.environ["JIRA_PAT"] = jira_token
+        jira_config.token = jira_token
     if jira_username:
-        os.environ["JIRA_USERNAME"] = jira_username
+        jira_config.username = jira_username
     if jira_api_token:
-        os.environ["JIRA_API_TOKEN"] = jira_api_token
+        jira_config.api_token = jira_api_token
     if confluence_url:
-        os.environ["CONFLUENCE_URL"] = confluence_url
+        confluence_config.url = confluence_url.rstrip("/")
     if confluence_token:
-        os.environ["CONFLUENCE_PAT"] = confluence_token
+        confluence_config.token = confluence_token
     if confluence_username:
-        os.environ["CONFLUENCE_USERNAME"] = confluence_username
+        confluence_config.username = confluence_username
     if confluence_api_token:
-        os.environ["CONFLUENCE_API_TOKEN"] = confluence_api_token
+        confluence_config.api_token = confluence_api_token
     if read_only:
-        os.environ["ATLASSIAN_READ_ONLY"] = "true"
+        jira_config.read_only = True
+        confluence_config.read_only = True
 
     logging.basicConfig(
         level=logging.INFO,
         format="%(name)s | %(message)s",
     )
 
-    from .servers import mcp
+    from .servers import configure, mcp
+
+    configure(jira_config, confluence_config)
 
     run_kwargs: dict = {"transport": transport}
     if transport != "stdio":
