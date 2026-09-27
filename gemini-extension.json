@@ -1,7 +1,7 @@
 {
   "name": "mcp-atlassian-extended",
   "version": "0.9.1",
-  "description": "Extended MCP tools for Jira and Confluence \u2014 attachments, agile boards, sprints, calendars",
+  "description": "MCP server for Jira and Confluence \u2014 sprints, agile boards, attachments, versions, calendars.",
   "mcpServers": {
     "mcp-atlassian-extended": {
       "command": "uvx",
@@ -13,13 +13,13 @@
   "settings": [
     {
       "name": "JIRA_URL",
-      "description": "Jira instance URL (e.g., https://your-org.atlassian.net)",
+      "description": "Jira instance URL (e.g. https://your-domain.atlassian.net)",
       "required": true,
       "sensitive": false
     },
     {
       "name": "JIRA_USERNAME",
-      "description": "Jira Cloud account email. With JIRA_API_TOKEN it takes precedence over JIRA_PAT.",
+      "description": "Jira Cloud account email. With JIRA_API_TOKEN this takes precedence over any token below.",
       "required": false,
       "sensitive": false
     },
@@ -31,19 +31,19 @@
     },
     {
       "name": "JIRA_PAT",
-      "description": "Jira personal access token for Data Center. Ignored when JIRA_USERNAME and JIRA_API_TOKEN are both set.",
+      "description": "Jira personal access token for Data Center (aliases: JIRA_PERSONAL_TOKEN, JIRA_TOKEN). Ignored when JIRA_USERNAME and JIRA_API_TOKEN are both set.",
       "required": false,
       "sensitive": true
     },
     {
       "name": "CONFLUENCE_URL",
-      "description": "Confluence instance URL (e.g., https://your-org.atlassian.net/wiki). Optional: only needed for the Confluence tools.",
+      "description": "Confluence instance URL (optional, for Confluence tools). Cloud URLs usually need the /wiki suffix.",
       "required": false,
       "sensitive": false
     },
     {
       "name": "CONFLUENCE_USERNAME",
-      "description": "Confluence Cloud account email. With CONFLUENCE_API_TOKEN it takes precedence over CONFLUENCE_PAT.",
+      "description": "Confluence Cloud account email. With CONFLUENCE_API_TOKEN this takes precedence over any token below.",
       "required": false,
       "sensitive": false
     },
@@ -55,9 +55,15 @@
     },
     {
       "name": "CONFLUENCE_PAT",
-      "description": "Confluence personal access token for Data Center. Confluence tools also require the Team Calendars add-on.",
+      "description": "Confluence personal access token for Data Center (aliases: CONFLUENCE_PERSONAL_TOKEN, CONFLUENCE_TOKEN). Confluence tools also require the Team Calendars add-on.",
       "required": false,
       "sensitive": true
+    },
+    {
+      "name": "ATLASSIAN_READ_ONLY",
+      "description": "Restrict to read-only operations (true/false)",
+      "required": false,
+      "sensitive": false
     }
   ]
 }
