@@ -19,16 +19,6 @@
 ### Other
 - build: derive gemini-extension.json and llms.txt instead of hand-maintaining them (5e2d375)
 - deps: fastmcp 4.0.10 (461d543)
-- ci: fail the build below 95% src coverage (6af2612)
-- ci: add explicit version input to release workflow (49060fc)
-- MCP Builder polish — pagination, annotations, docs, evals (#23) (715b85c)
-- Add 15 MCP resources for Jira/Confluence workflows (#19) (50c5bbd)
-- Merge pull request #3 from vish288/fix/install-badge-urls (7f3f2dd)
-- Add VS Code install badges and issue templates (#2) (50fd8f1)
-- ci: use RELEASE_PAT for admin bypass in semantic release (fc1201d)
-- ci: use GitHub API for release commits to bypass branch protection (b284cb4)
-- ci: add trusted publishing, GitHub releases, and semantic release workflow (2d00ca6)
-- Initial commit (19357c1)
 
 
 ## [0.9.1] - 2026-09-27
