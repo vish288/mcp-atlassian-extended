@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.1] - 2026-09-28
+
+### Bug Fixes
+- fix: close the closing-review findings on 0.10.0 (e799caf)
+
+### Documentation
+- docs: keep the 0.10.0 changelog to its release range (032d210)
+
+
 ## [0.10.0] - 2026-09-27
 
 ### Bug Fixes
