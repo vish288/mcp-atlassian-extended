@@ -142,9 +142,25 @@ async def confluence_get_time_off(
 @tool_result
 async def confluence_sprint_capacity(
     ctx: Context,
-    team_members: Annotated[list[str], Field(description="List of team member names")],
-    sprint_start: Annotated[str, Field(description="Sprint start date")],
-    sprint_end: Annotated[str, Field(description="Sprint end date")],
+    team_members: Annotated[
+        list[str], Field(description="Full names exactly as they appear on the calendar")
+    ],
+    sprint_start: Annotated[
+        str,
+        Field(
+            description=(
+                "Sprint start date: YYYY-MM-DD, 'today', 'tomorrow', '+Nd', '-Nd', 'next week'"
+            )
+        ),
+    ],
+    sprint_end: Annotated[
+        str,
+        Field(
+            description=(
+                "Sprint end date: YYYY-MM-DD, 'today', 'tomorrow', '+Nd', '-Nd', 'next week'"
+            )
+        ),
+    ],
     working_days_per_week: Annotated[
         int, Field(description="Working days per week", ge=1, le=7)
     ] = 5,

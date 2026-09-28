@@ -363,9 +363,9 @@ Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 Calculate sprint capacity considering team time-off. Computes available working days per member, total team capacity, and capacity percentage.
 
 Parameters:
-- `team_members` (list[str], required): List of team member names
-- `sprint_start` (str, required): Sprint start date
-- `sprint_end` (str, required): Sprint end date
+- `team_members` (list[str], required): Full names exactly as they appear on the calendar
+- `sprint_start` (str, required): Sprint start date: YYYY-MM-DD, 'today', 'tomorrow', '+Nd', '-Nd', 'next week'
+- `sprint_end` (str, required): Sprint end date: YYYY-MM-DD, 'today', 'tomorrow', '+Nd', '-Nd', 'next week'
 - `working_days_per_week` (int, default 5, range 1-7): Working days per week
 
 Tags: confluence, time_off, read
