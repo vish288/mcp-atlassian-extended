@@ -289,3 +289,10 @@ async def test_forced_failure(tool_client, row: Row):
 
     assert set(parsed) == {"error", "status_code", "body", "hint"}
     assert parsed["status_code"] == 404
+
+
+async def test_every_tool_has_a_row(tool_client):
+    client, _router = tool_client
+    registered_tools = {t.name for t in await client.list_tools()}
+    table_tools = {r.tool for r in ROWS}
+    assert table_tools == registered_tools

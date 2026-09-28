@@ -16,6 +16,7 @@ if either committed file drifts from what this produces.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,12 +50,19 @@ def build_gemini(server: dict) -> dict:
 
 def render_gemini(server: dict) -> str:
     """gemini-extension.json contents for the given server.json data."""
-    return json.dumps(build_gemini(server), indent=2) + "\n"
+    return json.dumps(build_gemini(server), indent=2, ensure_ascii=False) + "\n"
 
 
 def build_llms(full: bytes) -> bytes:
     """The llms.txt prefix of the given llms-full.txt bytes."""
-    return full[: full.index(LLMS_CUT)]
+    idx = full.find(LLMS_CUT)
+    if idx == -1:
+        msg = (
+            "llms-full.txt has no '## Environment Variables' section; llms.txt can no "
+            "longer be derived as its prefix -- update scripts/derive_artifacts.py."
+        )
+        raise SystemExit(msg)
+    return full[:idx]
 
 
 def main() -> None:
@@ -65,4 +73,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(130)
