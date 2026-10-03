@@ -74,13 +74,13 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 
 ### Auth precedence
 
-Basic auth wins. If both `JIRA_USERNAME` and `JIRA_API_TOKEN` are set, Basic is used and any personal access token (`JIRA_PAT`, `JIRA_PERSONAL_TOKEN`, `JIRA_TOKEN`) is ignored. Bearer is used only when the Cloud pair is incomplete. Unset `JIRA_USERNAME`/`JIRA_API_TOKEN` to force Bearer. `CONFLUENCE_*` follows the same rule.
+Basic auth wins. If you set both `JIRA_USERNAME` and `JIRA_API_TOKEN`, the server uses Basic auth and ignores any personal access token (`JIRA_PAT`, `JIRA_PERSONAL_TOKEN`, `JIRA_TOKEN`). The server uses Bearer auth only when the Cloud pair is incomplete. To force Bearer, unset `JIRA_USERNAME` and `JIRA_API_TOKEN`. `CONFLUENCE_*` follows the same rule.
 
 ### Team Calendars add-on
 
-All three Confluence tools call `/rest/calendar-services/1.0/`, which only exists when the **Team Calendars** add-on is installed. Without it every Confluence tool returns a 404 whose hint names the add-on.
+All three Confluence tools call `/rest/calendar-services/1.0/`, which exists only with the **Team Calendars** add-on. Without it, every Confluence tool returns a 404 whose hint names the add-on.
 
-Partial configuration is supported: Jira and Confluence are configured independently, so set either or both. All 22 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set. The server loads `.env` files from the working directory automatically.
+You configure Jira and Confluence independently, so set either or both. The server always advertises all 22 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server loads `.env` files from the working directory automatically.
 
 ## Configuration Example
 
@@ -109,9 +109,11 @@ Partial configuration is supported: Jira and Confluence are configured independe
 # Default: stdio transport (for MCP clients)
 uvx mcp-atlassian-extended
 
-# HTTP transport (SSE or streamable-http)
-uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
+# HTTP transport. Use streamable-http for remote clients.
 uvx mcp-atlassian-extended --transport streamable-http --port 9000
+
+# sse still works, but the MCP 2026-07-28 spec deprecates it. The server prints a warning.
+uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
 
 # CLI overrides
 uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx --read-only
@@ -777,11 +779,11 @@ Workflow steps:
 - **Token scope**: Use API tokens with minimum required permissions. PATs with project-level access for Data Center.
 - **Read-only mode**: `ATLASSIAN_READ_ONLY=true` disables all write operations server-side.
 - **File upload validation**: No path traversal, max 100MB, file must exist.
-- **Download path restriction**: Relative paths only, resolved within working directory. Absolute paths and `../` rejected.
-- **Download URL validation**: URLs validated against configured Jira domain to prevent SSRF.
-- **SSL verification**: Enabled by default. Only disable for self-signed certificates in trusted networks.
+- **Download path restriction**: Relative paths only, resolved within the working directory. The server rejects absolute paths and `../`.
+- **Download URL validation**: The server validates each download URL against the configured Jira domain to prevent SSRF.
+- **SSL verification**: On by default. Disable it only for self-signed certificates in trusted networks.
 - **MCP tool annotations**: Each tool declares `readOnlyHint`, `destructiveHint`, and `idempotentHint`.
-- **No credential storage**: Tokens read from environment variables at startup, never persisted.
+- **No credential storage**: The server reads tokens from environment variables at startup and never stores them.
 
 ## Required Permissions
 

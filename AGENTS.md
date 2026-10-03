@@ -9,8 +9,10 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 ## Protocol support
 
 - The server implements the MCP **2026-07-28** specification (MCP 2.0). It stays
-  compatible with **2025-11-25** clients. The regression test is verified with a fastmcp
-  client pinned to `2026-07-28` and in legacy mode, over stdio and streamable HTTP.
+  compatible with **2025-11-25** clients. A fastmcp client pinned to `2026-07-28` and a
+  legacy client both list every tool and reach the API over stdio. The code PR's
+  regression test checks `tools/list` with an in-memory client pinned to `2026-07-28`; it
+  does not cover stdio or HTTP.
 - Transports: `stdio` (default) and `streamable-http` (recommended for remote). `sse`
   still works, but the 2026-07-28 specification deprecates it, so the server prints a
   warning.
@@ -38,13 +40,13 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 | `tests/test_links.py` | CI link checker — fetches every URL in README, pyproject, server.json, llms*.txt |
 | `evaluations/eval.xml` | tool-selection eval fixtures |
 
-Tools are registered purely by import side effect: `_register_tools()` in
-`servers/__init__.py` imports each module so its `@mcp.tool` decorators run. A new
-module is invisible until added there.
+`_register_tools()` in `servers/__init__.py` registers every tool by import side effect:
+it imports each module so the `@mcp.tool` decorators run. A new module stays invisible
+until you add it there.
 
-A missing resource `.md` surfaces when that resource is first read (and in the
-assembly test, which reads every URI) — not at import, so one absent file never
-takes down the whole server.
+A missing resource `.md` surfaces when a client first reads it (and in the assembly test,
+which reads every URI). It does not fail at import, so one absent file never takes down
+the whole server.
 
 ## Development
 
@@ -61,7 +63,7 @@ Ruff is line-length 100, target py310, rules `E,F,B,W,I,N,UP,S,C4,EM,ISC`.
 
 Shared fixtures live in `tests/conftest.py`: `jira_config`, `confluence_config`,
 `jira_client`, `confluence_client` — all pointed at `*.example.com` with a dummy token.
-HTTP is stubbed with `respx`.
+`respx` stubs HTTP.
 
 Run the server locally:
 
@@ -72,8 +74,8 @@ uvx mcp-atlassian-extended --transport streamable-http --port 8000
 uvx mcp-atlassian-extended --read-only
 ```
 
-`--host`/`--port` are ignored on stdio. Every connection CLI flag has an env-var
-equivalent; the CLI builds the configs from the environment, applies any explicit
+On stdio the server ignores `--host` and `--port`. Every connection CLI flag has an
+env-var equivalent. The CLI builds the configs from the environment, applies any explicit
 flags on top, and hands them to the lifespan directly.
 
 ## Patterns
@@ -132,7 +134,7 @@ delete, move, upload, download.
   before any mutation. The second argument is mandatory and must name the product the
   tool writes to — the helper reads that product's config, and the two read-only flags
   are independent even though both default from `ATLASSIAN_READ_ONLY`.
-- `jira_download_attachment` is tagged `write` because it writes to local disk.
+- `jira_download_attachment` carries the `write` tag because it writes to local disk.
 - All current write tools are Jira tools; the three Confluence tools are read-only.
 
 ### Errors
@@ -160,7 +162,7 @@ Never leak stack traces, tokens, or internal paths in error text.
 - Confluence calendars and time off: `/rest/calendar-services/1.0/…` — this is the
   **Team Calendars** add-on. Confluence instances without it return 404 for all three
   Confluence tools.
-- Attachment uploads are capped at 100 MB client-side (`clients/jira.py`).
+- The client caps attachment uploads at 100 MB (`clients/jira.py`).
 
 ### Common workflows
 
@@ -171,7 +173,7 @@ Never leak stack traces, tokens, or internal paths in error text.
 - Issue linking: `jira_create_issue` → `jira_create_link` → `jira_move_to_sprint`
 - Versions: `jira_get_project_versions` → `jira_create_version` → `jira_update_version`
 
-Sprint *creation* is not exposed — create sprints in Jira, then use `jira_move_to_sprint`.
+The server does not expose sprint creation. Create sprints in Jira, then use `jira_move_to_sprint`.
 
 ### Adding a tool
 
@@ -192,17 +194,16 @@ traversal-guarded `_load_file()`. URI namespaces:
   jql-library, custom-fields, confluence-spaces, agile-ceremonies, git-jira-integration
 - `resource://templates/…` (1) — confluence-pages
 
-Adding one means adding the `.md` and one `Resource(...)` row to `RESOURCES` in
-`servers/resources.py`; the loop registers it and the assembly test reads it back.
+To add one, add the `.md` and one `Resource(...)` row to `RESOURCES` in
+`servers/resources.py`. The loop registers it and the assembly test reads it back.
 
 ## Prompts (5)
 
 Same pattern as resources: bodies live in `resources/prompts/*.md`, loaded by
 `servers/prompts.py` via `_load_prompt()` and registered with `@mcp.prompt()`. Each
 returns `list[Message]` — a user message (the workflow template) plus an assistant
-acknowledgment. Prompt arguments are injected with
-`string.Template(...).safe_substitute()`, so bodies use `$name` placeholders and an
-unmatched `$` is left intact rather than raising.
+acknowledgment. `string.Template(...).safe_substitute()` injects the prompt arguments, so
+bodies use `$name` placeholders. An unmatched `$` stays intact and does not raise.
 
 | Prompt | Purpose | Tags |
 | --- | --- | --- |
@@ -230,18 +231,18 @@ unmatched `$` is left intact rather than raising.
 
 Gotchas:
 
-- Basic wins. If both the username and API token are set, `auth_header` returns Basic and
-  the PAT is ignored; Bearer is used only when the Cloud pair is incomplete. To force
-  Bearer, leave `*_USERNAME`/`*_API_TOKEN` unset.
+- Basic wins. If you set both the username and API token, `auth_header` returns Basic and
+  ignores the PAT. `auth_header` uses Bearer only when the Cloud pair is incomplete. To
+  force Bearer, leave `*_USERNAME` and `*_API_TOKEN` unset.
 - `_check_write(ctx, service)` takes the service explicitly (`"jira"` or `"confluence"`)
   and reads that product's config. Pass the one the calling tool writes to — the two
   read-only flags are independent even though both default from `ATLASSIAN_READ_ONLY`.
 - All three Confluence calendar tools hit `/rest/calendar-services/1.0/`, which only exists
   with the Team Calendars add-on. A 404 there raises `TeamCalendarsUnavailableError` so
   the user gets an explanation instead of a bare 404.
-- Jira and Confluence are configured independently. An unconfigured client is `None`,
+- You configure Jira and Confluence independently. An unconfigured client is `None`,
   and its tools return a "not configured" error rather than failing at startup.
-- `.env` is loaded by the CLI via `load_dotenv()` from the working directory. The repo
+- The CLI loads `.env` via `load_dotenv()` from the working directory. The repo
   ships no `.env.example`; the variable tables above are the reference.
 
 ## Release workflow
@@ -266,9 +267,9 @@ gh workflow run release.yml -f bump=minor -f dry_run=true  # preview changelog, 
 Rules:
 
 - The workflow owns every version string listed above — do not edit them in a PR.
-- Conventional commit prefixes (`feat:`, `fix:`, `docs:`, …) are required; the changelog
-  is generated from them.
-- The release commit is authored by `github-actions[bot]`, message `chore(release): X.Y.Z`.
+- Use conventional commit prefixes (`feat:`, `fix:`, `docs:`, …); the changelog generator
+  reads them.
+- `github-actions[bot]` authors the release commit, with message `chore(release): X.Y.Z`.
 
 ## Documentation freshness (mandatory)
 
@@ -293,4 +294,4 @@ annotations.
   may not on Jira Cloud (which prefers `query`/`accountId`).
 - Errors come back as *successful* tool results carrying `{"error": …, "hint": …}` (soft
   errors). Callers must inspect the JSON body, not only the call status.
-- Confluence tools depend on the Team Calendars add-on being installed.
+- Confluence tools depend on the Team Calendars add-on.
