@@ -4,7 +4,7 @@
 
 1. **Get sprint details** — use `jira_get_sprint` with sprint_id="$sprint_id" to check the sprint name, start/end dates, and current state.
 2. **Get board config** — use `jira_get_board` with board_id="$board_id" to understand the board type and project.
-3. **Check team availability** — use `confluence_sprint_capacity` to calculate available capacity for the sprint period, accounting for holidays and time-off.
+3. **Check team availability** — use `confluence_sprint_capacity` (pass `team_members`, `sprint_start`, and `sprint_end`) to calculate available capacity, accounting for time-off. It only sees people whose names match the Team Calendars leave calendar.
 4. **Review backlog** — use `jira_backlog` with board_id="$board_id" to get prioritized backlog items. Note story points and priorities.
 5. **Calculate scope** — based on:
    - Team velocity (average of last 3 sprints)
