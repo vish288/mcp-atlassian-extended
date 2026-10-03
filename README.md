@@ -11,7 +11,7 @@
 
 **Install:** `uvx mcp-atlassian-extended` | [PyPI](https://pypi.org/project/mcp-atlassian-extended/) | [MCP Registry](https://registry.modelcontextprotocol.io) | [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases)
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for Jira and Confluence. It gives an AI assistant **22 tools**, **15 resources**, and **5 prompts** to create and update issues with custom fields, link issues, manage attachments, run agile boards and sprints, search users, track project versions (API v2), read team calendars, and plan sprint capacity. It extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap.
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for Jira and Confluence. It gives an AI assistant **22 tools**, **15 resources**, and **5 prompts** for issues, attachments, agile boards, sprints, project versions, calendars, and sprint capacity. It extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap.
 
 The server supports the MCP **2026-07-28** specification (often called MCP 2.0) and stays compatible with **2025-11-25** clients. It works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
 
@@ -119,9 +119,9 @@ The server checks these environment variables in order — first match wins:
 2. `JIRA_PERSONAL_TOKEN`
 3. `JIRA_TOKEN`
 
-Basic auth wins: if both `JIRA_USERNAME` and `JIRA_API_TOKEN` are set, Basic is used and
-any personal access token is ignored. Bearer is used only when the Cloud pair is
-incomplete. Unset `JIRA_USERNAME`/`JIRA_API_TOKEN` to force Bearer.
+Basic auth wins. If you set both `JIRA_USERNAME` and `JIRA_API_TOKEN`, the server uses
+Basic auth and ignores any personal access token. The server uses Bearer auth only when
+the Cloud pair is incomplete. To force Bearer, unset `JIRA_USERNAME` and `JIRA_API_TOKEN`.
 
 ### Confluence Cloud (Basic Auth)
 
@@ -353,13 +353,13 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 ## Security Considerations
 
 - **Token scope**: For Jira Cloud, use API tokens scoped to the minimum required permissions. For Data Center, use PATs with project-level access.
-- **Read-only mode**: Set `ATLASSIAN_READ_ONLY=true` to disable all write operations (create, update, delete, upload). Enforced server-side before any API call.
+- **Read-only mode**: Set `ATLASSIAN_READ_ONLY=true` to disable all write operations (create, update, delete, upload). The server enforces this before any API call.
 - **File upload validation**: `jira_upload_attachment` validates file paths (no traversal, max 100MB, file must exist).
-- **Download path restriction**: `jira_download_attachment` only accepts relative paths resolved within the working directory. Absolute paths and path traversal (`../`) are rejected.
-- **Download URL validation**: Attachment download URLs are validated against the configured Jira URL domain to prevent SSRF.
-- **SSL verification**: Enabled by default for both Jira and Confluence. Only disable for self-signed certificates in trusted networks.
+- **Download path restriction**: `jira_download_attachment` accepts only relative paths resolved within the working directory. It rejects absolute paths and path traversal (`../`).
+- **Download URL validation**: The server validates each attachment download URL against the configured Jira URL domain to prevent SSRF.
+- **SSL verification**: The server enables SSL verification by default for Jira and Confluence. Disable it only for self-signed certificates in trusted networks.
 - **MCP tool annotations**: Each tool declares `readOnlyHint`, `destructiveHint`, and `idempotentHint` for client-side permission prompts.
-- **No credential storage**: Tokens are read from environment variables at startup and never persisted.
+- **No credential storage**: The server reads tokens from environment variables at startup. It never stores them.
 
 ## Rate Limits & Permissions
 
@@ -398,11 +398,11 @@ uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx 
 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 
-**Partial configuration**: Jira and Confluence are configured independently — set either or both. All 22 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set, rather than failing at startup.
+**Partial configuration**: You configure Jira and Confluence independently. Set either or both. The server always advertises all 22 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server does not fail at startup.
 
 ## FAQ
 
-### Does mcp-atlassian-extended support MCP 2.0?
+### Does it support the MCP 2026-07-28 spec (MCP 2.0)?
 
 Yes. It implements the MCP 2026-07-28 specification (MCP 2.0) and stays compatible with 2025-11-25 clients.
 
