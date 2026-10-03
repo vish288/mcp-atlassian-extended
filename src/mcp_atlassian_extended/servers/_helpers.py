@@ -47,7 +47,7 @@ def _load_file(base_dir: str, filename: str) -> str:
 
 
 def _get_jira(ctx: Context) -> JiraExtendedClient:
-    client = ctx.request_context.lifespan_context["jira_client"]
+    client = ctx.lifespan_context["jira_client"]
     if client is None:
         msg = (
             "Jira is not configured. Set JIRA_URL plus either "
@@ -58,7 +58,7 @@ def _get_jira(ctx: Context) -> JiraExtendedClient:
 
 
 def _get_confluence(ctx: Context) -> ConfluenceExtendedClient:
-    client = ctx.request_context.lifespan_context["confluence_client"]
+    client = ctx.lifespan_context["confluence_client"]
     if client is None:
         msg = (
             "Confluence is not configured. Set CONFLUENCE_URL plus either "
@@ -76,7 +76,7 @@ def _check_write(ctx: Context, service: Literal["jira", "confluence"]) -> None:
     ``"jira"``, Confluence tools pass ``"confluence"``. The two configs are
     independent, so consulting the wrong one silently ignores the setting.
     """
-    if ctx.request_context.lifespan_context[f"{service}_config"].read_only:
+    if ctx.lifespan_context[f"{service}_config"].read_only:
         raise WriteDisabledError
 
 
