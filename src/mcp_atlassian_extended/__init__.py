@@ -14,7 +14,7 @@ from .config import ConfluenceConfig, JiraConfig
     "--transport",
     type=click.Choice(["stdio", "sse", "streamable-http"]),
     default="stdio",
-    help="MCP transport type",
+    help="MCP transport type (sse is deprecated; use streamable-http)",
 )
 @click.option("--port", default=8000, help="Port for HTTP transports")
 @click.option("--host", default="127.0.0.1", help="Host for HTTP transports")
@@ -82,6 +82,13 @@ def main(
     from .servers import configure, mcp
 
     configure(jira_config, confluence_config)
+
+    if transport == "sse":
+        click.echo(
+            "Warning: --transport sse uses the HTTP+SSE transport, deprecated in MCP 2026-07-28. "
+            "Use --transport streamable-http.",
+            err=True,
+        )
 
     run_kwargs: dict = {"transport": transport}
     if transport != "stdio":

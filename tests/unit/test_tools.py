@@ -941,7 +941,7 @@ def _guard_ctx(*, jira_read_only: bool, confluence_read_only: bool) -> Any:
             url=TEST_CONFLUENCE_URL, token=TEST_TOKEN, read_only=confluence_read_only
         ),
     }
-    return SimpleNamespace(request_context=SimpleNamespace(lifespan_context=lifespan))
+    return SimpleNamespace(lifespan_context=lifespan)
 
 
 class TestWriteGuardPerService:
@@ -966,7 +966,7 @@ class TestNotConfiguredMessage:
     @staticmethod
     def _ctx() -> Any:
         lifespan = {"jira_client": None, "confluence_client": None}
-        return SimpleNamespace(request_context=SimpleNamespace(lifespan_context=lifespan))
+        return SimpleNamespace(lifespan_context=lifespan)
 
     def test_jira_message_names_both_auth_modes(self):
         with pytest.raises(ValueError, match="not configured") as exc:

@@ -73,3 +73,11 @@ async def test_configure_injects_configs_into_lifespan():
             assert ctx["confluence_config"] is confluence
     finally:
         servers._injected_configs = None
+
+
+@pytest.mark.usefixtures("_configured")
+async def test_mcp_2026_07_28_mode():
+    """Server supports MCP 2026-07-28 protocol and returns expected tool count."""
+    async with Client(mcp, mode="2026-07-28") as client:
+        tools = await client.list_tools()
+        assert len(tools) == 22
