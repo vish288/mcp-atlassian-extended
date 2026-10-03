@@ -39,7 +39,7 @@ Shows: branches, commits, PRs, builds, deployments linked to the ticket.
 
 ## Field Notes
 
-- **Epic Link**: use `customfield_10008`, NOT `parent` (parent is for subtasks)
+- **Epic/parent link**: on Jira Cloud set the native `parent` field — the Epic Link field was removed from the REST API in September 2025. On Server/DC use the Epic Link custom field; its ID is instance-specific, so find it with `jira_list_fields`.
 - **LOB field**: may be screen-restricted on Task/Epic. Retry without it if creation fails.
 - **Select fields** (Privacy, Security): use `{"value": "No"}` not plain string
 

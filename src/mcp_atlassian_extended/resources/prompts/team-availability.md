@@ -11,7 +11,7 @@ $team_members
    - Sick leave
    - Public holidays
    - Other absences
-3. **Calculate capacity** — use `confluence_sprint_capacity` to compute:
+3. **Calculate capacity** — use `confluence_sprint_capacity` (pass `team_members`, `sprint_start`, `sprint_end`) to compute:
    - Available working days per person
    - Total team capacity (in person-days)
    - Percentage reduction from full capacity

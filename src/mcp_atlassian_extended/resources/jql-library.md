@@ -1,6 +1,7 @@
 # JQL Query Library
 
-Replace `PROJ` with your project key.
+Replace `PROJ` with your project key. Lines starting with `--` are labels, not JQL —
+Jira has no comment syntax, so copy only the query line.
 
 ## Sprint Management
 
@@ -15,8 +16,9 @@ project = PROJ AND sprint in openSprints() AND assignee = currentUser()
 project = PROJ AND sprint in closedSprints() AND status NOT IN (Closed, Done)
   AND sprint NOT IN openSprints()
 
--- Added mid-sprint
-project = PROJ AND sprint in openSprints() AND created > startOfSprint()
+-- Added mid-sprint: native JQL has no sprint-start function. Use the Jira Sprint
+-- Report, which flags issues added after the sprint began. (A startOfSprint()-style
+-- function needs a Marketplace app such as JQL Tricks.)
 ```
 
 ## Blocker Detection
@@ -25,8 +27,10 @@ project = PROJ AND sprint in openSprints() AND created > startOfSprint()
 -- Blocked tickets
 project = PROJ AND sprint in openSprints() AND labels = "blocked" AND status != Closed
 
--- Tickets blocking others
-project = PROJ AND issue in linkedIssues("PROJ-*", "blocks") AND status NOT IN (Closed, Done)
+-- Issues linked to ONE ticket by a link type (linkedIssues takes a single key, not a wildcard)
+project = PROJ AND issue in linkedIssues("PROJ-123", "blocks") AND status NOT IN (Closed, Done)
+-- Listing every ticket that has a "blocks" link project-wide needs a Marketplace app
+-- (e.g. ScriptRunner's hasLinks); native JQL cannot express it.
 ```
 
 ## Stale Tickets
@@ -78,8 +82,12 @@ project = PROJ AND type = Bug AND created >= startOfWeek()
 |----------|---------|
 | `currentUser()` | `assignee = currentUser()` |
 | `openSprints()` | `sprint in openSprints()` |
+| `closedSprints()` | `sprint in closedSprints()` |
 | `startOfWeek()` | `created >= startOfWeek()` |
-| `startOfSprint()` | `created > startOfSprint()` |
+| `startOfDay()` | `updated >= startOfDay(-3d)` |
+
+Native date functions cover day/week/month/year only (`startOf…`/`endOf…`); there is no
+`startOfSprint()`.
 
 ## Query Performance Tips
 
@@ -95,7 +103,7 @@ project = PROJ AND type = Bug AND created >= startOfWeek()
 | Slow | Fast |
 |------|------|
 | `text ~ "authentication"` | `summary ~ "authentication" AND project = PROJ` |
-| `labels IN labelsOfIssue("PROJ-1")` | `labels = "specific-label"` |
+| `labels is not EMPTY` (then filter client-side) | `labels = "specific-label"` |
 | `sprint IN openSprints() AND sprint IN closedSprints()` | Impossible -- simplify logic |
 
 ## Saved Filter Management

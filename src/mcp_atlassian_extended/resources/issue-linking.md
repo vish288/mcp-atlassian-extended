@@ -51,13 +51,13 @@ Contact: @sre-lead
 
 How to spot: A blocks B, B blocks C, C blocks A.
 
-**JQL to find potential cycles:**
+**Finding potential cycles:** native JQL cannot do this. `linkedIssues()` takes a single
+issue key, not a wildcard, and JQL has no "both blocks and is blocked" operator. Use one
+of these instead:
 
-```jql
-project = PROJ AND issue in linkedIssues("PROJ-*", "is blocked by") AND issue in linkedIssues("PROJ-*", "blocks")
-```
-
-This finds tickets that both block and are blocked by others -- potential cycle members.
+- Install ScriptRunner and walk links with `issueFunction in linkedIssuesOf(...)`.
+- Export `blocks` links via the REST API and run an offline graph cycle-check.
+- Start from one suspect ticket: `issue in linkedIssues("PROJ-123", "is blocked by")`.
 
 **Resolution:**
 1. Map the full dependency chain on a whiteboard or Confluence page
