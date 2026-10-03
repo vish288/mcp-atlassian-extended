@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.2] - 2026-10-03
+
+### Bug Fixes
+- fix(deps): require fastmcp 4.0.10 for MCP 2026-07-28 (5fad85c)
+
+### Documentation
+- docs: restore capability list in README intro (c822412)
+- docs: tighten MCP 2026-07-28 wording; STE-100 review (15df732)
+- docs: claim MCP 2026-07-28 support; AEO/SEO and STE-100 pass (5f62e54)
+
+
 ## [0.10.1] - 2026-09-28
 
 ### Bug Fixes
