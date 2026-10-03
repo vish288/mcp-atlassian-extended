@@ -10,7 +10,7 @@
    - **Missing context**: attachments without a comment referencing them
 3. **Download if needed** — use `jira_download_attachment` to retrieve specific files for inspection or migration.
 4. **Upload new files** — use `jira_upload_attachment` to add any new files (screenshots, logs, documentation).
-5. **Clean up** — use `jira_delete_attachment` to remove:
+5. **Clean up** — deletes are permanent, so confirm each one with the user first, then use `jira_delete_attachment` to remove:
    - Confirmed duplicates (keep the most recent)
    - Superseded files (old screenshots replaced by newer ones)
    - Files that should not be in the issue tracker (credentials, large binaries)

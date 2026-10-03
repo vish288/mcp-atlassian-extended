@@ -40,7 +40,11 @@ For select fields, use `{"value": "Option Text"}` in API calls.
 | Definition of Done | `customfield_NNNNN` | Checklist (plugin) |
 | Privacy Concerns | `customfield_NNNNN` | Select |
 | Security Concerns | `customfield_NNNNN` | Select |
-| Epic Link | `customfield_10008` | Epic link |
+| Epic Link | `customfield_NNNNN` (Server/DC; instance-specific) | Epic link |
+
+Jira Cloud removed the Epic Link field from the REST API in September 2025; use the
+native `parent` field instead. Discover every field ID with `jira_list_fields` — never
+assume a fixed number.
 
 ## Governance
 

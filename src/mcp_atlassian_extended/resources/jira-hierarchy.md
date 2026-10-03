@@ -52,10 +52,16 @@ Anti-patterns: splitting by technical layer (not independently shippable), "Part
 
 | Relationship | How |
 |-------------|-----|
-| Story/Task -> Epic | Epic Link field (`customfield_10008`), NOT `parent` |
-| Subtask -> Task | Standard parent field |
-| Bug -> Story/Epic | Epic Link or `relates to` link |
+| Story/Task -> Epic | `parent` field (Jira Cloud); Epic Link custom field (Server/DC) |
+| Subtask -> Task | `parent` field |
+| Bug -> Story/Epic | `parent`/Epic Link, or a `relates to` link |
 | Spike -> Story | `relates to` link |
+
+Jira Cloud removed the Epic Link field from the REST API in September 2025. Set the
+native `parent` field instead — pass `{"parent": {"key": "EPIC-1"}}` in `custom_fields`,
+which merges straight into the issue fields. Server/DC still uses the Epic Link custom
+field. Field IDs are instance-specific; look them up with `jira_list_fields` rather than
+assuming a fixed `customfield_NNNNN`.
 
 ## Cross-Epic Work Patterns
 
