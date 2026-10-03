@@ -11,11 +11,21 @@
 
 **Install:** `uvx mcp-atlassian-extended` | [PyPI](https://pypi.org/project/mcp-atlassian-extended/) | [MCP Registry](https://registry.modelcontextprotocol.io) | [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases)
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with **22 tools**, **15 resources**, and **5 prompts** for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, backlog management, user search, project versions (API v2), calendars, time-off tracking, and sprint capacity planning. Works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for Jira and Confluence. It gives an AI assistant **22 tools**, **15 resources**, and **5 prompts** to create and update issues with custom fields, link issues, manage attachments, run agile boards and sprints, search users, track project versions (API v2), read team calendars, and plan sprint capacity. It extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap.
 
-Supports Jira Cloud, Jira Data Center, Confluence Cloud, and Confluence Data Center (self-hosted). No Atlassian Premium required.
+The server supports the MCP **2026-07-28** specification (often called MCP 2.0) and stays compatible with **2025-11-25** clients. It works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
+
+The server supports Jira Cloud, Jira Data Center, Confluence Cloud, and Confluence Data Center (self-hosted). It needs no Atlassian Premium plan.
 
 Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.python-httpx.org/), and [Pydantic](https://docs.pydantic.dev/).
+
+## Protocol support
+
+- The server implements the MCP **2026-07-28** specification, often called MCP 2.0.
+- It stays compatible with **2025-11-25** clients.
+- Transports: `stdio` (default) and `streamable-http` (recommended for remote clients). The `sse` transport still works, but the 2026-07-28 specification deprecates it, so the server prints a warning.
+- The server uses no roots, sampling, logging, elicitation, or resource subscriptions. The 2026-07-28 deprecations do not affect it.
+- Built on FastMCP 4.x and the MCP Python SDK 2.x.
 
 ## Relationship to mcp-atlassian
 
@@ -376,9 +386,11 @@ Jira Cloud enforces per-user rate limits. When rate-limited, tools return a 429 
 # Default: stdio transport (for MCP clients)
 uvx mcp-atlassian-extended
 
-# HTTP transport (SSE or streamable-http)
-uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
+# HTTP transport. Use streamable-http for remote clients.
 uvx mcp-atlassian-extended --transport streamable-http --port 9000
+
+# sse still works, but the MCP 2026-07-28 spec deprecates it. The server prints a warning.
+uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
 
 # CLI overrides for config
 uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx --read-only
@@ -387,6 +399,40 @@ uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 
 **Partial configuration**: Jira and Confluence are configured independently — set either or both. All 22 tools are always advertised; a tool for an unconfigured product returns a "not configured" error naming the variables to set, rather than failing at startup.
+
+## FAQ
+
+### Does mcp-atlassian-extended support MCP 2.0?
+
+Yes. It implements the MCP 2026-07-28 specification (MCP 2.0) and stays compatible with 2025-11-25 clients.
+
+### Which transports does it support?
+
+It supports `stdio` (the default) and `streamable-http` (recommended for remote clients). The `sse` transport still works, but the 2026-07-28 specification deprecates it.
+
+### Is it read-only safe?
+
+Yes. Set `ATLASSIAN_READ_ONLY=true` to disable every write operation. The server enforces this before any API call.
+
+### Does it work with self-hosted Jira and Confluence?
+
+Yes. It supports Jira Cloud, Jira Data Center, Confluence Cloud, and Confluence Data Center. It uses the Jira REST API v2, which works on both Cloud and Server/Data Center.
+
+### What permissions and token scopes does it need?
+
+It needs a Jira API token (Cloud) or a personal access token (Data Center). Each operation needs the matching Jira permission. See [Required Permissions](#required-permissions).
+
+### Does it replace mcp-atlassian?
+
+No. It runs alongside mcp-atlassian with zero tool overlap. mcp-atlassian handles core search and CRUD. This server adds attachments, agile boards, versions, and calendars.
+
+### Do the Confluence tools need an add-on?
+
+Yes. The three Confluence calendar tools need the Team Calendars add-on. Without it, they return a 404 with a hint that names the add-on.
+
+### How many tools does it provide?
+
+It provides 22 tools, 15 resources, and 5 prompts for Jira and Confluence.
 
 ## Related MCP Servers
 
