@@ -6,6 +6,18 @@ with zero tool overlap: issue creation/update with custom fields, issue links,
 attachments, agile boards and sprints, project versions, team calendars, and sprint
 capacity planning. Built on FastMCP + httpx + Pydantic.
 
+## Protocol support
+
+- The server implements the MCP **2026-07-28** specification (MCP 2.0). It stays
+  compatible with **2025-11-25** clients. The regression test is verified with a fastmcp
+  client pinned to `2026-07-28` and in legacy mode, over stdio and streamable HTTP.
+- Transports: `stdio` (default) and `streamable-http` (recommended for remote). `sse`
+  still works, but the 2026-07-28 specification deprecates it, so the server prints a
+  warning.
+- The server uses no roots, sampling, logging, elicitation, or resource subscriptions.
+  The 2026-07-28 deprecations do not affect it.
+- Built on FastMCP 4.x and the MCP Python SDK 2.x.
+
 ## Layout
 
 | Path | Contents |
@@ -55,7 +67,7 @@ Run the server locally:
 
 ```bash
 uvx mcp-atlassian-extended                                            # stdio (default)
-uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
+uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000  # deprecated by MCP 2026-07-28
 uvx mcp-atlassian-extended --transport streamable-http --port 8000
 uvx mcp-atlassian-extended --read-only
 ```
@@ -280,5 +292,5 @@ annotations.
 - `jira_search_users` uses the `username` query parameter, which works on Data Center but
   may not on Jira Cloud (which prefers `query`/`accountId`).
 - Errors come back as *successful* tool results carrying `{"error": …, "hint": …}` (soft
-  errors). Callers must inspect the JSON body, not just the call status.
+  errors). Callers must inspect the JSON body, not only the call status.
 - Confluence tools depend on the Team Calendars add-on being installed.
