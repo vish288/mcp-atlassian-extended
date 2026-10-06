@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.3] - 2026-10-06
+
+### Documentation
+- docs(resources): verify and correct shipped rules, guides and prompts (84b59c5)
+
+
 ## [0.10.2] - 2026-10-03
 
 ### Bug Fixes
