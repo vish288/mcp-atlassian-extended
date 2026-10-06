@@ -436,8 +436,9 @@ It provides 22 tools, 15 resources, and 5 prompts for Jira and Confluence.
 
 ## Related MCP Servers
 
-- [mcp-gitlab](https://github.com/vish288/mcp-gitlab) — GitLab integration (76 tools, 6 resources, 5 prompts)
-- [mcp-coda](https://github.com/vish288/mcp-coda) — Coda.io integration (54 tools, 12 resources, 5 prompts)
+- [mcp-gitlab](https://github.com/vish288/mcp-gitlab) — GitLab integration (83 tools, 7 resources, 6 prompts)
+- [mcp-coda](https://github.com/vish288/mcp-coda) — Coda integration (53 tools, 12 resources, 5 prompts)
+- [mcp-argocd](https://github.com/vish288/mcp-argocd) — Argo CD integration (37 tools, 7 resources, 7 prompts)
 
 ## Attribution
 
