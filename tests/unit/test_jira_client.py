@@ -163,6 +163,28 @@ class TestDownloadUrlValidation:
         url = "https://jira.example.com:443/rest/api/2/attachment/content/123"
         assert client._validate_download_url(url) == url
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            # AT-R02: an upper/mixed-case scheme skipped the check entirely before.
+            "HTTPS://evil.example.net/x",
+            "HtTp://evil.example.net/x",
+            # Scheme-relative: a netloc with no scheme is still off-origin.
+            "//evil.example.net/x",
+        ],
+    )
+    def test_rejects_case_and_scheme_relative(self, url):
+        """A case-insensitive, urlparse-based origin check — not startswith."""
+        client = _make_client()
+        with pytest.raises(ValueError, match="doesn't match"):
+            client._validate_download_url(url)
+
+    def test_accepts_uppercase_scheme_same_origin(self):
+        """Normalisation lowercases the scheme before comparing."""
+        client = _make_client()
+        url = "HTTPS://jira.example.com/rest/api/2/attachment/content/123"
+        assert client._validate_download_url(url) == url
+
 
 class TestVersions:
     async def test_get_project_versions(self):
@@ -212,6 +234,90 @@ class TestVersions:
             client = _make_client()
             result = await client.update_version("200", released=True)
             assert result["released"] is True
+
+
+class TestPathInjection:
+    """AT-R01: caller-supplied ids/keys must not inject extra path segments.
+
+    httpx normalises ``..`` but not ``%2F``; without ``quote(safe="")`` a value
+    like ``../issue/PROJ-1`` in an attachment id turns a DELETE-attachment into a
+    DELETE-issue.
+    """
+
+    async def test_delete_attachment_escapes_segment(self):
+        async with respx.mock(base_url=BASE) as router:
+            route = router.route(method="DELETE").mock(return_value=httpx.Response(204))
+            client = _make_client()
+            await client.delete_attachment("../issue/PROJ-1")
+            raw = route.calls.last.request.url.raw_path
+            assert b"attachment/..%2Fissue%2FPROJ-1" in raw
+            assert b"/rest/api/2/issue/PROJ-1" not in raw
+
+    async def test_update_version_escapes_segment(self):
+        async with respx.mock(base_url=BASE) as router:
+            route = router.route(method="PUT").mock(return_value=httpx.Response(200, json={}))
+            client = _make_client()
+            await client.update_version("1/../../issue/PROJ-1", name="x")
+            raw = route.calls.last.request.url.raw_path
+            assert b"/rest/api/2/version/" in raw
+            assert b"%2F" in raw
+
+
+class TestDownloadRedirect:
+    """AT-R03: Jira Cloud 303-redirects attachment content to a media host the
+    client cannot follow; ``redirect=false`` makes it return the bytes inline."""
+
+    async def test_absolute_url_sends_redirect_false(self):
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/attachment/content/9").mock(
+                return_value=httpx.Response(200, content=b"bytes")
+            )
+            client = _make_client()
+            await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
+            assert route.calls.last.request.url.params.get("redirect") == "false"
+
+    async def test_relative_url_sends_redirect_false(self):
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/attachment/content/9").mock(
+                return_value=httpx.Response(200, content=b"bytes")
+            )
+            client = _make_client()
+            await client.download_attachment("/rest/api/2/attachment/content/9")
+            assert route.calls.last.request.url.params.get("redirect") == "false"
+
+
+class TestUserSearchParam:
+    """AT-R04: Cloud removed ``username`` (GDPR) and needs ``query``; Server/DC
+    still takes ``username``. Deployment is decided by the URL host, not the auth
+    mode — DC also supports basic auth, so basic auth alone must not mean Cloud.
+    """
+
+    async def _params(self, config: JiraConfig) -> httpx.QueryParams:
+        async with respx.mock() as router:
+            route = router.get(url__regex=r".*/rest/api/2/user/search").mock(
+                return_value=httpx.Response(200, json=[])
+            )
+            client = JiraExtendedClient(config)
+            await client.search_users("ali")
+            return route.calls.last.request.url.params
+
+    async def test_cloud_host_uses_query(self):
+        params = await self._params(
+            JiraConfig(url="https://acme.atlassian.net", username="me@acme.com", api_token="tok")
+        )
+        assert params.get("query") == "ali"
+        assert "username" not in params
+
+    async def test_server_bearer_uses_username(self):
+        params = await self._params(JiraConfig(url=BASE, token="test-token"))
+        assert params.get("username") == "ali"
+        assert "query" not in params
+
+    async def test_dc_basic_auth_uses_username(self):
+        """Data Center on basic auth (non-atlassian.net host) is NOT Cloud."""
+        params = await self._params(JiraConfig(url=BASE, username="svc", api_token="tok"))
+        assert params.get("username") == "ali"
+        assert "query" not in params
 
 
 class TestContentType:

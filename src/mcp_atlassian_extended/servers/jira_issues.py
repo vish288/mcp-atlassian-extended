@@ -8,7 +8,7 @@ from fastmcp import Context
 from pydantic import Field
 
 from . import mcp
-from ._helpers import _get_jira, _ok, tool_result
+from ._helpers import ISSUE_KEY_PATTERN, NUMERIC_ID_PATTERN, _get_jira, _ok, tool_result
 
 # ── Issue CRUD ─────────────────────────────────────────────────────
 
@@ -60,7 +60,9 @@ async def jira_create_issue(
 @tool_result(write="jira")
 async def jira_update_issue(
     ctx: Context,
-    issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)", min_length=1)],
+    issue_key: Annotated[
+        str, Field(description="Jira issue key (e.g. PROJ-123)", pattern=ISSUE_KEY_PATTERN)
+    ],
     fields: Annotated[
         dict[str, Any] | None,
         Field(description="Standard fields to update (summary, description, labels, etc.)"),
@@ -115,7 +117,9 @@ async def jira_create_link(
 @tool_result(write="jira")
 async def jira_delete_link(
     ctx: Context,
-    link_id: Annotated[str, Field(description="Issue link ID to delete", min_length=1)],
+    link_id: Annotated[
+        str, Field(description="Numeric issue link ID to delete", pattern=NUMERIC_ID_PATTERN)
+    ],
 ) -> str:
     """Delete a Jira issue link by its ID."""
     await _get_jira(ctx).delete_issue_link(link_id)

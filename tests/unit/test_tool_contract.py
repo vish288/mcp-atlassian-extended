@@ -65,6 +65,7 @@ ROWS = [
         {"content_url": f"https://{JIRA}/secure/attachment/1/f.txt", "save_path": "f.txt"},
         "GET",
         "/secure/attachment/1/f.txt",
+        {"redirect": "false"},
     ),
     Row("jira_delete_attachment", {"attachment_id": "9"}, "DELETE", "/rest/api/2/attachment/9"),
     Row(
@@ -81,7 +82,11 @@ ROWS = [
         {"board_id": 42, "max_results": 7, "start_at": 3},
         "GET",
         "/rest/agile/1.0/board/42/backlog",
-        {"fields": "*all", "maxResults": 7, "startAt": 3},
+        {
+            "fields": "summary,status,issuetype,priority,assignee,labels",
+            "maxResults": 7,
+            "startAt": 3,
+        },
     ),
     Row(
         "jira_get_project_versions",

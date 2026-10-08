@@ -6,7 +6,7 @@ import asyncio
 import mimetypes
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -20,6 +20,22 @@ MIME_OVERRIDES = {
 }
 
 _DEFAULT_PORTS = {"http": 80, "https": 443}
+
+# Default backlog fields: a board can hold hundreds of issues, and ``*all`` on
+# each is hundreds of KB of context. Callers opt into more via the ``fields`` arg.
+_BACKLOG_DEFAULT_FIELDS = "summary,status,issuetype,priority,assignee,labels"
+
+
+def _seg(value: Any) -> str:
+    """Percent-encode one REST path segment so a caller-supplied id/key cannot
+    inject extra path segments or a query string.
+
+    Every path this client builds interpolates a caller value (issue key,
+    attachment/link/version id, project key). httpx normalises ``..`` but not
+    ``%2F``, so quoting with ``safe=""`` is what stops ``../issue/PROJ-1`` in an
+    attachment id from turning a DELETE-attachment into a DELETE-issue.
+    """
+    return quote(str(value), safe="")
 
 
 def _origin(url: str) -> tuple[str, str, int | None]:
@@ -121,7 +137,12 @@ class JiraExtendedClient:
         another port on the same host leaked the credential this check exists
         to protect.
         """
-        if url.startswith(("http://", "https://")):
+        parsed = urlparse(url)
+        # Any scheme or network location makes this an absolute destination, not
+        # a path relative to the configured base_url. ``startswith(("http://",
+        # ...))`` missed ``HTTPS://`` (case) and ``//host`` (scheme-relative),
+        # either of which httpx then sends absolute -- with the Bearer header.
+        if parsed.scheme or parsed.netloc:
             actual, expected = _origin(url), _origin(self.config.url)
             if actual != expected:
                 msg = (
@@ -134,7 +155,9 @@ class JiraExtendedClient:
     # ── Attachments ───────────────────────────────────────────────
 
     async def get_attachments(self, issue_key: str) -> list[dict]:
-        data = await self.get(f"/rest/api/2/issue/{issue_key}", params={"fields": "attachment"})
+        data = await self.get(
+            f"/rest/api/2/issue/{_seg(issue_key)}", params={"fields": "attachment"}
+        )
         return data.get("fields", {}).get("attachment", [])
 
     async def upload_attachment(
@@ -152,7 +175,7 @@ class JiraExtendedClient:
         files = {"file": (fname, data, content_type)}
         # Auth header is already set client-side; only the CSRF opt-out is per request.
         resp = await self._client.post(
-            f"/rest/api/2/issue/{issue_key}/attachments",
+            f"/rest/api/2/issue/{_seg(issue_key)}/attachments",
             files=files,
             headers={"X-Atlassian-Token": "no-check"},
         )
@@ -160,26 +183,43 @@ class JiraExtendedClient:
         return _parse_json(resp)
 
     async def download_attachment(self, content_url: str) -> bytes:
-        """Download attachment content. Handles both absolute and relative URLs."""
+        """Download attachment content. Handles both absolute and relative URLs.
+
+        ``redirect=false`` keeps Jira Cloud from answering 303 to a pre-signed
+        media host (``api.media.atlassian.com``) that this client, which does not
+        follow redirects, would raise on. With it Cloud returns the bytes inline;
+        Server/DC ignores the unknown param. Following the redirect instead would
+        leak the Authorization header off-origin, so it is deliberately not done.
+        See https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-attachments/#api-rest-api-3-attachment-content-id-get
+        """
         content_url = self._validate_download_url(content_url)
-        if content_url.startswith(("http://", "https://")):
+        params = {"redirect": "false"}
+        # Case-insensitive: ``HTTPS://`` is still absolute and must not be sent
+        # as a path relative to base_url.
+        if urlparse(content_url).scheme:
             # Auth header is already set client-side; no need to repeat it here.
-            resp = await self._client.request("GET", content_url)
+            resp = await self._client.request("GET", content_url, params=params)
             _raise_for_atlassian(resp)
             return resp.content
-        return await self.get(content_url, raw=True)
+        return await self.get(content_url, params=params, raw=True)
 
     async def delete_attachment(self, attachment_id: str) -> None:
-        await self.delete(f"/rest/api/2/attachment/{attachment_id}")
+        await self.delete(f"/rest/api/2/attachment/{_seg(attachment_id)}")
 
     # ── Users ─────────────────────────────────────────────────────
 
     async def search_users(
         self, query: str, max_results: int = 10, start_at: int = 0
     ) -> list[dict]:
+        # Jira Cloud removed ``username`` in the GDPR user-privacy migration and
+        # answers 400 unless ``query`` (or ``accountId``) is used; Server/DC still
+        # takes ``username``. Pick by deployment, which the config already detects
+        # from the auth mode (Cloud = basic auth).
+        # https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-group-user-search/#api-rest-api-2-user-search-get
+        key = "query" if self.config.is_cloud else "username"
         return await self.get(
             "/rest/api/2/user/search",
-            params={"username": query, "maxResults": max_results, "startAt": start_at},
+            params={key: query, "maxResults": max_results, "startAt": start_at},
         )
 
     # ── Metadata ──────────────────────────────────────────────────
@@ -193,25 +233,31 @@ class JiraExtendedClient:
     # ── Agile: Boards ─────────────────────────────────────────────
 
     async def get_board(self, board_id: int) -> dict:
-        return await self.get(f"/rest/agile/1.0/board/{board_id}")
+        return await self.get(f"/rest/agile/1.0/board/{_seg(board_id)}")
 
     async def get_board_config(self, board_id: int) -> dict:
-        return await self.get(f"/rest/agile/1.0/board/{board_id}/configuration")
+        return await self.get(f"/rest/agile/1.0/board/{_seg(board_id)}/configuration")
 
-    async def get_backlog(self, board_id: int, max_results: int = 50, start_at: int = 0) -> dict:
+    async def get_backlog(
+        self,
+        board_id: int,
+        max_results: int = 50,
+        start_at: int = 0,
+        fields: str = _BACKLOG_DEFAULT_FIELDS,
+    ) -> dict:
         return await self.get(
-            f"/rest/agile/1.0/board/{board_id}/backlog",
-            params={"fields": "*all", "maxResults": max_results, "startAt": start_at},
+            f"/rest/agile/1.0/board/{_seg(board_id)}/backlog",
+            params={"fields": fields, "maxResults": max_results, "startAt": start_at},
         )
 
     # ── Agile: Sprints ────────────────────────────────────────────
 
     async def get_sprint(self, sprint_id: int) -> dict:
-        return await self.get(f"/rest/agile/1.0/sprint/{sprint_id}")
+        return await self.get(f"/rest/agile/1.0/sprint/{_seg(sprint_id)}")
 
     async def move_to_sprint(self, sprint_id: int, issue_keys: list[str]) -> None:
         await self.post(
-            f"/rest/agile/1.0/sprint/{sprint_id}/issue",
+            f"/rest/agile/1.0/sprint/{_seg(sprint_id)}/issue",
             {"issues": issue_keys},
         )
 
@@ -254,7 +300,7 @@ class JiraExtendedClient:
         """Update a Jira issue. fields and custom_fields are merged into the payload."""
         merged = {**(fields or {}), **(custom_fields or {})}
         if merged:
-            await self.put(f"/rest/api/2/issue/{issue_key}", {"fields": merged})
+            await self.put(f"/rest/api/2/issue/{_seg(issue_key)}", {"fields": merged})
 
     async def create_issue_link(
         self,
@@ -276,12 +322,12 @@ class JiraExtendedClient:
 
     async def delete_issue_link(self, link_id: str) -> None:
         """Delete an issue link by ID."""
-        await self.delete(f"/rest/api/2/issueLink/{link_id}")
+        await self.delete(f"/rest/api/2/issueLink/{_seg(link_id)}")
 
     async def get_issue_links(self, issue_key: str) -> list[dict]:
         """Get all links for an issue."""
         data = await self.get(
-            f"/rest/api/2/issue/{issue_key}",
+            f"/rest/api/2/issue/{_seg(issue_key)}",
             params={"fields": "issuelinks"},
         )
         return data.get("fields", {}).get("issuelinks", [])
@@ -290,7 +336,7 @@ class JiraExtendedClient:
 
     async def get_project_versions(self, project_key: str) -> list[dict]:
         """Get all versions for a project."""
-        return await self.get(f"/rest/api/2/project/{project_key}/versions")
+        return await self.get(f"/rest/api/2/project/{_seg(project_key)}/versions")
 
     async def create_version(
         self,
@@ -348,5 +394,5 @@ class JiraExtendedClient:
         if archived is not None:
             payload["archived"] = archived
         if not payload:
-            return await self.get(f"/rest/api/2/version/{version_id}")
-        return await self.put(f"/rest/api/2/version/{version_id}", payload)
+            return await self.get(f"/rest/api/2/version/{_seg(version_id)}")
+        return await self.put(f"/rest/api/2/version/{_seg(version_id)}", payload)

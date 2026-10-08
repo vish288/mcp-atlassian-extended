@@ -8,8 +8,17 @@ from typing import Annotated
 from fastmcp import Context
 from pydantic import Field
 
+from ..clients.jira import _BACKLOG_DEFAULT_FIELDS
 from . import mcp
-from ._helpers import _get_jira, _ok, _paginated, tool_result
+from ._helpers import (
+    ISSUE_KEY_PATTERN,
+    NUMERIC_ID_PATTERN,
+    PROJECT_KEY_PATTERN,
+    _get_jira,
+    _ok,
+    _paginated,
+    tool_result,
+)
 
 # ── Attachments ───────────────────────────────────────────────────
 
@@ -21,7 +30,9 @@ from ._helpers import _get_jira, _ok, _paginated, tool_result
 @tool_result
 async def jira_get_attachments(
     ctx: Context,
-    issue_key: Annotated[str, Field(description="Jira issue key (e.g. PROJ-123)", min_length=1)],
+    issue_key: Annotated[
+        str, Field(description="Jira issue key (e.g. PROJ-123)", pattern=ISSUE_KEY_PATTERN)
+    ],
 ) -> str:
     """List attachments on a Jira issue."""
     data = await _get_jira(ctx).get_attachments(issue_key)
@@ -35,7 +46,7 @@ async def jira_get_attachments(
 @tool_result(write="jira")
 async def jira_upload_attachment(
     ctx: Context,
-    issue_key: Annotated[str, Field(description="Jira issue key", min_length=1)],
+    issue_key: Annotated[str, Field(description="Jira issue key", pattern=ISSUE_KEY_PATTERN)],
     file_path: Annotated[str, Field(description="Local file path to upload", min_length=1)],
     filename: Annotated[str | None, Field(description="Override filename")] = None,
 ) -> str:
@@ -80,7 +91,9 @@ async def jira_download_attachment(
 @tool_result(write="jira")
 async def jira_delete_attachment(
     ctx: Context,
-    attachment_id: Annotated[str, Field(description="Attachment ID to delete", min_length=1)],
+    attachment_id: Annotated[
+        str, Field(description="Numeric attachment ID to delete", pattern=NUMERIC_ID_PATTERN)
+    ],
 ) -> str:
     """Delete a Jira attachment."""
     await _get_jira(ctx).delete_attachment(attachment_id)
@@ -154,9 +167,20 @@ async def jira_backlog(
     start_at: Annotated[
         int, Field(description="Index of the first result (use next_start_at to page)", ge=0)
     ] = 0,
+    fields: Annotated[
+        str,
+        Field(
+            description="Comma-separated Jira fields to return. Defaults to a compact set; "
+            "pass '*all' for every field (large responses)."
+        ),
+    ] = _BACKLOG_DEFAULT_FIELDS,
 ) -> str:
-    """Get backlog issues for a board."""
-    data = await _get_jira(ctx).get_backlog(board_id, max_results, start_at)
+    """Get backlog issues for a board.
+
+    Returns a compact field set by default (summary, status, issue type, priority,
+    assignee, labels). Pass ``fields`` (e.g. ``*all``) to widen it.
+    """
+    data = await _get_jira(ctx).get_backlog(board_id, max_results, start_at, fields)
     return _paginated(
         data.get("issues", []),
         start_at=data.get("startAt", start_at),
@@ -175,7 +199,9 @@ async def jira_backlog(
 @tool_result
 async def jira_get_project_versions(
     ctx: Context,
-    project_key: Annotated[str, Field(description="Project key (e.g. PROJ)", min_length=1)],
+    project_key: Annotated[
+        str, Field(description="Project key (e.g. PROJ)", pattern=PROJECT_KEY_PATTERN)
+    ],
 ) -> str:
     """List all versions for a Jira project (REST API v2, supports Server/DC and Cloud)."""
     data = await _get_jira(ctx).get_project_versions(project_key)
@@ -217,7 +243,7 @@ async def jira_create_version(
 @tool_result(write="jira")
 async def jira_update_version(
     ctx: Context,
-    version_id: Annotated[str, Field(description="Version ID", min_length=1)],
+    version_id: Annotated[str, Field(description="Numeric version ID", pattern=NUMERIC_ID_PATTERN)],
     name: Annotated[str | None, Field(description="New version name")] = None,
     description: Annotated[str | None, Field(description="New description")] = None,
     release_date: Annotated[str | None, Field(description="Release date (YYYY-MM-DD)")] = None,

@@ -6,6 +6,7 @@ import base64
 import os
 from dataclasses import dataclass
 from typing import Any, ClassVar
+from urllib.parse import urlparse
 
 
 def _auth_header(token: str, username: str, api_token: str) -> dict[str, str]:
@@ -73,6 +74,21 @@ class AtlassianConfig:
         has_bearer = bool(self.url and self.token)
         has_basic = bool(self.url and self.username and self.api_token)
         return has_bearer or has_basic
+
+    @property
+    def is_cloud(self) -> bool:
+        """True when configured for Atlassian Cloud.
+
+        Decided by the URL host: Cloud lives on ``*.atlassian.net`` (or
+        ``api.atlassian.com``). The auth mode is NOT a reliable signal — Data
+        Center/Server also accepts basic auth (username + password or API token),
+        so keying off basic auth would misroute a DC instance as Cloud. Only when
+        the URL has no host (misconfigured) do we fall back to the auth signal.
+        """
+        host = (urlparse(self.url).hostname or "").lower()
+        if host:
+            return host == "api.atlassian.com" or host.endswith(".atlassian.net")
+        return bool(self.username and self.api_token)
 
     @property
     def auth_header(self) -> dict[str, str]:
