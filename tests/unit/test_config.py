@@ -94,6 +94,29 @@ class TestAuthHeaderPrecedence:
         assert config.auth_header == {"Authorization": "Bearer pat-456"}
 
 
+class TestIsCloud:
+    """Cloud is decided by the URL host, not the auth mode — DC also uses basic auth."""
+
+    def test_atlassian_net_host_is_cloud(self):
+        assert JiraConfig(url="https://acme.atlassian.net", token="pat").is_cloud is True
+
+    def test_api_atlassian_com_host_is_cloud(self):
+        assert JiraConfig(url="https://api.atlassian.com", token="pat").is_cloud is True
+
+    def test_dc_host_with_basic_auth_is_not_cloud(self):
+        """The regression: DC on basic auth must not be treated as Cloud."""
+        config = JiraConfig(url="https://jira.example.com", username="svc", api_token="tok")
+        assert config.is_cloud is False
+
+    def test_cloud_host_with_basic_auth_is_cloud(self):
+        config = JiraConfig(url="https://acme.atlassian.net", username="me", api_token="tok")
+        assert config.is_cloud is True
+
+    def test_no_host_falls_back_to_auth_signal(self):
+        assert JiraConfig(url="", username="me", api_token="tok").is_cloud is True
+        assert JiraConfig(url="", token="pat").is_cloud is False
+
+
 def test_stray_jira_token_env_does_not_shadow_cloud_basic():
     """End-to-end via from_env: JIRA_TOKEN present alongside Cloud credentials."""
     env = {

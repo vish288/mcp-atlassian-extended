@@ -290,8 +290,10 @@ annotations.
 
 ## Known limitations
 
-- `jira_search_users` uses the `username` query parameter, which works on Data Center but
-  may not on Jira Cloud (which prefers `query`/`accountId`).
+- `jira_search_users` picks the user-search parameter by deployment: `query` on Cloud
+  (`username` was removed in the GDPR migration) and `username` on Server/Data Center.
+  Deployment is detected from the URL host (`JiraConfig.is_cloud`): `*.atlassian.net` /
+  `api.atlassian.com` is Cloud. Auth mode is not used — DC also supports basic auth.
 - Errors come back as *successful* tool results carrying `{"error": …, "hint": …}` (soft
   errors). Callers must inspect the JSON body, not only the call status.
 - Confluence tools depend on the Team Calendars add-on.

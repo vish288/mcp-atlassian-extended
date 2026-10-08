@@ -35,6 +35,49 @@ def _parse(result: Any) -> dict | list:
 
 
 # ═══════════════════════════════════════════════════════
+# Path-injection boundary validation (AT-R01)
+# ═══════════════════════════════════════════════════════
+
+
+class TestIdBoundaryValidation:
+    """Path-segment ids/keys are pattern-validated at the tool boundary, so a
+    traversal payload is refused before it ever reaches the client."""
+
+    @pytest.mark.parametrize(
+        ("tool", "args"),
+        [
+            ("jira_delete_attachment", {"attachment_id": "../issue/PROJ-1"}),
+            ("jira_delete_link", {"link_id": "../issue/PROJ-2?deleteSubtasks=true"}),
+            ("jira_get_attachments", {"issue_key": "../../secure/admin"}),
+            ("jira_update_version", {"version_id": "1/../issue/PROJ-1", "name": "x"}),
+            ("jira_get_project_versions", {"project_key": "../issue"}),
+        ],
+    )
+    async def test_rejects_injection(self, tool_client, tool, args):
+        client, router = tool_client
+        result = await client.call_tool(tool, args, raise_on_error=False)
+        assert result.is_error is True
+        # Refused at the boundary (pattern mismatch), not after an HTTP attempt.
+        text = "".join(getattr(c, "text", "") for c in result.content).lower()
+        assert "pattern" in text or "validation" in text
+        assert not router.calls
+
+    async def test_accepts_lowercase_key(self, tool_client):
+        """Jira normalises lowercase keys; the boundary must accept them and the
+        value must still reach the (escaped) REST path."""
+        client, router = tool_client
+        route = router.get("/rest/api/2/issue/proj-1").mock(
+            return_value=Response(200, json={"fields": {"attachment": []}})
+        )
+        result = await client.call_tool(
+            "jira_get_attachments", {"issue_key": "proj-1"}, raise_on_error=False
+        )
+        assert result.is_error is False
+        assert route.called
+        assert route.calls.last.request.url.path == "/rest/api/2/issue/proj-1"
+
+
+# ═══════════════════════════════════════════════════════
 # Attachments
 # ═══════════════════════════════════════════════════════
 

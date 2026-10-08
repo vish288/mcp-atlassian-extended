@@ -248,11 +248,13 @@ Tags: jira, metadata, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 #### `jira_backlog`
-Get backlog issues for a board.
+Get backlog issues for a board. Returns a compact field set by default
+(summary, status, issuetype, priority, assignee, labels) to keep responses small.
 
 Parameters:
 - `board_id` (int, required, >=1): Board ID
 - `max_results` (int, default 50, range 1-100): Maximum results
+- `fields` (str, default compact set): Comma-separated Jira fields; pass `*all` for every field
 
 Tags: jira, metadata, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true

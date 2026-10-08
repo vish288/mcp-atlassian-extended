@@ -28,6 +28,17 @@ _log = logging.getLogger(__name__)
 # Failures a tool is expected to report as structured JSON. Everything else is a bug.
 _EXPECTED = (AtlassianError, ValueError, FileNotFoundError)
 
+# ID-shaped inputs that land in a REST path segment are validated at the tool
+# boundary so a value like ``../issue/PROJ-1`` is rejected before it reaches the
+# client. The client also percent-encodes every segment (defence in depth); this
+# layer gives a clear up-front error instead of an opaque 404 from Jira.
+# Case-insensitive: Jira accepts lowercase keys (``proj-1``) and normalises them,
+# so the boundary must not reject what the API would take. Escaping (not the
+# pattern) is what blocks path injection; the pattern is defence in depth.
+ISSUE_KEY_PATTERN = r"^[A-Za-z][A-Za-z0-9_]+-\d+$"
+PROJECT_KEY_PATTERN = r"^[A-Za-z][A-Za-z0-9_]+$"
+NUMERIC_ID_PATTERN = r"^\d+$"
+
 
 @functools.cache
 def _load_file(base_dir: str, filename: str) -> str:
