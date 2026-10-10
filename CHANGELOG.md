@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.0] - 2026-10-10
+
+### Bug Fixes
+- fix: close path injection + SSRF and repair Cloud paths (review 2026-10-06) (dcddf9d)
+
+### Documentation
+- docs: list mcp-argocd in related servers and refresh counts (6d62417)
+
+
 ## [0.10.4] - 2026-10-06
 
 
