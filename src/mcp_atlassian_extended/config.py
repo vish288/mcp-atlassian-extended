@@ -41,6 +41,9 @@ def _config_for(prefix: str) -> dict[str, Any]:
         "username": env("USERNAME"),
         "api_token": env("API_TOKEN"),
         "read_only": os.getenv("ATLASSIAN_READ_ONLY", "false").lower() in ("true", "1", "yes"),
+        # Unprefixed like ATLASSIAN_READ_ONLY: one upload/download root per server.
+        "upload_dir": os.getenv("ATLASSIAN_UPLOAD_DIR", ""),
+        "download_dir": os.getenv("ATLASSIAN_DOWNLOAD_DIR", ""),
         "timeout": int(env("TIMEOUT", "30")),
         "ssl_verify": env("SSL_VERIFY", "true").lower() not in ("false", "0", "no"),
     }
@@ -62,6 +65,8 @@ class AtlassianConfig:
     username: str = ""
     api_token: str = ""
     read_only: bool = False
+    upload_dir: str = ""
+    download_dir: str = ""
     timeout: int = 30
     ssl_verify: bool = True
 

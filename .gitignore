@@ -36,3 +36,6 @@ Thumbs.db
 .cursorrules
 .cursor/
 .internal/
+
+# Default jira_download_attachment output directory
+atlassian-downloads/

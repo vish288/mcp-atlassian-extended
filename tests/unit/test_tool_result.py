@@ -58,4 +58,4 @@ async def test_local_validation_is_still_structured_json(tool_client, tmp_path, 
     )
 
     assert result.is_error is False
-    assert "traversal" in json.loads(result.content[0].text)["hint"]
+    assert "ATLASSIAN_DOWNLOAD_DIR" in json.loads(result.content[0].text)["hint"]

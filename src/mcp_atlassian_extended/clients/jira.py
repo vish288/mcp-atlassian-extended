@@ -11,6 +11,7 @@ from urllib.parse import quote, urlparse
 import httpx
 
 from ..config import JiraConfig
+from ..paths import _inside
 from ._http import _parse_json, _raise_for_atlassian
 
 MIME_OVERRIDES = {
@@ -111,13 +112,15 @@ class JiraExtendedClient:
 
     # ── Path Validation ─────────────────────────────────────────────
 
-    @staticmethod
-    def _validate_file_path(path: str) -> Path:
-        """Validate file path is safe — no traversal, reasonable size."""
-        resolved = Path(path).resolve()
-        if ".." in Path(path).parts:
-            msg = f"Path traversal detected: {path}"
-            raise ValueError(msg)
+    def _validate_file_path(self, path: str) -> Path:
+        """Validate an upload path: inside the upload root, no dotfiles, size cap.
+
+        Root is ``ATLASSIAN_UPLOAD_DIR`` if set (relative to cwd), else cwd. The
+        resolved path must sit under it, which also closes the symlink case:
+        ``safe.txt -> ~/.ssh/id`` resolves outside the root.
+        """
+        root = Path(self.config.upload_dir or Path.cwd()).resolve()
+        resolved = _inside(root, Path(path), what="file_path", env="ATLASSIAN_UPLOAD_DIR")
         if not resolved.is_file():
             msg = f"File not found: {resolved}"
             raise FileNotFoundError(msg)

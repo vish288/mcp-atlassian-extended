@@ -7,6 +7,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import version
+from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
@@ -51,6 +52,11 @@ async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
         confluence_config.url or "(none)",
         confluence_config.is_configured,
         confluence_config.read_only,
+    )
+    _log.info(
+        "Attachments: upload root %s, download root %s",
+        jira_config.upload_dir or str(Path.cwd()),
+        jira_config.download_dir or str(Path.cwd() / "atlassian-downloads"),
     )
 
     jira_client = JiraExtendedClient(jira_config) if jira_config.is_configured else None

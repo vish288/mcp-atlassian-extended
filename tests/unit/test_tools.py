@@ -117,6 +117,35 @@ class TestUploadAttachment:
         assert "error" in parsed
         assert "read-only" in parsed["error"].lower() or "disabled" in parsed["error"].lower()
 
+    async def test_outside_root_rejected(self, tool_client, tmp_path, monkeypatch):
+        client, router = tool_client
+        work = tmp_path / "work"
+        work.mkdir()
+        secret = tmp_path / "secret.txt"
+        secret.write_text("x")
+        monkeypatch.chdir(work)
+        # Validation rejects before any HTTP call, so no route is registered.
+        result = await client.call_tool(
+            "jira_upload_attachment",
+            {"issue_key": "PROJ-123", "file_path": str(secret)},
+        )
+        parsed = _parse(result)
+        assert "error" in parsed
+        assert "outside the upload directory" in parsed["error"]
+        assert "ATLASSIAN_UPLOAD_DIR" in parsed["hint"]
+
+    async def test_dotfile_rejected(self, tool_client, tmp_path, monkeypatch):
+        client, router = tool_client
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text("secret")
+        result = await client.call_tool(
+            "jira_upload_attachment",
+            {"issue_key": "PROJ-123", "file_path": ".env"},
+        )
+        parsed = _parse(result)
+        assert "error" in parsed
+        assert "hidden" in parsed["error"]
+
 
 # ═══════════════════════════════════════════════════════
 # Issues
@@ -375,10 +404,18 @@ class TestErrorHints:
                 ),
                 None,
                 0,
-                ["traversal"],
+                ["ATLASSIAN_DOWNLOAD_DIR"],
             ),
+            # A path outside the upload root names the env var to widen it.
             (
                 ("jira_upload_attachment", {"issue_key": "PROJ-123", "file_path": "/no/file"}),
+                None,
+                0,
+                ["ATLASSIAN_UPLOAD_DIR"],
+            ),
+            # A missing file *inside* the root still reports "File not found".
+            (
+                ("jira_upload_attachment", {"issue_key": "PROJ-123", "file_path": "nope.txt"}),
                 None,
                 0,
                 ["File not found"],
@@ -403,8 +440,10 @@ class TestErrorHints:
 
 
 class TestUploadAttachmentHappy:
-    async def test_happy_path(self, tool_client, tmp_path):
+    async def test_happy_path(self, tool_client, tmp_path, monkeypatch):
         client, router = tool_client
+        # Upload root defaults to cwd; point cwd at the dir holding the file.
+        monkeypatch.chdir(tmp_path)
         # Create a temp file to upload
         upload_file = tmp_path / "test-upload.txt"
         upload_file.write_text("hello world")
@@ -425,26 +464,108 @@ class TestUploadAttachmentHappy:
 
 
 class TestDownloadAttachment:
-    async def test_happy_path(self, tool_client, tmp_path, monkeypatch):
-        client, router = tool_client
-        content_url = f"{TEST_JIRA_URL}/secure/attachment/10000/doc.pdf"
-        file_content = b"PDF binary content here"
+    URL = f"{TEST_JIRA_URL}/secure/attachment/10000/doc.pdf"
 
+    @staticmethod
+    def _mock(router, content: bytes = b"PDF binary content here"):
         router.get("/secure/attachment/10000/doc.pdf").mock(
-            return_value=Response(200, content=file_content)
+            return_value=Response(200, content=content)
         )
 
-        # Monkeypatch cwd so the relative save_path resolves inside tmp_path
+    async def test_happy_path(self, tool_client, tmp_path, monkeypatch):
+        """Default download dir is ./atlassian-downloads/, created on first use."""
+        client, router = tool_client
         monkeypatch.chdir(tmp_path)
+        file_content = b"PDF binary content here"
+        self._mock(router, file_content)
 
         result = await client.call_tool(
             "jira_download_attachment",
-            {"content_url": content_url, "save_path": "doc.pdf"},
+            {"content_url": self.URL, "save_path": "doc.pdf"},
         )
         parsed = _parse(result)
+        dest = tmp_path / "atlassian-downloads" / "doc.pdf"
         assert parsed["status"] == "downloaded"
         assert parsed["size"] == len(file_content)
-        assert (tmp_path / "doc.pdf").read_bytes() == file_content
+        assert parsed["path"] == str(dest)
+        assert dest.read_bytes() == file_content
+
+    async def test_env_dir_wins(self, download_client):
+        client, router, dl = download_client
+        self._mock(router, b"NEW")
+        result = await client.call_tool(
+            "jira_download_attachment",
+            {"content_url": self.URL, "save_path": "doc.pdf"},
+        )
+        parsed = _parse(result)
+        assert parsed["path"] == str(dl / "doc.pdf")
+        assert (dl / "doc.pdf").read_bytes() == b"NEW"
+
+    async def test_no_overwrite_suffix(self, tool_client, tmp_path, monkeypatch):
+        client, router = tool_client
+        monkeypatch.chdir(tmp_path)
+        root = tmp_path / "atlassian-downloads"
+        root.mkdir()
+        existing = root / "doc.pdf"
+        existing.write_bytes(b"ORIGINAL")
+        self._mock(router, b"NEW")
+
+        r1 = _parse(
+            await client.call_tool(
+                "jira_download_attachment", {"content_url": self.URL, "save_path": "doc.pdf"}
+            )
+        )
+        r2 = _parse(
+            await client.call_tool(
+                "jira_download_attachment", {"content_url": self.URL, "save_path": "doc.pdf"}
+            )
+        )
+        assert existing.read_bytes() == b"ORIGINAL"
+        assert r1["path"] == str(root / "doc-1.pdf")
+        assert r2["path"] == str(root / "doc-2.pdf")
+        assert (root / "doc-1.pdf").read_bytes() == b"NEW"
+
+    @pytest.mark.parametrize(
+        ("save_path", "needle"),
+        [
+            ("sub/doc.pdf", "without directories"),
+            (".envrc", "must not start with"),
+            (".git/hooks/x", "without directories"),
+            ("/etc/passwd", "without directories"),
+        ],
+    )
+    async def test_rejects_unsafe_save_path(
+        self, tool_client, tmp_path, monkeypatch, save_path, needle
+    ):
+        client, router = tool_client
+        monkeypatch.chdir(tmp_path)
+        # Validation rejects before any HTTP call, so no route is registered.
+        result = await client.call_tool(
+            "jira_download_attachment",
+            {"content_url": self.URL, "save_path": save_path},
+        )
+        parsed = _parse(result)
+        assert "error" in parsed
+        assert needle in parsed["error"]
+
+    async def test_symlink_name_not_followed(self, tool_client, tmp_path, monkeypatch):
+        client, router = tool_client
+        monkeypatch.chdir(tmp_path)
+        root = tmp_path / "atlassian-downloads"
+        root.mkdir()
+        victim = tmp_path / "victim"
+        victim.write_bytes(b"ORIGINAL")
+        (root / "doc.pdf").symlink_to(victim)
+        self._mock(router, b"NEW")
+
+        result = _parse(
+            await client.call_tool(
+                "jira_download_attachment", {"content_url": self.URL, "save_path": "doc.pdf"}
+            )
+        )
+        assert victim.read_bytes() == b"ORIGINAL"
+        assert result["path"] == str(root / "doc-1.pdf")
+        assert (root / "doc-1.pdf").read_bytes() == b"NEW"
 
     async def test_read_only_blocked(self, readonly_client):
         client, router = readonly_client

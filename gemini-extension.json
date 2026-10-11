@@ -64,6 +64,18 @@
       "description": "Restrict to read-only operations (true/false)",
       "required": false,
       "sensitive": false
+    },
+    {
+      "name": "ATLASSIAN_UPLOAD_DIR",
+      "description": "Upload root for jira_upload_attachment; only files under it may be uploaded. Default: the working directory.",
+      "required": false,
+      "sensitive": false
+    },
+    {
+      "name": "ATLASSIAN_DOWNLOAD_DIR",
+      "description": "Directory jira_download_attachment writes into; created on first download. Default: ./atlassian-downloads/.",
+      "required": false,
+      "sensitive": false
     }
   ]
 }

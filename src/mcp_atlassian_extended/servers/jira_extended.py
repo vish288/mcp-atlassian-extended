@@ -63,25 +63,59 @@ async def jira_upload_attachment(
 async def jira_download_attachment(
     ctx: Context,
     content_url: Annotated[str, Field(description="Attachment content URL", min_length=1)],
-    save_path: Annotated[str, Field(description="Local path to save the file", min_length=1)],
+    save_path: Annotated[
+        str, Field(description="File name (no directories) to save under the download dir")
+    ],
 ) -> str:
-    """Download a Jira attachment to a local file. Writes to current working directory only."""
-    save = Path(save_path)
-    if save.is_absolute():
-        msg = "Absolute paths are not allowed. Use a relative path from the working directory."
+    """Download a Jira attachment into the download directory (default ``./atlassian-downloads/``).
+
+    ``save_path`` is a bare file name, not a path. Existing files are never overwritten — a
+    numeric suffix is added — and the final absolute path is returned.
+    """
+    config = ctx.lifespan_context["jira_config"]
+    root = Path(config.download_dir or Path.cwd() / "atlassian-downloads").resolve()
+
+    name = save_path
+    bare = (
+        name not in ("", ".", "..")
+        and "/" not in name
+        and "\\" not in name
+        and Path(name).name == name
+    )
+    if not bare:
+        msg = (
+            f"save_path must be a file name without directories (got {save_path!r}); "
+            f"downloads are written under the download directory {root}. "
+            "Set ATLASSIAN_DOWNLOAD_DIR to change it."
+        )
         raise ValueError(msg)
-    if ".." in save.parts:
-        msg = f"Path traversal detected in save_path: {save_path}"
-        raise ValueError(msg)
-    resolved = (Path.cwd() / save).resolve()
-    if not resolved.is_relative_to(Path.cwd().resolve()):
-        msg = f"Path traversal detected in save_path: {save_path}"
+    if name.startswith("."):
+        msg = (
+            f"save_path must not start with '.' (got {save_path!r}); "
+            "hidden files are never written."
+        )
         raise ValueError(msg)
 
     content = await _get_jira(ctx).download_attachment(content_url)
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    resolved.write_bytes(content)
-    return _ok({"status": "downloaded", "path": str(resolved), "size": len(content)})
+    root.mkdir(parents=True, exist_ok=True)
+    target = root / name
+
+    # O_CREAT|O_EXCL: never overwrite, and refuse a planted symlink at the name
+    # (which ``exists()`` would miss). On collision try stem-1.ext, stem-2.ext, ….
+    stem, suffix = target.stem, target.suffix
+    for i in range(1001):
+        candidate = target if i == 0 else target.with_name(f"{stem}-{i}{suffix}")
+        try:
+            with open(candidate, "xb") as fh:
+                fh.write(content)
+            break
+        except FileExistsError:
+            continue
+    else:
+        msg = f"Could not find a free name for {save_path} in {root} after 1000 attempts"
+        raise ValueError(msg)
+
+    return _ok({"status": "downloaded", "path": str(candidate), "size": len(content)})
 
 
 @mcp.tool(

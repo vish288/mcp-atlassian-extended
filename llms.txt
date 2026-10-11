@@ -14,7 +14,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 - **Required env vars** (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 - **Required env vars** (Jira DC): `JIRA_URL`, `JIRA_PAT`
 - **Optional env vars** (Confluence): `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` (or `CONFLUENCE_PAT` for DC)
-- **Optional env vars**: `ATLASSIAN_READ_ONLY` (disable writes), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
+- **Optional env vars**: `ATLASSIAN_READ_ONLY` (disable writes), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
 
 ## Documentation
 

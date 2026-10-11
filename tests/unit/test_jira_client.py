@@ -96,25 +96,100 @@ class TestJiraClient:
 
 
 class TestFilePathValidation:
-    """Tests for _validate_file_path static method."""
+    """Uploads are restricted to one root (ATLASSIAN_UPLOAD_DIR, else cwd).
 
-    def test_rejects_path_traversal(self):
-        with pytest.raises(ValueError, match="Path traversal"):
-            JiraExtendedClient._validate_file_path("../../../etc/passwd")
+    Containment is checked against the *resolved* path, so a symlink inside the
+    root that points outside it is rejected. Dot components below the root are
+    refused. The root itself may be a dot-directory.
+    """
 
-    def test_rejects_nonexistent_file(self, tmp_path):
-        with pytest.raises(FileNotFoundError, match="File not found"):
-            JiraExtendedClient._validate_file_path(str(tmp_path / "nonexistent.txt"))
+    @staticmethod
+    def _client(upload_dir: str = "") -> JiraExtendedClient:
+        return JiraExtendedClient(JiraConfig(url=BASE, token="t", upload_dir=upload_dir))
 
-    def test_rejects_directory(self, tmp_path):
-        with pytest.raises(FileNotFoundError, match="File not found"):
-            JiraExtendedClient._validate_file_path(str(tmp_path))
+    def test_absolute_path_outside_root(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        outside = tmp_path / "secret.txt"
+        outside.write_text("x")
+        monkeypatch.chdir(root)
+        with pytest.raises(ValueError, match="outside the upload directory"):
+            self._client()._validate_file_path(str(outside))
 
-    def test_accepts_valid_file(self, tmp_path):
-        valid = tmp_path / "valid.txt"
+    def test_parent_traversal_outside_root(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        (tmp_path / "secret.txt").write_text("x")
+        monkeypatch.chdir(root)
+        with pytest.raises(ValueError, match="outside the upload directory"):
+            self._client()._validate_file_path("../secret.txt")
+
+    def test_hidden_dir_component_rejected(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        hidden = tmp_path / ".hidden"
+        hidden.mkdir()
+        (hidden / "x.txt").write_text("x")
+        with pytest.raises(ValueError, match="hidden file"):
+            self._client()._validate_file_path(str(hidden / "x.txt"))
+
+    def test_dotfile_rejected(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text("secret")
+        with pytest.raises(ValueError, match="hidden file"):
+            self._client()._validate_file_path(".env")
+
+    def test_symlink_inside_pointing_outside(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        secret = tmp_path / "secret.txt"
+        secret.write_text("x")
+        (root / "safe.txt").symlink_to(secret)
+        monkeypatch.chdir(root)
+        with pytest.raises(ValueError, match="outside the upload directory"):
+            self._client()._validate_file_path("safe.txt")
+
+    def test_symlink_inside_pointing_dotfile(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        dotfile = root / ".env"
+        dotfile.write_text("x")
+        (root / "safe.txt").symlink_to(dotfile)
+        monkeypatch.chdir(root)
+        with pytest.raises(ValueError, match="hidden file"):
+            self._client()._validate_file_path("safe.txt")
+
+    def test_accepts_valid_file_inside_root(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        valid = root / "doc.txt"
         valid.write_text("content")
-        result = JiraExtendedClient._validate_file_path(str(valid))
-        assert result == valid.resolve()
+        monkeypatch.chdir(root)
+        assert self._client()._validate_file_path("doc.txt") == valid.resolve()
+
+    def test_env_dir_wins_over_cwd(self, tmp_path, monkeypatch):
+        uploads = tmp_path / "uploads"
+        uploads.mkdir()
+        cwd = tmp_path / "cwd"
+        cwd.mkdir()
+        here = cwd / "f.txt"
+        here.write_text("x")
+        monkeypatch.chdir(cwd)
+        with pytest.raises(ValueError, match="outside the upload directory"):
+            self._client(str(uploads))._validate_file_path(str(here))
+
+    def test_root_itself_a_dot_dir(self, tmp_path):
+        root = tmp_path / ".cache"
+        root.mkdir()
+        f = root / "plain.txt"
+        f.write_text("x")
+        assert self._client(str(root))._validate_file_path(str(f)) == f.resolve()
+
+    def test_nonexistent_file_inside_root(self, tmp_path, monkeypatch):
+        root = tmp_path / "root"
+        root.mkdir()
+        monkeypatch.chdir(root)
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            self._client()._validate_file_path("nope.txt")
 
 
 class TestDownloadUrlValidation:
@@ -323,7 +398,8 @@ class TestUserSearchParam:
 class TestContentType:
     """A client-level Content-Type would override httpx's per-request value."""
 
-    async def test_upload_sends_multipart(self, tmp_path):
+    async def test_upload_sends_multipart(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
         f = tmp_path / "note.txt"
         f.write_text("hello")
         async with respx.mock(base_url=BASE) as router:
