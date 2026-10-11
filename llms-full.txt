@@ -788,6 +788,12 @@ Workflow steps:
 
 ---
 
+## Error results
+
+Expected failures — a 404, a 401/403, a read-only refusal, an invalid argument — come back as a tool result with `isError: true`, so an MCP client sees the failure instead of a result that merely happens to contain the word `error`. The result body is the same `{"error": …, "hint": …}` object as before, with `status_code` and `body` when the failure came from the API; the `hint` names the fix. The same object is sent both as the text block and as `structuredContent`, so a client can read either. Genuine bugs are still raised as protocol-level tool errors (text only, no `structuredContent`) and logged with a traceback.
+
+---
+
 ## Security Considerations
 
 - **Token scope**: Use API tokens with minimum required permissions. PATs with project-level access for Data Center.

@@ -34,6 +34,16 @@ def _parse(result: Any) -> dict | list:
     return json.loads(str(result))
 
 
+def _err_body(result: Any) -> dict:
+    """An expected failure is now an ``isError`` result; assert that and return its body.
+
+    Call the tool with ``raise_on_error=False`` so the client hands back the
+    result instead of raising ``ToolError``.
+    """
+    assert result.is_error is True
+    return _parse(result)
+
+
 # ═══════════════════════════════════════════════════════
 # Path-injection boundary validation (AT-R01)
 # ═══════════════════════════════════════════════════════
@@ -101,8 +111,10 @@ class TestGetAttachments:
         router.get("/rest/api/2/issue/INVALID-999").mock(
             return_value=Response(404, json={"errorMessages": ["Issue not found"]})
         )
-        result = await client.call_tool("jira_get_attachments", {"issue_key": "INVALID-999"})
-        parsed = _parse(result)
+        result = await client.call_tool(
+            "jira_get_attachments", {"issue_key": "INVALID-999"}, raise_on_error=False
+        )
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -112,8 +124,9 @@ class TestUploadAttachment:
         result = await client.call_tool(
             "jira_upload_attachment",
             {"issue_key": "PROJ-123", "file_path": "./test-upload.txt"},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
         assert "read-only" in parsed["error"].lower() or "disabled" in parsed["error"].lower()
 
@@ -128,8 +141,9 @@ class TestUploadAttachment:
         result = await client.call_tool(
             "jira_upload_attachment",
             {"issue_key": "PROJ-123", "file_path": str(secret)},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
         assert "outside the upload directory" in parsed["error"]
         assert "ATLASSIAN_UPLOAD_DIR" in parsed["hint"]
@@ -141,8 +155,9 @@ class TestUploadAttachment:
         result = await client.call_tool(
             "jira_upload_attachment",
             {"issue_key": "PROJ-123", "file_path": ".env"},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
         assert "hidden" in parsed["error"]
 
@@ -180,8 +195,9 @@ class TestCreateIssue:
                 "project_key": "PROJ",
                 "summary": "Test issue",
             },
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -246,8 +262,10 @@ class TestCreateLink:
 class TestDeleteLink:
     async def test_read_only_blocked(self, readonly_client):
         client, router = readonly_client
-        result = await client.call_tool("jira_delete_link", {"link_id": "12345"})
-        parsed = _parse(result)
+        result = await client.call_tool(
+            "jira_delete_link", {"link_id": "12345"}, raise_on_error=False
+        )
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -309,8 +327,9 @@ class TestMoveToSprint:
         result = await client.call_tool(
             "jira_move_to_sprint",
             {"sprint_id": 7, "issue_keys": ["PROJ-1"]},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -428,7 +447,7 @@ class TestErrorHints:
         if route:
             method, path = route
             getattr(router, method)(path).mock(return_value=Response(status, text="nope"))
-        parsed = _parse(await client.call_tool(*call))
+        parsed = _err_body(await client.call_tool(*call, raise_on_error=False))
         assert "error" in parsed
         for needle in needles:
             assert needle in parsed["hint"]
@@ -543,8 +562,9 @@ class TestDownloadAttachment:
         result = await client.call_tool(
             "jira_download_attachment",
             {"content_url": self.URL, "save_path": save_path},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
         assert needle in parsed["error"]
 
@@ -575,8 +595,9 @@ class TestDownloadAttachment:
                 "content_url": f"{TEST_JIRA_URL}/secure/attachment/10000/doc.pdf",
                 "save_path": "doc.pdf",
             },
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -591,8 +612,10 @@ class TestDeleteAttachment:
 
     async def test_read_only_blocked(self, readonly_client):
         client, router = readonly_client
-        result = await client.call_tool("jira_delete_attachment", {"attachment_id": "123"})
-        parsed = _parse(result)
+        result = await client.call_tool(
+            "jira_delete_attachment", {"attachment_id": "123"}, raise_on_error=False
+        )
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -736,8 +759,9 @@ class TestReadOnlyGuards:
         result = await client.call_tool(
             "jira_update_issue",
             {"issue_key": "PROJ-123", "fields": {"summary": "Nope"}},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
         assert "hint" in parsed
         assert "read-only" in parsed["hint"].lower()
@@ -751,8 +775,9 @@ class TestReadOnlyGuards:
                 "inward_issue": "PROJ-1",
                 "outward_issue": "PROJ-2",
             },
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -925,8 +950,9 @@ class TestConfluenceGetTimeOff:
         result = await client.call_tool(
             "confluence_get_time_off",
             {"start_date": "Jan 1, 2024", "end_date": "2024-03-10"},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "Unrecognised date 'Jan 1, 2024'" in parsed["error"]
         assert "YYYY-MM-DD" in parsed["error"]
 
@@ -1060,8 +1086,9 @@ class TestCreateVersion:
         result = await client.call_tool(
             "jira_create_version",
             {"project_key": "PROJ", "name": "v1.0.0"},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
         assert "read-only" in parsed["hint"].lower()
 
@@ -1087,8 +1114,9 @@ class TestUpdateVersion:
         result = await client.call_tool(
             "jira_update_version",
             {"version_id": "200", "released": True},
+            raise_on_error=False,
         )
-        parsed = _parse(result)
+        parsed = _err_body(result)
         assert "error" in parsed
 
 
@@ -1178,7 +1206,7 @@ class TestTeamCalendarsMissing:
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
             return_value=Response(404, text="not found")
         )
-        parsed = _parse(await client.call_tool(tool, args))
+        parsed = _err_body(await client.call_tool(tool, args, raise_on_error=False))
         assert parsed["status_code"] == 404
         assert "Team Calendars" in parsed["error"]
         assert "Team Calendars add-on" in parsed["hint"]
