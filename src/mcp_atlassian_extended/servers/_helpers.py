@@ -206,17 +206,18 @@ def _err(error: Exception) -> dict[str, Any]:
 
 
 def _error_result(detail: dict[str, Any]) -> ToolResult:
-    """Return an ``isError`` result carrying the error envelope.
+    """Return an ``isError`` result carrying the error envelope as text only.
 
-    Text is byte-identical to the JSON the tool returned before this contract
-    change; ``structured_content`` is the same dict un-escaped; ``is_error`` is
-    true so MCP clients see the failure and can self-correct, instead of a
-    "successful" result that merely contains the word "error".
+    The error body is the text content; ``is_error`` is true so MCP clients see
+    the failure and can self-correct. No ``structured_content``: the TS MCP SDK
+    (``callTool``) validates ``structuredContent`` against the tool's
+    ``outputSchema`` even when ``isError`` is true, and the fastmcp-wrapped
+    ``{result: string}`` schema rejects the error envelope — so carrying it would
+    turn every expected failure into a protocol error on strict clients.
     """
     text = json.dumps(detail, indent=2, ensure_ascii=False)
     return ToolResult(
         content=[TextContent(type="text", text=text)],
-        structured_content=detail,
         is_error=True,
     )
 
@@ -234,11 +235,10 @@ def tool_result(
     *write* names the product the tool writes to; the read-only guard runs
     before the body. ``AtlassianError`` subclasses, ``ValueError`` (validation,
     not-configured, path checks) and ``FileNotFoundError`` come back as a
-    ``ToolResult`` with ``is_error=True`` carrying today's structured envelope
-    (same text, same dict as ``structured_content``). Anything else is logged
-    with a traceback and re-raised as ``ToolError`` — text only, no
-    ``structured_content`` — so a genuine bug stays distinguishable from an
-    expected failure.
+    ``ToolResult`` with ``is_error=True`` carrying the error envelope as text
+    (no ``structured_content`` — see ``_error_result``). Anything else is logged
+    with a traceback and re-raised as ``ToolError`` — a genuine bug stays
+    distinguishable from an expected failure.
     """
 
     def wrap(f: _Tool) -> _Tool:

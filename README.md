@@ -29,7 +29,7 @@ Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.pyt
 
 ### Error results
 
-Expected failures — a 404, a 401/403, a read-only refusal, an invalid argument — come back as a tool result with `isError: true`, so an MCP client sees the failure instead of a result that merely happens to contain the word `error`. The result body is the same `{"error": …, "hint": …}` object as before, with `status_code` and `body` when the failure came from the API; the `hint` names the fix. The same object is sent both as the text block and as `structuredContent`, so a client can read either. Genuine bugs are still raised as protocol-level tool errors (text only, no `structuredContent`) and logged with a traceback.
+Expected failures — a 404, a 401/403, a read-only refusal, an invalid argument — come back as a tool result with `isError: true`, so an MCP client sees the failure instead of a result that merely happens to contain the word `error`. The result body is the same `{"error": …, "hint": …}` object as before, with `status_code` and `body` when the failure came from the API; the `hint` names the fix. This object is the result's text content; `structuredContent` is not set, because a strict MCP client validates `structuredContent` against the tool's output schema even when `isError` is true, and the error envelope does not match it. Genuine bugs are still raised as protocol-level tool errors and logged with a traceback.
 
 ## Relationship to mcp-atlassian
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any, NamedTuple
 
+import jsonschema
 import pytest
 from httpx import Response
 
@@ -300,13 +301,33 @@ async def test_forced_failure(tool_client, row: Row, caplog):
         result = await _call(client, row)
     parsed = _body(result)
 
-    # Expected failure: an isError result whose text and structuredContent are
-    # the same envelope, not a protocol error and not an ERROR log line.
+    # Expected failure: an isError result whose envelope is the text content,
+    # with no structuredContent, not a protocol error and not an ERROR log line.
     assert result.is_error is True
-    assert result.structured_content == parsed
+    assert result.structured_content is None
     assert set(parsed) == {"error", "status_code", "body", "hint"}
     assert parsed["status_code"] == 404
     assert caplog.records == []
+
+
+@pytest.mark.usefixtures("_cwd")
+@pytest.mark.parametrize("row", ROWS, ids=_IDS)
+async def test_error_result_passes_strict_client_validation(tool_client, row: Row):
+    """A strict MCP client validates structuredContent against the tool's outputSchema
+    even when isError is true (TS SDK callTool), so an error result that carries a
+    structuredContent not matching the schema becomes a protocol error. Each tool wraps
+    ``-> str`` as ``{result: string}``; the error envelope has no ``result``, so the error
+    result must omit structuredContent.
+    """
+    client, router = tool_client
+    schemas = {t.name: t.output_schema for t in await client.list_tools()}
+    _mock(router, row, 404)
+
+    result = await _call(client, row)
+
+    assert result.is_error is True
+    if result.structured_content is not None:
+        jsonschema.validate(result.structured_content, schemas[row.tool])
 
 
 async def test_every_tool_has_a_row(tool_client):
