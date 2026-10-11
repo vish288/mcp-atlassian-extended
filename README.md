@@ -393,8 +393,10 @@ uvx mcp-atlassian-extended --transport streamable-http --port 9000
 uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
 
 # CLI overrides for config
-uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx --read-only
+JIRA_PAT=xxx uvx mcp-atlassian-extended --jira-url https://jira.example.com --read-only
 ```
+
+The `--jira-token`, `--jira-api-token`, `--confluence-token` and `--confluence-api-token` flags still work but are deprecated and hidden from `--help`: they expose the token to `ps` and shell history. Set `JIRA_PAT` / `JIRA_API_TOKEN` / `CONFLUENCE_PAT` / `CONFLUENCE_API_TOKEN` instead.
 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 

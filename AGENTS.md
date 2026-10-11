@@ -76,7 +76,11 @@ uvx mcp-atlassian-extended --read-only
 
 On stdio the server ignores `--host` and `--port`. Every connection CLI flag has an
 env-var equivalent. The CLI builds the configs from the environment, applies any explicit
-flags on top, and hands them to the lifespan directly.
+flags on top, and hands them to the lifespan directly. The four token flags
+(`--jira-token`, `--jira-api-token`, `--confluence-token`, `--confluence-api-token`) are
+deprecated and hidden from `--help`; they still work and warn on stderr. Use the env vars
+(`JIRA_PAT`, `JIRA_API_TOKEN`, `CONFLUENCE_PAT`, `CONFLUENCE_API_TOKEN`) so the token does
+not land in `ps` or shell history.
 
 ## Patterns
 
@@ -257,10 +261,11 @@ gh workflow run release.yml -f version=0.7.0               # explicit, overrides
 gh workflow run release.yml -f bump=minor -f dry_run=true  # preview changelog, no push
 ```
 
-1. `release.yml` (workflow_dispatch) bumps `pyproject.toml`, rewrites the version line in
-   `llms.txt` / `llms-full.txt`, bumps `server.json` (top level + each package) and
-   `gemini-extension.json`, regenerates `uv.lock`, generates `CHANGELOG.md`, then creates
-   the release commit and tag through the GitHub API.
+1. `release.yml` (workflow_dispatch) first runs `tests.yml` and `lint.yml` via
+   `workflow_call` and gates the release on them, then bumps `pyproject.toml`, rewrites the
+   version line in `llms.txt` / `llms-full.txt`, bumps `server.json` (top level + each
+   package) and `gemini-extension.json`, regenerates `uv.lock`, generates `CHANGELOG.md`,
+   then creates the release commit and tag through the GitHub API.
 2. `publish.yml` (triggered by the `v*` tag) builds the wheel, publishes to PyPI, and
    creates the GitHub Release.
 
@@ -269,7 +274,14 @@ Rules:
 - The workflow owns every version string listed above — do not edit them in a PR.
 - Use conventional commit prefixes (`feat:`, `fix:`, `docs:`, …); the changelog generator
   reads them.
-- `github-actions[bot]` authors the release commit, with message `chore(release): X.Y.Z`.
+- The release commit is created through the GitHub API with `GITHUB_TOKEN` and no custom
+  author/committer, so GitHub signs it as `github-actions[bot]` (Verified) with message
+  `chore(release): X.Y.Z`; `release.yml` hard-fails if that commit is not verified. Only
+  the ref moves (main fast-forward and the tag) use `RELEASE_PAT` — needed to bypass the
+  branch ruleset and to trigger `publish.yml`.
+- `Vish` commits on `main` that came through a rebase-merged PR show as unsigned: GitHub
+  rewrites the committer during rebase and cannot sign the result. PR review plus the
+  required checks are the integrity control there.
 
 ## Documentation freshness (mandatory)
 

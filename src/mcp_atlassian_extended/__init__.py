@@ -9,6 +9,14 @@ from dotenv import load_dotenv
 from .config import ConfluenceConfig, JiraConfig
 
 
+def _warn_argv_token(flag: str, env: str) -> None:
+    click.echo(
+        f"Warning: {flag} is deprecated. It puts the token in the process argument "
+        f"list, where `ps` and shell history can read it. Set {env} instead.",
+        err=True,
+    )
+
+
 @click.command()
 @click.option(
     "--transport",
@@ -19,18 +27,16 @@ from .config import ConfluenceConfig, JiraConfig
 @click.option("--port", default=8000, help="Port for HTTP transports")
 @click.option("--host", default="127.0.0.1", help="Host for HTTP transports")
 @click.option("--jira-url", envvar="JIRA_URL", help="Jira instance URL")
-@click.option("--jira-token", envvar="JIRA_PAT", help="Jira personal access token (Data Center)")
+@click.option("--jira-token", hidden=True, help="Deprecated: set JIRA_PAT instead")
 @click.option("--jira-username", envvar="JIRA_USERNAME", help="Jira username/email (Cloud)")
-@click.option("--jira-api-token", envvar="JIRA_API_TOKEN", help="Jira API token (Cloud)")
+@click.option("--jira-api-token", hidden=True, help="Deprecated: set JIRA_API_TOKEN instead")
 @click.option("--confluence-url", envvar="CONFLUENCE_URL", help="Confluence instance URL")
-@click.option(
-    "--confluence-token", envvar="CONFLUENCE_PAT", help="Confluence personal access token"
-)
+@click.option("--confluence-token", hidden=True, help="Deprecated: set CONFLUENCE_PAT instead")
 @click.option(
     "--confluence-username", envvar="CONFLUENCE_USERNAME", help="Confluence username/email (Cloud)"
 )
 @click.option(
-    "--confluence-api-token", envvar="CONFLUENCE_API_TOKEN", help="Confluence API token (Cloud)"
+    "--confluence-api-token", hidden=True, help="Deprecated: set CONFLUENCE_API_TOKEN instead"
 )
 @click.option("--read-only", is_flag=True, help="Disable write operations")
 def main(
@@ -57,18 +63,22 @@ def main(
     if jira_url:
         jira_config.url = jira_url.rstrip("/")
     if jira_token:
+        _warn_argv_token("--jira-token", "JIRA_PAT")
         jira_config.token = jira_token
     if jira_username:
         jira_config.username = jira_username
     if jira_api_token:
+        _warn_argv_token("--jira-api-token", "JIRA_API_TOKEN")
         jira_config.api_token = jira_api_token
     if confluence_url:
         confluence_config.url = confluence_url.rstrip("/")
     if confluence_token:
+        _warn_argv_token("--confluence-token", "CONFLUENCE_PAT")
         confluence_config.token = confluence_token
     if confluence_username:
         confluence_config.username = confluence_username
     if confluence_api_token:
+        _warn_argv_token("--confluence-api-token", "CONFLUENCE_API_TOKEN")
         confluence_config.api_token = confluence_api_token
     if read_only:
         jira_config.read_only = True

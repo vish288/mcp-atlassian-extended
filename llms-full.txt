@@ -116,7 +116,9 @@ uvx mcp-atlassian-extended --transport streamable-http --port 9000
 uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
 
 # CLI overrides
-uvx mcp-atlassian-extended --jira-url https://jira.example.com --jira-token xxx --read-only
+JIRA_PAT=xxx uvx mcp-atlassian-extended --jira-url https://jira.example.com --read-only
+# --jira-token / --jira-api-token / --confluence-token / --confluence-api-token still work
+# but are deprecated and hidden from --help (they leak the token to ps/shell history).
 ```
 
 ---
