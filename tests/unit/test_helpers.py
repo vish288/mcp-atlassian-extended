@@ -32,7 +32,16 @@ API = {"error", "status_code", "body", "hint"}
         (AtlassianApiError(429, "m"), API, "Rate limited"),
         (AtlassianApiError(500, "m"), {"error", "status_code", "body"}, None),
         (ValueError("Jira is not configured"), {"error", "hint"}, "Client not configured"),
-        (ValueError("Path traversal detected"), {"error", "hint"}, "traversal"),
+        (
+            ValueError("file_path resolves outside the upload directory /r: /x"),
+            {"error", "hint"},
+            "ATLASSIAN_UPLOAD_DIR",
+        ),
+        (
+            ValueError("save_path ... downloads are written under the download directory /r"),
+            {"error", "hint"},
+            "ATLASSIAN_DOWNLOAD_DIR",
+        ),
         (ValueError("File too large"), {"error", "hint"}, "100MB"),
         (ValueError("anything else"), {"error"}, None),
         (FileNotFoundError("gone"), {"error", "hint"}, "File not found"),

@@ -14,7 +14,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 - **Required env vars** (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 - **Required env vars** (Jira DC): `JIRA_URL`, `JIRA_PAT`
 - **Optional env vars** (Confluence): `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` (or `CONFLUENCE_PAT` for DC)
-- **Optional env vars**: `ATLASSIAN_READ_ONLY` (disable writes), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
+- **Optional env vars**: `ATLASSIAN_READ_ONLY` (disable writes), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
 
 ## Documentation
 
@@ -67,10 +67,20 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ATLASSIAN_READ_ONLY` | `false` | Disable all write operations globally |
+| `ATLASSIAN_UPLOAD_DIR` | working directory | Upload root for `jira_upload_attachment`; only files under it may be uploaded (relative values resolve against cwd) |
+| `ATLASSIAN_DOWNLOAD_DIR` | `./atlassian-downloads` | Directory `jira_download_attachment` writes into; created on first download |
 | `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
 | `JIRA_SSL_VERIFY` | `true` | Skip SSL verification for Jira |
 | `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
 | `CONFLUENCE_SSL_VERIFY` | `true` | Skip SSL verification for Confluence |
+
+### Attachment roots
+
+Uploads may only read files inside the upload root (`ATLASSIAN_UPLOAD_DIR`, else the working directory); the path is resolved before the check so a symlink out of the root is rejected, and dotfiles are refused. Downloads write bare file names into the download directory (`ATLASSIAN_DOWNLOAD_DIR`, else `./atlassian-downloads/`) and never overwrite — a numeric suffix is added. Add `atlassian-downloads/` to your project's `.gitignore`.
+
+**Desktop-client caveat:** stdio clients such as Claude Desktop start the server with a working directory of `/` or `$HOME`, which makes most of the filesystem the default upload root (dotfiles excepted). Set `ATLASSIAN_UPLOAD_DIR` explicitly for such clients.
+
+**Migration (0.11 → 0.12):** uploads outside the upload root and all dotfiles are now rejected (set `ATLASSIAN_UPLOAD_DIR` if your client uploads from e.g. `~/Downloads`); downloads moved from the working directory to `./atlassian-downloads/`, `save_path` is a file name only, and existing files are never overwritten.
 
 ### Auth precedence
 
@@ -186,22 +196,22 @@ Tags: jira, attachments, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 #### `jira_upload_attachment`
-Upload a file as an attachment to a Jira issue. Validates file paths (no traversal, max 100MB, file must exist).
+Upload a file as an attachment to a Jira issue. Only files inside the upload root (`ATLASSIAN_UPLOAD_DIR`, default the working directory) may be uploaded: the path is resolved (following symlinks) and must stay under the root, dotfiles and dot-directories are refused, and size is capped at 100 MB.
 
 Parameters:
 - `issue_key` (str, required): Jira issue key
-- `file_path` (str, required): Local file path to upload
+- `file_path` (str, required): Local file path to upload, inside the upload root
 - `filename` (str, optional): Override filename
 
 Tags: jira, attachments, write
 Annotations: readOnlyHint=false, openWorldHint=true
 
 #### `jira_download_attachment`
-Download a Jira attachment to a local file. Writes to current working directory only. Absolute paths and path traversal (`../`) are rejected. Download URLs are validated against the configured Jira URL domain.
+Download a Jira attachment into the download directory (`ATLASSIAN_DOWNLOAD_DIR`, default `./atlassian-downloads/`, created on first use). `save_path` must be a bare file name — directories, absolute paths and dotfiles are rejected, not stripped. Existing files are never overwritten: a `-1`, `-2` suffix is added and the final absolute path is returned. Download URLs are validated against the configured Jira URL domain.
 
 Parameters:
 - `content_url` (str, required): Attachment content URL
-- `save_path` (str, required): Local relative path to save the file
+- `save_path` (str, required): File name (no directories) to save under the download directory
 
 Tags: jira, attachments, write
 Annotations: readOnlyHint=false, openWorldHint=true

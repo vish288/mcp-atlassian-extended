@@ -185,8 +185,16 @@ def _err(error: Exception) -> str:
                 "Client not configured. Set the URL and credentials for that product "
                 "(JIRA_URL / CONFLUENCE_URL plus a Cloud username + API token, or a PAT)."
             )
-        elif "traversal" in msg:
-            detail["hint"] = "Path traversal is not allowed for security reasons."
+        elif "upload directory" in msg:
+            detail["hint"] = (
+                "Set ATLASSIAN_UPLOAD_DIR to a directory that contains the file, "
+                "or move the file there."
+            )
+        elif "download directory" in msg:
+            detail["hint"] = (
+                "Set ATLASSIAN_DOWNLOAD_DIR to change where downloads are written, "
+                "or pass a bare file name."
+            )
         elif "too large" in msg:
             detail["hint"] = "File exceeds the 100MB size limit."
     elif isinstance(error, FileNotFoundError):

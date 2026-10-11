@@ -27,9 +27,11 @@ TEST_CONFLUENCE_URL = "https://confluence.example.com"
 TEST_TOKEN = "test-token"
 
 
-def _make_mcp(*, read_only: bool = False) -> tuple[FastMCP, Any]:
+def _make_mcp(*, read_only: bool = False, download_dir: str = "") -> tuple[FastMCP, Any]:
     """Return the server with its lifespan swapped for one yielding test clients."""
-    jira_config = JiraConfig(url=TEST_JIRA_URL, token=TEST_TOKEN, read_only=read_only)
+    jira_config = JiraConfig(
+        url=TEST_JIRA_URL, token=TEST_TOKEN, read_only=read_only, download_dir=download_dir
+    )
     confluence_config = ConfluenceConfig(
         url=TEST_CONFLUENCE_URL, token=TEST_TOKEN, read_only=read_only
     )
@@ -56,8 +58,8 @@ def _make_mcp(*, read_only: bool = False) -> tuple[FastMCP, Any]:
     return mcp, original_lifespan
 
 
-async def _client(*, read_only: bool):
-    mcp, original_lifespan = _make_mcp(read_only=read_only)
+async def _client(*, read_only: bool, download_dir: str = ""):
+    mcp, original_lifespan = _make_mcp(read_only=read_only, download_dir=download_dir)
     try:
         with respx.mock() as router:
             async with Client(mcp) as client:
@@ -78,3 +80,11 @@ async def readonly_client():
     """(Client, respx router) against a server with ATLASSIAN_READ_ONLY=true."""
     async for pair in _client(read_only=True):
         yield pair
+
+
+@pytest.fixture
+async def download_client(tmp_path):
+    """(Client, respx router, download_dir) with ATLASSIAN_DOWNLOAD_DIR set to a tmp dir."""
+    dl = tmp_path / "dl"
+    async for client, router in _client(read_only=False, download_dir=str(dl)):
+        yield client, router, dl

@@ -42,6 +42,26 @@ def test_read_only_flag():
     assert config.read_only is True
 
 
+def test_upload_download_dirs_from_env():
+    env = {
+        "JIRA_URL": URL,
+        "JIRA_PAT": "x",
+        "ATLASSIAN_UPLOAD_DIR": "/data/up",
+        "ATLASSIAN_DOWNLOAD_DIR": "/data/down",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        config = JiraConfig.from_env()
+    assert config.upload_dir == "/data/up"
+    assert config.download_dir == "/data/down"
+
+
+def test_upload_download_dirs_default_empty():
+    with patch.dict(os.environ, {"JIRA_URL": URL, "JIRA_PAT": "x"}, clear=True):
+        config = JiraConfig.from_env()
+    assert config.upload_dir == ""
+    assert config.download_dir == ""
+
+
 def test_url_strips_trailing_slash():
     env = {"JIRA_URL": "https://jira.example.com/", "JIRA_PAT": "x"}
     with patch.dict(os.environ, env, clear=False):

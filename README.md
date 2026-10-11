@@ -156,6 +156,8 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ATLASSIAN_READ_ONLY` | `false` | Set to `true` to globally disable write operations across tools |
+| `ATLASSIAN_UPLOAD_DIR` | working directory | Only files under this directory may be uploaded (`jira_upload_attachment`). A relative value is resolved against the working directory. |
+| `ATLASSIAN_DOWNLOAD_DIR` | `./atlassian-downloads` | Where `jira_download_attachment` writes. Created on first download. |
 | `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
 | `JIRA_SSL_VERIFY` | `true` | Set to `false` to skip SSL verification for Jira |
 | `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
@@ -306,7 +308,7 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 
 "Download an attachment"
 → jira_download_attachment(content_url="https://jira.example.com/rest/api/2/attachment/content/456",
-    save_path="./downloads/report.pdf")
+    save_path="report.pdf")  # lands in ./atlassian-downloads/report.pdf (or ATLASSIAN_DOWNLOAD_DIR)
 ```
 
 ### Agile & Sprint Management
@@ -354,8 +356,10 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 
 - **Token scope**: For Jira Cloud, use API tokens scoped to the minimum required permissions. For Data Center, use PATs with project-level access.
 - **Read-only mode**: Set `ATLASSIAN_READ_ONLY=true` to disable all write operations (create, update, delete, upload). The server enforces this before any API call.
-- **File upload validation**: `jira_upload_attachment` validates file paths (no traversal, max 100MB, file must exist).
-- **Download path restriction**: `jira_download_attachment` accepts only relative paths resolved within the working directory. It rejects absolute paths and path traversal (`../`).
+- **Upload root restriction**: `jira_upload_attachment` only reads files inside the upload root — `ATLASSIAN_UPLOAD_DIR` if set, otherwise the working directory. The path is resolved (following symlinks) before the containment check, so a symlink pointing outside the root is rejected; dotfiles and dot-directories below the root are refused. Size is capped at 100 MB.
+- **Download directory restriction**: `jira_download_attachment` writes only into the download directory (`ATLASSIAN_DOWNLOAD_DIR`, default `./atlassian-downloads/`, created on first use). `save_path` must be a bare file name — directories, absolute paths and dotfiles are rejected, not silently stripped. Existing files are never overwritten: a `-1`, `-2` numeric suffix is added and the final path is returned. Add `atlassian-downloads/` to your project's `.gitignore`.
+- **Desktop-client caveat**: clients such as Claude Desktop launch stdio servers with a working directory of `/` or `$HOME`, which makes most of the filesystem the upload root (dotfiles excepted). Set `ATLASSIAN_UPLOAD_DIR` (and, if you like, `ATLASSIAN_DOWNLOAD_DIR`) explicitly for such clients.
+- **Migration (0.11 → 0.12)**: uploads are now restricted to `ATLASSIAN_UPLOAD_DIR` (default: the server's working directory) and dotfiles are refused — if your client uploads from `~/Downloads`, set `ATLASSIAN_UPLOAD_DIR=~/Downloads`. Downloads now land in `./atlassian-downloads/` (or `ATLASSIAN_DOWNLOAD_DIR`) instead of the working directory, `save_path` is a file name only, and existing files are never overwritten.
 - **Download URL validation**: The server validates each attachment download URL against the configured Jira URL domain to prevent SSRF.
 - **SSL verification**: The server enables SSL verification by default for Jira and Confluence. Disable it only for self-signed certificates in trusted networks.
 - **MCP tool annotations**: Each tool declares `readOnlyHint`, `destructiveHint`, and `idempotentHint` for client-side permission prompts.

@@ -228,8 +228,20 @@ bodies use `$name` placeholders. An unmatched `$` stays intact and does not rais
 | `CONFLUENCE_TIMEOUT` | Seconds, default `30` |
 | `CONFLUENCE_SSL_VERIFY` | As above |
 | `ATLASSIAN_READ_ONLY` | `true`/`1`/`yes` disables writes; read by both configs |
+| `ATLASSIAN_UPLOAD_DIR` | Upload root for `jira_upload_attachment`; default the working directory. Relative values resolve against cwd |
+| `ATLASSIAN_DOWNLOAD_DIR` | Download directory for `jira_download_attachment`; default `./atlassian-downloads/`, created on first use |
 
 Gotchas:
+
+- **Attachment roots.** `jira_upload_attachment` reads only files resolved inside the
+  upload root (`ATLASSIAN_UPLOAD_DIR`, else cwd) — symlinks are resolved first, dotfiles
+  refused. `jira_download_attachment` writes only bare file names into the download
+  directory (`ATLASSIAN_DOWNLOAD_DIR`, else `./atlassian-downloads/`) and never overwrites
+  (numeric suffix). **Desktop-client caveat:** stdio clients (e.g. Claude Desktop) run with
+  cwd `/` or `$HOME`, which widens the default upload root to most of the filesystem — set
+  `ATLASSIAN_UPLOAD_DIR` explicitly for them. **Migration 0.11 → 0.12:** uploads outside the
+  root and all dotfiles are now rejected; downloads moved from cwd to `./atlassian-downloads/`
+  and `save_path` is a file name only.
 
 - Basic wins. If you set both the username and API token, `auth_header` returns Basic and
   ignores the PAT. `auth_header` uses Bearer only when the Cloud pair is incomplete. To
