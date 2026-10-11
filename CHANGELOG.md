@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.0] - 2026-10-11
+
+### Features
+- feat!: report expected tool failures with isError (8d240db)
+
+### Bug Fixes
+- fix: drop structuredContent from error results (f248f3c)
+- fix: restrict attachment upload/download to configured roots (4a1f649)
+
+### Chores
+- chore: gate releases on CI, sign release commits, pin mcp-publisher, deprecate token flags, cap deps (677230c)
+
+
 ## [0.11.0] - 2026-10-10
 
 ### Bug Fixes
