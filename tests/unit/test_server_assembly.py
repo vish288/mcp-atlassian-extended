@@ -56,7 +56,8 @@ async def test_real_lifespan_registers_everything():
 @pytest.mark.usefixtures("_unconfigured")
 async def test_boots_with_nothing_configured_and_tools_say_so():
     async with Client(mcp) as client:
-        result = await client.call_tool("jira_list_projects", {})
+        result = await client.call_tool("jira_list_projects", {}, raise_on_error=False)
+        assert result.is_error is True
         parsed = json.loads(result.content[0].text)
         assert "not configured" in parsed["error"]
         assert "JIRA_URL" in parsed["hint"]

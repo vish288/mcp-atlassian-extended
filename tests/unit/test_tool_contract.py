@@ -253,7 +253,11 @@ def _mock(router, row: Row, status: int):
 
 
 async def _call(client, row: Row) -> Any:
-    result = await client.call_tool(row.tool, row.args)
+    """Call *row*'s tool without raising on ``isError`` — error paths are results now."""
+    return await client.call_tool(row.tool, row.args, raise_on_error=False)
+
+
+def _body(result: Any) -> Any:
     return json.loads(result.content[0].text)
 
 
@@ -270,8 +274,10 @@ async def test_request_shape(tool_client, row: Row):
     client, router = tool_client
     route = _mock(router, row, 200)
 
-    parsed = await _call(client, row)
+    result = await _call(client, row)
+    parsed = _body(result)
 
+    assert result.is_error is False
     assert "error" not in parsed, parsed
     req = route.calls.last.request
     assert (req.method, req.url.host, req.url.path) == (row.method, row.host, row.path)
@@ -286,14 +292,21 @@ async def test_request_shape(tool_client, row: Row):
 
 @pytest.mark.usefixtures("_cwd")
 @pytest.mark.parametrize("row", ROWS, ids=_IDS)
-async def test_forced_failure(tool_client, row: Row):
+async def test_forced_failure(tool_client, row: Row, caplog):
     client, router = tool_client
     _mock(router, row, 404)
 
-    parsed = await _call(client, row)
+    with caplog.at_level("ERROR"):
+        result = await _call(client, row)
+    parsed = _body(result)
 
+    # Expected failure: an isError result whose text and structuredContent are
+    # the same envelope, not a protocol error and not an ERROR log line.
+    assert result.is_error is True
+    assert result.structured_content == parsed
     assert set(parsed) == {"error", "status_code", "body", "hint"}
     assert parsed["status_code"] == 404
+    assert caplog.records == []
 
 
 async def test_every_tool_has_a_row(tool_client):

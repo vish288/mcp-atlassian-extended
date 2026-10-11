@@ -51,7 +51,7 @@ API = {"error", "status_code", "body", "hint"}
     ids=lambda v: type(v).__name__ if isinstance(v, Exception) else None,
 )
 def test_err_key_set(exc, keys, hint):
-    parsed = json.loads(_err(exc))
+    parsed = _err(exc)
     assert set(parsed) == keys
     assert parsed["error"] == str(exc)
     if hint:

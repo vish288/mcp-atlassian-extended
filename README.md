@@ -27,6 +27,10 @@ Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.pyt
 - The server uses no roots, sampling, logging, elicitation, or resource subscriptions. The 2026-07-28 deprecations do not affect it.
 - Built on FastMCP 4.x and the MCP Python SDK 2.x.
 
+### Error results
+
+Expected failures — a 404, a 401/403, a read-only refusal, an invalid argument — come back as a tool result with `isError: true`, so an MCP client sees the failure instead of a result that merely happens to contain the word `error`. The result body is the same `{"error": …, "hint": …}` object as before, with `status_code` and `body` when the failure came from the API; the `hint` names the fix. The same object is sent both as the text block and as `structuredContent`, so a client can read either. Genuine bugs are still raised as protocol-level tool errors (text only, no `structuredContent`) and logged with a traceback.
+
 ## Relationship to mcp-atlassian
 
 This project runs alongside [mcp-atlassian](https://github.com/sooperset/mcp-atlassian), not as a replacement. Configure both servers:

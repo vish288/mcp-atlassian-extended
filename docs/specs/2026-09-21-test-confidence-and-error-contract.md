@@ -41,3 +41,5 @@ ticket-only (INT-AT-010..014, INT-ALL-*).
 
 - Released versions: 0.8.2 (harness), 0.9.0 (contract), 0.9.1 (dedup)
 - Closed issues: #68, #69, #70, #71, #72, #73
+
+> Superseded for expected failures by 2026-10-11 X1: expected failures now return `isError: true` results (same JSON body), not successful results.

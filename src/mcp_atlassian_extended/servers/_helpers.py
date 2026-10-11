@@ -12,6 +12,8 @@ from typing import Any, Literal
 
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
+from fastmcp.tools import ToolResult
+from mcp.types import TextContent
 
 from ..clients.confluence import ConfluenceExtendedClient
 from ..clients.jira import JiraExtendedClient
@@ -136,8 +138,8 @@ def _paginated(
     return json.dumps(payload, indent=2, ensure_ascii=False)
 
 
-def _err(error: Exception) -> str:
-    """Format error as JSON with actionable hints."""
+def _err(error: Exception) -> dict[str, Any]:
+    """Build the error envelope with an actionable hint keyed off the exception."""
     detail: dict[str, Any] = {"error": str(error)}
 
     if isinstance(error, AtlassianAuthError):
@@ -200,33 +202,54 @@ def _err(error: Exception) -> str:
     elif isinstance(error, FileNotFoundError):
         detail["hint"] = "File not found. Check the file path exists and is accessible."
 
-    return json.dumps(detail, indent=2, ensure_ascii=False)
+    return detail
+
+
+def _error_result(detail: dict[str, Any]) -> ToolResult:
+    """Return an ``isError`` result carrying the error envelope.
+
+    Text is byte-identical to the JSON the tool returned before this contract
+    change; ``structured_content`` is the same dict un-escaped; ``is_error`` is
+    true so MCP clients see the failure and can self-correct, instead of a
+    "successful" result that merely contains the word "error".
+    """
+    text = json.dumps(detail, indent=2, ensure_ascii=False)
+    return ToolResult(
+        content=[TextContent(type="text", text=text)],
+        structured_content=detail,
+        is_error=True,
+    )
+
+
+_Tool = Callable[..., Awaitable[str | ToolResult]]
 
 
 def tool_result(
-    fn: Callable[..., Awaitable[str]] | None = None,
+    fn: _Tool | None = None,
     *,
     write: Literal["jira", "confluence"] | None = None,
 ) -> Any:
-    """Apply under ``@mcp.tool``. Expected failures become ``_err`` JSON; bugs raise.
+    """Apply under ``@mcp.tool``. Expected failures become ``isError`` results; bugs raise.
 
     *write* names the product the tool writes to; the read-only guard runs
     before the body. ``AtlassianError`` subclasses, ``ValueError`` (validation,
-    not-configured, path checks) and ``FileNotFoundError`` keep today's
-    structured envelope with hints. Anything else is logged with a traceback
-    and re-raised as ``ToolError`` so the client sees ``isError: true`` instead
-    of a successful result that happens to contain the word "error".
+    not-configured, path checks) and ``FileNotFoundError`` come back as a
+    ``ToolResult`` with ``is_error=True`` carrying today's structured envelope
+    (same text, same dict as ``structured_content``). Anything else is logged
+    with a traceback and re-raised as ``ToolError`` — text only, no
+    ``structured_content`` — so a genuine bug stays distinguishable from an
+    expected failure.
     """
 
-    def wrap(f: Callable[..., Awaitable[str]]) -> Callable[..., Awaitable[str]]:
+    def wrap(f: _Tool) -> _Tool:
         @functools.wraps(f)
-        async def inner(ctx: Context, *args: Any, **kwargs: Any) -> str:
+        async def inner(ctx: Context, *args: Any, **kwargs: Any) -> str | ToolResult:
             try:
                 if write:
                     _check_write(ctx, write)
                 return await f(ctx, *args, **kwargs)
             except _EXPECTED as e:
-                return _err(e)
+                return _error_result(_err(e))
             except Exception as e:
                 _log.exception("%s failed", f.__name__)
                 msg = f"{type(e).__name__}: {e}"

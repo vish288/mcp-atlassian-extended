@@ -84,8 +84,12 @@ not land in `ps` or shell history.
 
 ## Patterns
 
-- Every tool is `async def`, takes `ctx: Context` first, and returns a JSON **string**.
-- Tools never raise: wrap the body in `try/except Exception as e: return _err(e)`.
+- Every tool is `async def`, takes `ctx: Context` first, and returns a JSON **string** on success.
+- Tools do not handle their own errors — the `@tool_result` decorator does. Expected
+  failures (`AtlassianError`, `ValueError`, `FileNotFoundError`) become an `isError: true`
+  `ToolResult` carrying `_err`'s envelope (same text, same dict as `structuredContent`);
+  any other exception is logged with a traceback and re-raised as `ToolError`. Let the
+  body raise; do not wrap it in `try/except`.
 - `_ok(data)` for single objects, `_paginated(items)` for lists (adds `items` + `count`).
 - `_err` attaches an actionable `hint` keyed off the exception type and HTTP status
   (401/403, 404, 400, 409, 422, 429). Extend it there, not in individual tools.
@@ -318,6 +322,7 @@ annotations.
   (`username` was removed in the GDPR migration) and `username` on Server/Data Center.
   Deployment is detected from the URL host (`JiraConfig.is_cloud`): `*.atlassian.net` /
   `api.atlassian.com` is Cloud. Auth mode is not used — DC also supports basic auth.
-- Errors come back as *successful* tool results carrying `{"error": …, "hint": …}` (soft
-  errors). Callers must inspect the JSON body, not only the call status.
+- Expected failures are `isError: true` results whose text and `structuredContent` are the
+  same `{"error", "hint", …}` object; genuine bugs are `isError: true` with `TypeName:
+  message` text and no `structuredContent`, logged with a traceback.
 - Confluence tools depend on the Team Calendars add-on.
