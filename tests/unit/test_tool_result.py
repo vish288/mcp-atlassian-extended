@@ -46,8 +46,9 @@ async def test_api_error_is_an_error_result_with_hint(tool_client):
 
     assert result.is_error is True
     parsed = json.loads(result.content[0].text)
-    # The one place the structured/text equality is pinned for an expected failure.
-    assert result.structured_content == parsed
+    # No structuredContent: a strict client validates it against the tool's
+    # outputSchema even when isError, and the error envelope fails that schema.
+    assert result.structured_content is None
     assert parsed["status_code"] == 404
     assert "hint" in parsed
 
@@ -65,5 +66,5 @@ async def test_local_validation_is_an_error_result(tool_client, tmp_path, monkey
 
     assert result.is_error is True
     parsed = json.loads(result.content[0].text)
-    assert result.structured_content == parsed
+    assert result.structured_content is None
     assert "ATLASSIAN_DOWNLOAD_DIR" in parsed["hint"]
