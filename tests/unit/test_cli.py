@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -38,6 +38,7 @@ def test_token_flag_still_works_and_warns(monkeypatch, flag, env_name, config_in
     runner = CliRunner()
     with (
         patch("mcp_atlassian_extended.asyncio.run") as mock_run,
+        patch("mcp_atlassian_extended.servers.mcp.run_async", new_callable=MagicMock),
         patch("mcp_atlassian_extended.servers.configure") as mock_configure,
     ):
         result = runner.invoke(main, [flag, "argv-tok"])
@@ -58,6 +59,7 @@ def test_env_token_does_not_warn(monkeypatch, flag, env_name, config_index, attr
     runner = CliRunner()
     with (
         patch("mcp_atlassian_extended.asyncio.run"),
+        patch("mcp_atlassian_extended.servers.mcp.run_async", new_callable=MagicMock),
         patch("mcp_atlassian_extended.servers.configure"),
     ):
         result = runner.invoke(main, [])
@@ -68,7 +70,11 @@ def test_env_token_does_not_warn(monkeypatch, flag, env_name, config_index, attr
 def test_sse_transport_warns_deprecated():
     """--transport sse prints a deprecation warning but still runs."""
     runner = CliRunner()
-    with patch("mcp_atlassian_extended.asyncio.run") as mock_run:
+    with (
+        patch("mcp_atlassian_extended.asyncio.run") as mock_run,
+        patch("mcp_atlassian_extended.servers.mcp.run_async", new_callable=MagicMock),
+        patch("mcp_atlassian_extended.servers.configure"),
+    ):
         result = runner.invoke(main, ["--transport", "sse"])
     assert result.exit_code == 0
     assert "Warning:" in result.stderr

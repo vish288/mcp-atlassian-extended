@@ -6,6 +6,8 @@ import base64
 import os
 from unittest.mock import patch
 
+import pytest
+
 from mcp_atlassian_extended.config import ConfluenceConfig, JiraConfig
 
 URL = "https://jira.example.com"
@@ -13,7 +15,7 @@ URL = "https://jira.example.com"
 
 def test_jira_config_from_env():
     env = {"JIRA_URL": "https://jira.example.com", "JIRA_PAT": "pat-123"}
-    with patch.dict(os.environ, env, clear=False):
+    with patch.dict(os.environ, env, clear=True):
         config = JiraConfig.from_env()
     assert config.url == "https://jira.example.com"
     assert config.token == "pat-123"
@@ -28,7 +30,7 @@ def test_jira_config_not_configured():
 
 def test_confluence_config_from_env():
     env = {"CONFLUENCE_URL": "https://confluence.example.com/wiki", "CONFLUENCE_PAT": "pat-456"}
-    with patch.dict(os.environ, env, clear=False):
+    with patch.dict(os.environ, env, clear=True):
         config = ConfluenceConfig.from_env()
     assert config.url == "https://confluence.example.com/wiki"
     assert config.token == "pat-456"
@@ -37,7 +39,7 @@ def test_confluence_config_from_env():
 
 def test_read_only_flag():
     env = {"JIRA_URL": "https://jira.example.com", "JIRA_PAT": "x", "ATLASSIAN_READ_ONLY": "true"}
-    with patch.dict(os.environ, env, clear=False):
+    with patch.dict(os.environ, env, clear=True):
         config = JiraConfig.from_env()
     assert config.read_only is True
 
@@ -64,9 +66,50 @@ def test_upload_download_dirs_default_empty():
 
 def test_url_strips_trailing_slash():
     env = {"JIRA_URL": "https://jira.example.com/", "JIRA_PAT": "x"}
-    with patch.dict(os.environ, env, clear=False):
+    with patch.dict(os.environ, env, clear=True):
         config = JiraConfig.from_env()
     assert config.url == "https://jira.example.com"
+
+
+def test_timeout_default_and_override():
+    with patch.dict(os.environ, {"JIRA_URL": URL, "JIRA_PAT": "x"}, clear=True):
+        assert JiraConfig.from_env().timeout == 30
+    with patch.dict(
+        os.environ, {"JIRA_URL": URL, "JIRA_PAT": "x", "JIRA_TIMEOUT": "60"}, clear=True
+    ):
+        assert JiraConfig.from_env().timeout == 60
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("false", False), ("0", False), ("no", False), ("true", True), ("", True)],
+)
+def test_ssl_verify_values(value, expected):
+    env = {"JIRA_URL": URL, "JIRA_PAT": "x", "JIRA_SSL_VERIFY": value}
+    with patch.dict(os.environ, env, clear=True):
+        assert JiraConfig.from_env().ssl_verify is expected
+
+
+def test_personal_token_alias():
+    env = {"JIRA_URL": URL, "JIRA_PERSONAL_TOKEN": "pt"}
+    with patch.dict(os.environ, env, clear=True):
+        config = JiraConfig.from_env()
+    assert config.token == "pt"
+    assert config.auth_header == {"Authorization": "Bearer pt"}
+
+
+@pytest.mark.parametrize("value", ["true", "1", "yes", "TRUE", "Yes"])
+def test_read_only_truthy_values(value):
+    env = {"JIRA_URL": URL, "JIRA_PAT": "x", "ATLASSIAN_READ_ONLY": value}
+    with patch.dict(os.environ, env, clear=True):
+        assert JiraConfig.from_env().read_only is True
+
+
+@pytest.mark.parametrize("value", ["false", "0", "no", ""])
+def test_read_only_falsy_values(value):
+    env = {"JIRA_URL": URL, "JIRA_PAT": "x", "ATLASSIAN_READ_ONLY": value}
+    with patch.dict(os.environ, env, clear=True):
+        assert JiraConfig.from_env().read_only is False
 
 
 def _decode_basic(header: dict[str, str]) -> str:

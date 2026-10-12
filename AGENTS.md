@@ -170,7 +170,7 @@ Never leak stack traces, tokens, or internal paths in error text.
 - Confluence calendars and time off: `/rest/calendar-services/1.0/…` — this is the
   **Team Calendars** add-on. Confluence instances without it return 404 for all three
   Confluence tools.
-- The client caps attachment uploads at 100 MB (`clients/jira.py`).
+- The client caps attachment uploads and downloads at 100 MB (`clients/jira.py`).
 
 ### Common workflows
 

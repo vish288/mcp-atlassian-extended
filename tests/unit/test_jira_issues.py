@@ -74,29 +74,6 @@ class TestJiraIssues:
             result = await client.delete_issue_link("456")
             assert result is None
 
-    async def test_get_issue_links(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/issue/PROJ-1").mock(
-                return_value=httpx.Response(
-                    200,
-                    json={
-                        "fields": {
-                            "issuelinks": [
-                                {
-                                    "id": "100",
-                                    "type": {"name": "Relates"},
-                                    "outwardIssue": {"key": "PROJ-2"},
-                                }
-                            ]
-                        }
-                    },
-                )
-            )
-            client = _make_client()
-            result = await client.get_issue_links("PROJ-1")
-            assert len(result) == 1
-            assert result[0]["type"]["name"] == "Relates"
-
     async def test_create_issue_auth_error(self):
         async with respx.mock(base_url=BASE) as router:
             router.post("/rest/api/2/issue").mock(

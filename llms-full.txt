@@ -209,7 +209,7 @@ Tags: jira, attachments, write
 Annotations: readOnlyHint=false, openWorldHint=true
 
 #### `jira_download_attachment`
-Download a Jira attachment into the download directory (`ATLASSIAN_DOWNLOAD_DIR`, default `./atlassian-downloads/`, created on first use). `save_path` must be a bare file name — directories, absolute paths and dotfiles are rejected, not stripped. Existing files are never overwritten: a `-1`, `-2` suffix is added and the final absolute path is returned. Download URLs are validated against the configured Jira URL domain.
+Download a Jira attachment into the download directory (`ATLASSIAN_DOWNLOAD_DIR`, default `./atlassian-downloads/`, created on first use). `save_path` must be a bare file name — directories, absolute paths and dotfiles are rejected, not stripped. Existing files are never overwritten: a `-1`, `-2` suffix is added and the final absolute path is returned. Download URLs are validated against the configured Jira URL domain, and the body is capped at 100 MB.
 
 Parameters:
 - `content_url` (str, required): Attachment content URL

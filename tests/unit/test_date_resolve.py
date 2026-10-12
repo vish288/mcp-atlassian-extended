@@ -34,3 +34,17 @@ def _freeze(monkeypatch):
 )
 def test_resolve(value, expected):
     assert _resolve_date(value) == expected
+
+
+class _FrozenMonday(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        # 2026-03-02 is a Monday.
+        return cls(2026, 3, 2, 12, 0, tzinfo=tz)
+
+
+def test_next_week_from_monday_is_the_following_monday(monkeypatch):
+    """On a Monday, 'next week' is +7 days, not the same day: ``(7 - weekday) % 7``
+    is 0 on Monday, and the ``or 7`` is what turns it into a full week."""
+    monkeypatch.setattr(confluence_extended, "datetime", _FrozenMonday)
+    assert _resolve_date("next week") == "2026-03-09"

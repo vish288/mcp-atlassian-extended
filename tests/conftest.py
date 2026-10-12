@@ -27,6 +27,24 @@ TEST_CONFLUENCE_URL = "https://confluence.example.com"
 TEST_TOKEN = "test-token"
 
 
+@pytest.fixture(autouse=True)
+def _reset_injected_configs():
+    """Keep ``servers._injected_configs`` from leaking between tests.
+
+    ``configure()`` (called by ``main()``) sets a module global that ``lifespan``
+    prefers over the environment. A CLI test that invokes ``main()`` without
+    patching ``configure`` leaves it set, so a later test reading the env instead
+    builds a client against whatever ``JIRA_URL``/``JIRA_PAT`` the shell exports —
+    a real Jira, with a real token, for a developer who has them set. Reset it
+    around every test so the global is never ambient.
+    """
+    import mcp_atlassian_extended.servers as servers
+
+    servers._injected_configs = None
+    yield
+    servers._injected_configs = None
+
+
 def _make_mcp(*, read_only: bool = False, download_dir: str = "") -> tuple[FastMCP, Any]:
     """Return the server with its lifespan swapped for one yielding test clients."""
     jira_config = JiraConfig(

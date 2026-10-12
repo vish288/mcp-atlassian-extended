@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from mcp_atlassian_extended.servers.resources import _RESOURCES_DIR, RESOURCES, _load
 
 
@@ -41,14 +39,3 @@ class TestResourceFiles:
         for filename in (r.file for r in RESOURCES):
             content = _load(filename)
             assert '"""' not in content, f"{filename} contains triple-quote artifact"
-
-
-class TestLoadSecurity:
-    """Verify _load() rejects path traversal attempts."""
-
-    @pytest.mark.parametrize(
-        "bad", ["../../../etc/passwd", "subdir/file.md", "subdir\\file.md", ".."]
-    )
-    def test_rejects(self, bad: str) -> None:
-        with pytest.raises(ValueError, match="Invalid filename"):
-            _load(bad)

@@ -78,7 +78,22 @@ async def test_configure_injects_configs_into_lifespan():
 
 @pytest.mark.usefixtures("_configured")
 async def test_mcp_2026_07_28_mode():
-    """Server supports MCP 2026-07-28 protocol and returns expected tool count."""
+    """Server supports MCP 2026-07-28 protocol and returns every decorated tool."""
+    expected = _decorated_tool_count()
     async with Client(mcp, mode="2026-07-28") as client:
         tools = await client.list_tools()
-        assert len(tools) == 22
+        assert len(tools) == expected
+
+
+@pytest.mark.usefixtures("_configured")
+async def test_lifespan_log_never_contains_the_token(caplog):
+    """The startup log prints URLs and flags, never the credential. A regression
+    that logged the config would leak the PAT to anywhere logs are shipped."""
+    secret = "s3cr3t-pat-value"  # noqa: S105 - test fixture, not a real credential
+    jira = JiraConfig(url="https://j.example.com", token=secret)
+    confluence = ConfluenceConfig(url="https://c.example.com", token=secret)
+    servers.configure(jira, confluence)
+    with caplog.at_level("INFO"):
+        async with servers.lifespan(mcp):
+            pass
+    assert secret not in caplog.text

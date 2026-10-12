@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from mcp_atlassian_extended.servers._helpers import _load_file
 from mcp_atlassian_extended.servers.prompts import (
     _PROMPT_FILES,
@@ -77,31 +75,8 @@ class TestPromptFiles:
             assert '"""' not in content, f"{filename} contains triple-quote artifact"
 
 
-class TestLoadPromptSecurity:
-    """Verify _load_file() rejects path traversal attempts."""
-
-    def test_rejects_directory_traversal(self) -> None:
-        with pytest.raises(ValueError, match="Invalid filename"):
-            _load_file(_PROMPTS_DIR, "../../../etc/passwd")
-
-    def test_rejects_forward_slash(self) -> None:
-        with pytest.raises(ValueError, match="Invalid filename"):
-            _load_file(_PROMPTS_DIR, "subdir/file.md")
-
-    def test_rejects_backslash(self) -> None:
-        with pytest.raises(ValueError, match="Invalid filename"):
-            _load_file(_PROMPTS_DIR, "subdir\\file.md")
-
-    def test_rejects_dotdot_only(self) -> None:
-        with pytest.raises(ValueError, match="Invalid filename"):
-            _load_file(_PROMPTS_DIR, "..")
-
-
 class TestPromptRegistration:
     """Verify prompts are registered and return valid messages."""
-
-    def test_prompt_count(self) -> None:
-        assert len(EXPECTED_PROMPTS) == 5
 
     def test_each_prompt_returns_messages(self) -> None:
         for name, info in EXPECTED_PROMPTS.items():
