@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0] - 2026-10-12
+
+### Features
+- feat!: send tool results as structuredContent objects and drop the placeholder outputSchema (9ffefa4)
+
+### Bug Fixes
+- fix: stream attachment downloads to enforce the 100MB cap before buffering (27cad70)
+
+### Tests
+- test: harden suite, close injected-config leak, cap attachment downloads (34d560b)
+
+
 ## [0.12.0] - 2026-10-11
 
 ### Features
