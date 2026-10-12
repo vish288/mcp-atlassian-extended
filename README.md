@@ -31,6 +31,8 @@ Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.pyt
 
 Expected failures — a 404, a 401/403, a read-only refusal, an invalid argument — come back as a tool result with `isError: true`, so an MCP client sees the failure instead of a result that merely happens to contain the word `error`. The result body is the same `{"error": …, "hint": …}` object as before, with `status_code` and `body` when the failure came from the API; the `hint` names the fix. This object is the result's text content; `structuredContent` is not set, because a strict MCP client validates `structuredContent` against the tool's output schema even when `isError` is true, and the error envelope does not match it. Genuine bugs are still raised as protocol-level tool errors and logged with a traceback.
 
+On success, a tool carries the same pretty-printed JSON as its text content and that JSON object as `structuredContent` — the pre-2.0 `{"result": "<json string>"}` wrapper is gone (a payload that is a JSON array, such as a multi-file upload response, carries text only, since `structuredContent` must be an object). Tools advertise no `outputSchema`: upstream fields pass through untyped, and a typed schema is opt-in per tool via `output_schema=` on `@mcp.tool(...)` when a client needs one.
+
 ## Relationship to mcp-atlassian
 
 This project runs alongside [mcp-atlassian](https://github.com/sooperset/mcp-atlassian), not as a replacement. Configure both servers:

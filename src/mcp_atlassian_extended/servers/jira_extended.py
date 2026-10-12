@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastmcp import Context
+from fastmcp.tools import ToolResult
 from pydantic import Field
 
 from ..clients.jira import _BACKLOG_DEFAULT_FIELDS
@@ -33,7 +34,7 @@ async def jira_get_attachments(
     issue_key: Annotated[
         str, Field(description="Jira issue key (e.g. PROJ-123)", pattern=ISSUE_KEY_PATTERN)
     ],
-) -> str:
+) -> ToolResult:
     """List attachments on a Jira issue."""
     data = await _get_jira(ctx).get_attachments(issue_key)
     return _paginated(data)
@@ -49,7 +50,7 @@ async def jira_upload_attachment(
     issue_key: Annotated[str, Field(description="Jira issue key", pattern=ISSUE_KEY_PATTERN)],
     file_path: Annotated[str, Field(description="Local file path to upload", min_length=1)],
     filename: Annotated[str | None, Field(description="Override filename")] = None,
-) -> str:
+) -> ToolResult:
     """Upload a file as an attachment to a Jira issue."""
     data = await _get_jira(ctx).upload_attachment(issue_key, file_path, filename)
     return _ok(data)
@@ -66,7 +67,7 @@ async def jira_download_attachment(
     save_path: Annotated[
         str, Field(description="File name (no directories) to save under the download dir")
     ],
-) -> str:
+) -> ToolResult:
     """Download a Jira attachment into the download directory (default ``./atlassian-downloads/``).
 
     ``save_path`` is a bare file name, not a path. Existing files are never overwritten — a
@@ -128,7 +129,7 @@ async def jira_delete_attachment(
     attachment_id: Annotated[
         str, Field(description="Numeric attachment ID to delete", pattern=NUMERIC_ID_PATTERN)
     ],
-) -> str:
+) -> ToolResult:
     """Delete a Jira attachment."""
     await _get_jira(ctx).delete_attachment(attachment_id)
     return _ok({"status": "deleted", "attachment_id": attachment_id})
@@ -149,7 +150,7 @@ async def jira_search_users(
     start_at: Annotated[
         int, Field(description="Index of the first result (use next_start_at to page)", ge=0)
     ] = 0,
-) -> str:
+) -> ToolResult:
     """Search for Jira users."""
     data = await _get_jira(ctx).search_users(query, max_results, start_at)
     return _paginated(data, start_at=start_at, max_results=max_results)
@@ -163,7 +164,7 @@ async def jira_search_users(
     annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 @tool_result
-async def jira_list_projects(ctx: Context) -> str:
+async def jira_list_projects(ctx: Context) -> ToolResult:
     """List all accessible Jira projects."""
     data = await _get_jira(ctx).list_projects()
     return _paginated(data)
@@ -178,7 +179,7 @@ async def jira_list_fields(
     ctx: Context,
     search: Annotated[str | None, Field(description="Filter fields by name")] = None,
     custom_only: Annotated[bool, Field(description="Only return custom fields")] = False,
-) -> str:
+) -> ToolResult:
     """List Jira fields, optionally filtered."""
     data = await _get_jira(ctx).list_fields()
     if custom_only:
@@ -208,7 +209,7 @@ async def jira_backlog(
             "pass '*all' for every field (large responses)."
         ),
     ] = _BACKLOG_DEFAULT_FIELDS,
-) -> str:
+) -> ToolResult:
     """Get backlog issues for a board.
 
     Returns a compact field set by default (summary, status, issue type, priority,
@@ -236,7 +237,7 @@ async def jira_get_project_versions(
     project_key: Annotated[
         str, Field(description="Project key (e.g. PROJ)", pattern=PROJECT_KEY_PATTERN)
     ],
-) -> str:
+) -> ToolResult:
     """List all versions for a Jira project (REST API v2, supports Server/DC and Cloud)."""
     data = await _get_jira(ctx).get_project_versions(project_key)
     return _paginated(data)
@@ -256,7 +257,7 @@ async def jira_create_version(
     start_date: Annotated[str | None, Field(description="Start date (YYYY-MM-DD)")] = None,
     released: Annotated[bool, Field(description="Mark as released")] = False,
     archived: Annotated[bool, Field(description="Mark as archived")] = False,
-) -> str:
+) -> ToolResult:
     """Create a new version in a Jira project (REST API v2, supports Server/DC and Cloud)."""
     data = await _get_jira(ctx).create_version(
         project_key,
@@ -284,7 +285,7 @@ async def jira_update_version(
     start_date: Annotated[str | None, Field(description="Start date (YYYY-MM-DD)")] = None,
     released: Annotated[bool | None, Field(description="Mark as released")] = None,
     archived: Annotated[bool | None, Field(description="Mark as archived")] = None,
-) -> str:
+) -> ToolResult:
     """Update an existing Jira version (REST API v2, supports Server/DC and Cloud)."""
     data = await _get_jira(ctx).update_version(
         version_id,

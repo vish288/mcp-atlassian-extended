@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from mcp_atlassian_extended.exceptions import (
@@ -72,7 +70,7 @@ def test_err_key_set(exc, keys, hint):
 
 
 def test_paginated_without_total_or_page_size_cannot_claim_more():
-    parsed = json.loads(_paginated([1, 2], start_at=0))
+    parsed = _paginated([1, 2], start_at=0).structured_content
     assert parsed["has_more"] is False
     assert parsed["next_start_at"] is None
 
@@ -81,22 +79,22 @@ def test_paginated_full_page_without_total_claims_more():
     """No total from the API: a full page (len == max_results) must report more,
     so the tail is not silently dropped. Under-reporting here is the bug the
     `==` guard fixes — do not let it regress to `<`."""
-    parsed = json.loads(_paginated([1, 2], start_at=4, max_results=2))
+    parsed = _paginated([1, 2], start_at=4, max_results=2).structured_content
     assert parsed["has_more"] is True
     assert parsed["next_start_at"] == 6
 
 
 def test_paginated_partial_page_without_total_stops():
-    parsed = json.loads(_paginated([1], start_at=4, max_results=2))
+    parsed = _paginated([1], start_at=4, max_results=2).structured_content
     assert parsed["has_more"] is False
     assert parsed["next_start_at"] is None
 
 
 def test_paginated_with_total_pages_until_total():
-    parsed = json.loads(_paginated([1, 2], start_at=0, total=5, max_results=2))
+    parsed = _paginated([1, 2], start_at=0, total=5, max_results=2).structured_content
     assert parsed["total"] == 5
     assert parsed["has_more"] is True
     assert parsed["next_start_at"] == 2
-    last = json.loads(_paginated([1], start_at=4, total=5, max_results=2))
+    last = _paginated([1], start_at=4, total=5, max_results=2).structured_content
     assert last["has_more"] is False
     assert last["next_start_at"] is None

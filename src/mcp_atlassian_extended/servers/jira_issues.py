@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastmcp import Context
+from fastmcp.tools import ToolResult
 from pydantic import Field
 
 from . import mcp
@@ -33,7 +34,7 @@ async def jira_create_issue(
             "Use jira_list_fields to discover IDs for your instance."
         ),
     ] = None,
-) -> str:
+) -> ToolResult:
     """Create a Jira issue with standard and custom fields.
 
     Pass ``issue_type="Epic"`` to create an epic; set your instance's Epic Name
@@ -71,7 +72,7 @@ async def jira_update_issue(
         dict[str, Any] | None,
         Field(description="Custom fields dict — keys are customfield_NNNNN IDs"),
     ] = None,
-) -> str:
+) -> ToolResult:
     """Update a Jira issue's standard and custom fields."""
     await _get_jira(ctx).update_issue(issue_key, fields=fields, custom_fields=custom_fields)
     return _ok({"status": "updated", "issue_key": issue_key})
@@ -97,7 +98,7 @@ async def jira_create_link(
         str, Field(description="Outward issue key (performs the action)", min_length=1)
     ],
     comment: Annotated[str | None, Field(description="Optional comment on the link")] = None,
-) -> str:
+) -> ToolResult:
     """Create a link between two Jira issues."""
     await _get_jira(ctx).create_issue_link(link_type, inward_issue, outward_issue, comment=comment)
     return _ok(
@@ -120,7 +121,7 @@ async def jira_delete_link(
     link_id: Annotated[
         str, Field(description="Numeric issue link ID to delete", pattern=NUMERIC_ID_PATTERN)
     ],
-) -> str:
+) -> ToolResult:
     """Delete a Jira issue link by its ID."""
     await _get_jira(ctx).delete_issue_link(link_id)
     return _ok({"status": "deleted", "link_id": link_id})

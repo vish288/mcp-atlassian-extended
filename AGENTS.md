@@ -84,7 +84,11 @@ not land in `ps` or shell history.
 
 ## Patterns
 
-- Every tool is `async def`, takes `ctx: Context` first, and returns a JSON **string** on success.
+- Every tool is `async def`, takes `ctx: Context` first, and returns a `ToolResult` on
+  success (via `_ok`/`_paginated`): the pretty JSON as text content plus the same object
+  as `structuredContent`. No `outputSchema` is advertised — upstream fields pass through
+  untyped; a typed schema is opt-in per tool via `output_schema=`. A JSON-array payload
+  (the multi-file upload response) carries text only, as `structuredContent` must be an object.
 - Tools do not handle their own errors — the `@tool_result` decorator does. Expected
   failures (`AtlassianError`, `ValueError`, `FileNotFoundError`) become an `isError: true`
   `ToolResult` whose text content is `_err`'s envelope, with no `structuredContent`;
@@ -323,8 +327,9 @@ annotations.
   Deployment is detected from the URL host (`JiraConfig.is_cloud`): `*.atlassian.net` /
   `api.atlassian.com` is Cloud. Auth mode is not used — DC also supports basic auth.
 - Expected failures are `isError: true` results whose text content is the `{"error",
-  "hint", …}` object; `structuredContent` is never set (a strict MCP client validates it
-  against the tool's output schema even on `isError`, and the envelope would fail that
-  schema). Genuine bugs are `isError: true` with `TypeName: message` text, logged with a
-  traceback.
+  "hint", …}` object; `structuredContent` is not set on error results (a strict MCP client
+  validates it against the tool's output schema even on `isError`, and the envelope would
+  fail that schema). Successful results do carry the payload object as `structuredContent`;
+  no `outputSchema` is advertised, so nothing is validated against it. Genuine bugs are
+  `isError: true` with `TypeName: message` text, logged with a traceback.
 - Confluence tools depend on the Team Calendars add-on.

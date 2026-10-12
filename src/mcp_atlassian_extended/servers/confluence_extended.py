@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from typing import Annotated
 
 from fastmcp import Context
+from fastmcp.tools import ToolResult
 from pydantic import Field
 
 from . import mcp
@@ -56,7 +57,7 @@ async def confluence_list_calendars(
         str | None,
         Field(description="Filter by calendar name, space name, or space key (case-insensitive)"),
     ] = None,
-) -> str:
+) -> ToolResult:
     """List Confluence calendars, optionally narrowed by type or a name/space search."""
     data = await _get_confluence(ctx).list_calendars()
     if filter_type:
@@ -111,7 +112,7 @@ async def confluence_get_time_off(
         Field(description="Return only this person's events (exact, case-insensitive name match)"),
     ] = None,
     group_by_person: Annotated[bool, Field(description="Group results by person")] = False,
-) -> str:
+) -> ToolResult:
     """Get time-off events for a date range across all leave calendars.
 
     Pass ``person`` for one person's events, or a single day for ``start_date`` and
@@ -164,7 +165,7 @@ async def confluence_sprint_capacity(
     working_days_per_week: Annotated[
         int, Field(description="Working days per week", ge=1, le=7)
     ] = 5,
-) -> str:
+) -> ToolResult:
     """Calculate sprint capacity considering team time-off."""
     start = _resolve_date(sprint_start)
     end = _resolve_date(sprint_end)
