@@ -93,8 +93,31 @@ def _check_write(ctx: Context, service: Literal["jira", "confluence"]) -> None:
         raise WriteDisabledError
 
 
-def _ok(data: Any) -> str:
-    return json.dumps(data, indent=2, ensure_ascii=False)
+def _result(data: Any, *, is_error: bool = False) -> ToolResult:
+    """Pretty JSON as text (byte-identical to the pre-X2 output) plus the same
+    object as ``structuredContent``.
+
+    Error results carry text only: strict MCP clients (TS SDK 1.x ``callTool``)
+    validate ``structuredContent`` against the tool's ``outputSchema`` even when
+    ``isError`` is true, so attaching it would turn every expected failure into a
+    protocol error. Successful results carry the object — no ``outputSchema`` is
+    advertised (shape C), so nothing is validated against it.
+
+    fastmcp only accepts a dict (or None) as ``structuredContent``. Nearly every
+    payload here is a dict; the one exception is ``jira_upload_attachment``, whose
+    Jira response is a JSON array. A non-dict payload keeps its pretty text and
+    carries no ``structuredContent`` — the text is still the full response.
+    """
+    text = json.dumps(data, indent=2, ensure_ascii=False)
+    return ToolResult(
+        content=[TextContent(type="text", text=text)],
+        structured_content=data if (not is_error and isinstance(data, dict)) else None,
+        is_error=is_error,
+    )
+
+
+def _ok(data: Any) -> ToolResult:
+    return _result(data)
 
 
 def _paginated(
@@ -103,7 +126,7 @@ def _paginated(
     start_at: int | None = None,
     total: int | None = None,
     max_results: int | None = None,
-) -> str:
+) -> ToolResult:
     """Wrap a list response, reporting real paging state when the API has one.
 
     ``count`` is the size of *this* page, never a grand total. Callers hitting a
@@ -135,7 +158,7 @@ def _paginated(
         payload["has_more"] = has_more
         payload["next_start_at"] = next_start_at if has_more else None
 
-    return json.dumps(payload, indent=2, ensure_ascii=False)
+    return _result(payload)
 
 
 def _err(error: Exception) -> dict[str, Any]:
@@ -211,18 +234,13 @@ def _error_result(detail: dict[str, Any]) -> ToolResult:
     The error body is the text content; ``is_error`` is true so MCP clients see
     the failure and can self-correct. No ``structured_content``: the TS MCP SDK
     (``callTool``) validates ``structuredContent`` against the tool's
-    ``outputSchema`` even when ``isError`` is true, and the fastmcp-wrapped
-    ``{result: string}`` schema rejects the error envelope — so carrying it would
-    turn every expected failure into a protocol error on strict clients.
+    ``outputSchema`` even when ``isError`` is true, so carrying it would turn
+    every expected failure into a protocol error on strict clients.
     """
-    text = json.dumps(detail, indent=2, ensure_ascii=False)
-    return ToolResult(
-        content=[TextContent(type="text", text=text)],
-        is_error=True,
-    )
+    return _result(detail, is_error=True)
 
 
-_Tool = Callable[..., Awaitable[str | ToolResult]]
+_Tool = Callable[..., Awaitable[ToolResult]]
 
 
 def tool_result(
@@ -243,7 +261,7 @@ def tool_result(
 
     def wrap(f: _Tool) -> _Tool:
         @functools.wraps(f)
-        async def inner(ctx: Context, *args: Any, **kwargs: Any) -> str | ToolResult:
+        async def inner(ctx: Context, *args: Any, **kwargs: Any) -> ToolResult:
             try:
                 if write:
                     _check_write(ctx, write)

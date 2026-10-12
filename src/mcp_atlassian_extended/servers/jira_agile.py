@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastmcp import Context
+from fastmcp.tools import ToolResult
 from pydantic import Field
 
 from . import mcp
@@ -19,7 +20,7 @@ from ._helpers import _get_jira, _ok, tool_result
 async def jira_get_board(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID", ge=1)],
-) -> str:
+) -> ToolResult:
     """Get details of a Jira agile board."""
     data = await _get_jira(ctx).get_board(board_id)
     return _ok(data)
@@ -33,7 +34,7 @@ async def jira_get_board(
 async def jira_board_config(
     ctx: Context,
     board_id: Annotated[int, Field(description="Board ID", ge=1)],
-) -> str:
+) -> ToolResult:
     """Get board column/status configuration."""
     data = await _get_jira(ctx).get_board_config(board_id)
     return _ok(data)
@@ -47,7 +48,7 @@ async def jira_board_config(
 async def jira_get_sprint(
     ctx: Context,
     sprint_id: Annotated[int, Field(description="Sprint ID", ge=1)],
-) -> str:
+) -> ToolResult:
     """Get details of a specific sprint."""
     data = await _get_jira(ctx).get_sprint(sprint_id)
     return _ok(data)
@@ -64,7 +65,7 @@ async def jira_move_to_sprint(
     issue_keys: Annotated[
         list[str], Field(description="Issue keys to move (e.g. ['PROJ-1', 'PROJ-2'])")
     ],
-) -> str:
+) -> ToolResult:
     """Move issues into a sprint."""
     await _get_jira(ctx).move_to_sprint(sprint_id, issue_keys)
     return _ok({"status": "moved", "sprint_id": sprint_id, "issues": issue_keys})

@@ -280,6 +280,15 @@ async def test_request_shape(tool_client, row: Row):
 
     assert result.is_error is False
     assert "error" not in parsed, parsed
+    # X2: the success payload is the structuredContent object itself — the
+    # pre-X2 ``{"result": "<json string>"}`` wrapper is gone. The equality alone
+    # proves it (a wrapper would make structured_content a one-key dict). A
+    # non-dict payload (jira_upload_attachment's list) cannot be structuredContent
+    # and carries text only.
+    if isinstance(parsed, dict):
+        assert result.structured_content == parsed
+    else:
+        assert result.structured_content is None
     req = route.calls.last.request
     # Credentials reach the wire: both clients are configured with TEST_TOKEN as a
     # bearer PAT. Without this, `headers = {}` in the client constructor survives.
@@ -318,9 +327,10 @@ async def test_forced_failure(tool_client, row: Row, caplog):
 async def test_error_result_passes_strict_client_validation(tool_client, row: Row):
     """A strict MCP client validates structuredContent against the tool's outputSchema
     even when isError is true (TS SDK callTool), so an error result that carries a
-    structuredContent not matching the schema becomes a protocol error. Each tool wraps
-    ``-> str`` as ``{result: string}``; the error envelope has no ``result``, so the error
-    result must omit structuredContent.
+    structuredContent not matching the schema becomes a protocol error. Post-X2 tools
+    advertise no outputSchema and error results omit structuredContent, so there is
+    nothing to validate — this stays green and guards against a regression that reattaches
+    structuredContent (or an incompatible schema) on the error path.
     """
     client, router = tool_client
     schemas = {t.name: t.output_schema for t in await client.list_tools()}
@@ -329,8 +339,43 @@ async def test_error_result_passes_strict_client_validation(tool_client, row: Ro
     result = await _call(client, row)
 
     assert result.is_error is True
-    if result.structured_content is not None:
+    if result.structured_content is not None and schemas[row.tool] is not None:
         jsonschema.validate(result.structured_content, schemas[row.tool])
+
+
+@pytest.mark.usefixtures("_cwd")
+@pytest.mark.parametrize("row", ROWS, ids=_IDS)
+async def test_no_tool_advertises_a_wrapped_schema(tool_client, row: Row):
+    """X2 guard (must FAIL before the src change): no tool may advertise the fastmcp
+    ``{result: string}`` wrapper. Either no outputSchema at all (shape C) or, if a tool
+    later opts into an explicit ``output_schema=``, a plain object schema the success
+    row's structuredContent validates against.
+    """
+    client, router = tool_client
+    schema = {t.name: t.output_schema for t in await client.list_tools()}[row.tool]
+    assert schema is None or (
+        "x-fastmcp-wrap-result" not in schema and schema.get("type") == "object"
+    )
+    if schema is not None:
+        _mock(router, row, 200)
+        result = await _call(client, row)
+        jsonschema.validate(result.structured_content, schema)
+
+
+async def test_success_text_is_byte_identical_pretty_json(tool_client):
+    """Golden-text pin (X2 acceptance #8): the success text stays byte-for-byte the
+    pre-X2 output — ``indent=2, ensure_ascii=False`` — and structuredContent is that
+    same object. The non-ASCII name pins ``ensure_ascii=False``.
+    """
+    client, router = tool_client
+    projects = [{"key": "PROJ", "name": "Prôject"}]
+    router.get("https://jira.example.com/rest/api/2/project").mock(
+        return_value=Response(200, json=projects)
+    )
+    result = await client.call_tool("jira_list_projects", {}, raise_on_error=False)
+    expected = {"items": projects, "count": 1}
+    assert result.content[0].text == json.dumps(expected, indent=2, ensure_ascii=False)
+    assert result.structured_content == expected
 
 
 async def test_every_tool_has_a_row(tool_client):
