@@ -603,6 +603,23 @@ class TestDownloadAttachment:
         parsed = _err_body(result)
         assert "error" in parsed
 
+    async def test_over_cap_returns_iserror_with_hint(self, tool_client):
+        """An oversized attachment is an expected failure: an ``isError`` result
+        carrying the size hint, not a raised ToolError. The oversized
+        Content-Length is rejected before any body is streamed."""
+        client, router = tool_client
+        router.get("/secure/attachment/10000/doc.pdf").mock(
+            return_value=Response(200, headers={"content-length": str(100 * 1024 * 1024 + 1)})
+        )
+        result = await client.call_tool(
+            "jira_download_attachment",
+            {"content_url": self.URL, "save_path": "doc.pdf"},
+            raise_on_error=False,
+        )
+        parsed = _err_body(result)
+        assert "too large" in parsed["error"]
+        assert parsed["hint"] == "File exceeds the 100MB size limit."
+
 
 class TestDeleteAttachment:
     async def test_happy_path(self, tool_client):

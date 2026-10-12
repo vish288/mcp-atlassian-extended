@@ -23,8 +23,9 @@ MIME_OVERRIDES = {
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 
 # Attachment size ceiling, shared by upload and download. Uploads are checked
-# against the file on disk; downloads against the response (Content-Length, then
-# the delivered body as a backstop).
+# against the file on disk; downloads stream the response, rejecting on an
+# oversized Content-Length before reading and otherwise aborting once the
+# accumulated body passes the cap.
 _MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024
 
 # Default backlog fields: a board can hold hundreds of issues, and ``*all`` on
@@ -126,33 +127,12 @@ class JiraExtendedClient:
         if not resolved.is_file():
             msg = f"File not found: {resolved}"
             raise FileNotFoundError(msg)
-        if resolved.stat().st_size > _MAX_ATTACHMENT_BYTES:
-            size_mb = resolved.stat().st_size / (1024 * 1024)
+        size = resolved.stat().st_size
+        if size > _MAX_ATTACHMENT_BYTES:
+            size_mb = size / (1024 * 1024)
             msg = f"File too large ({size_mb:.1f}MB). Max 100MB."
             raise ValueError(msg)
         return resolved
-
-    @staticmethod
-    def _check_download_size(resp: httpx.Response) -> bytes:
-        """Reject an oversized attachment, mirroring the 100 MB upload cap.
-
-        The declared ``Content-Length`` is checked first so an honest server is
-        rejected before the body is used; the delivered length is a backstop when
-        the header is absent. ``ponytail: a response with no Content-Length is
-        still fully buffered by httpx before this runs — stream with a running
-        byte cap if a hostile server without Content-Length becomes a concern.``
-        """
-        declared = resp.headers.get("content-length", "")
-        if declared.isdigit() and int(declared) > _MAX_ATTACHMENT_BYTES:
-            size_mb = int(declared) / (1024 * 1024)
-            msg = f"Attachment too large ({size_mb:.1f}MB). Max 100MB."
-            raise ValueError(msg)
-        content = resp.content
-        if len(content) > _MAX_ATTACHMENT_BYTES:
-            size_mb = len(content) / (1024 * 1024)
-            msg = f"Attachment too large ({size_mb:.1f}MB). Max 100MB."
-            raise ValueError(msg)
-        return content
 
     def _validate_download_url(self, url: str) -> str:
         """Validate a download URL points at the configured Jira instance.
@@ -210,7 +190,7 @@ class JiraExtendedClient:
         return _parse_json(resp)
 
     async def download_attachment(self, content_url: str) -> bytes:
-        """Download attachment content. Handles both absolute and relative URLs.
+        """Download attachment content, capped at 100 MB. Handles absolute and relative URLs.
 
         ``redirect=false`` keeps Jira Cloud from answering 303 to a pre-signed
         media host (``api.media.atlassian.com``) that this client, which does not
@@ -218,13 +198,32 @@ class JiraExtendedClient:
         Server/DC ignores the unknown param. Following the redirect instead would
         leak the Authorization header off-origin, so it is deliberately not done.
         See https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-attachments/#api-rest-api-3-attachment-content-id-get
+
+        The response is streamed, not buffered: an oversized ``Content-Length`` is
+        rejected before the body is pulled, and a body sent without that header is
+        accumulated chunk by chunk and aborted the moment the running total passes
+        the cap — so a hostile 150 MB response is never read whole into memory.
         """
         content_url = self._validate_download_url(content_url)
         # httpx applies base_url to a relative path and ignores it for an
         # absolute URL, so one request covers both. Auth header is client-level.
-        resp = await self._client.request("GET", content_url, params={"redirect": "false"})
-        _raise_for_atlassian(resp)
-        return self._check_download_size(resp)
+        async with self._client.stream("GET", content_url, params={"redirect": "false"}) as resp:
+            if not resp.is_success:
+                # _raise_for_atlassian needs the body (error text); read it first.
+                await resp.aread()
+                _raise_for_atlassian(resp)
+            declared = resp.headers.get("content-length", "")
+            if declared.isdigit() and int(declared) > _MAX_ATTACHMENT_BYTES:
+                size_mb = int(declared) / (1024 * 1024)
+                msg = f"Attachment too large ({size_mb:.1f}MB). Max 100MB."
+                raise ValueError(msg)
+            buf = bytearray()
+            async for chunk in resp.aiter_bytes():
+                buf.extend(chunk)
+                if len(buf) > _MAX_ATTACHMENT_BYTES:
+                    msg = "Attachment too large (exceeds 100MB). Max 100MB."
+                    raise ValueError(msg)
+            return bytes(buf)
 
     async def delete_attachment(self, attachment_id: str) -> None:
         await self.delete(f"/rest/api/2/attachment/{_seg(attachment_id)}")
