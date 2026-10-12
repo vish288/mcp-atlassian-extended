@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import itertools
+
 import httpx
 import pytest
 import respx
@@ -389,42 +391,85 @@ class TestDownloadRedirect:
             assert not evil.called
 
 
+_CAP = 100 * 1024 * 1024
+_MB = 1024 * 1024
+_URL9 = f"{BASE}/rest/api/2/attachment/content/9"
+
+
+class _CountingStream(httpx.AsyncByteStream):
+    """Response body that tallies the bytes actually pulled from it.
+
+    ``make_chunks`` is a zero-arg factory returning a fresh iterator of byte
+    chunks, so nothing is materialised up front — the download is proven to abort
+    before the whole oversized body is produced, not just before it is buffered.
+    """
+
+    def __init__(self, make_chunks, counter: list[int]) -> None:
+        self._make_chunks = make_chunks
+        self._counter = counter
+
+    async def __aiter__(self):
+        for chunk in self._make_chunks():
+            self._counter[0] += len(chunk)
+            yield chunk
+
+    async def aclose(self) -> None:
+        pass
+
+
+def _stream_client(headers: dict[str, str], stream: httpx.AsyncByteStream):
+    """A client whose transport streams ``stream`` back for any GET."""
+    client = _make_client()
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, headers=headers, stream=stream)
+    )
+    client._client = httpx.AsyncClient(base_url=BASE, transport=transport)
+    return client
+
+
 class TestDownloadSizeCap:
-    """Downloads are capped at 100 MB, mirroring the upload cap — an attachment
-    content URL is attacker-influenceable, and the body is read into memory."""
+    """Downloads are streamed and capped at 100 MB — a content URL is
+    attacker-influenceable, so an oversized body must never be read whole."""
 
-    async def test_rejects_oversized_content_length(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/attachment/content/9").mock(
-                return_value=httpx.Response(
-                    200,
-                    content=b"small body",
-                    headers={"content-length": str(100 * 1024 * 1024 + 1)},
-                )
-            )
-            client = _make_client()
-            with pytest.raises(ValueError, match="too large"):
-                await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
+    async def test_oversized_content_length_rejected_before_read(self):
+        """An honest oversized Content-Length is rejected before the body is
+        pulled: near-zero bytes consumed, not the declared 150 MB. On the pre-fix
+        client (which buffered the whole response first) ``read[0]`` is 150 MB."""
+        read = [0]
+        stream = _CountingStream(lambda: (b"\0" * _MB for _ in range(150)), read)
+        client = _stream_client({"content-length": str(150 * _MB)}, stream)
+        with pytest.raises(ValueError, match="too large"):
+            await client.download_attachment(_URL9)
+        assert read[0] < _CAP
 
-    async def test_rejects_oversized_body_without_content_length(self):
-        """No Content-Length: the delivered body length is the backstop."""
-        oversized = b"\0" * (100 * 1024 * 1024 + 1)
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/attachment/content/9").mock(
-                return_value=httpx.Response(200, stream=httpx.ByteStream(oversized))
-            )
-            client = _make_client()
-            with pytest.raises(ValueError, match="too large"):
-                await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
+    async def test_oversized_body_without_content_length_aborts_early(self):
+        """No Content-Length: streaming aborts once the running total passes the
+        cap — ~101 MB read from a 150 MB body, not the whole thing."""
+        read = [0]
+        stream = _CountingStream(lambda: (b"\0" * _MB for _ in range(150)), read)
+        client = _stream_client({}, stream)
+        with pytest.raises(ValueError, match="too large"):
+            await client.download_attachment(_URL9)
+        assert _CAP < read[0] < 150 * _MB
 
-    async def test_accepts_body_at_limit(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/attachment/content/9").mock(
-                return_value=httpx.Response(200, content=b"ok")
-            )
-            client = _make_client()
-            result = await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
-            assert result == b"ok"
+    async def test_exactly_at_cap_accepted(self):
+        """Exactly _MAX_ATTACHMENT_BYTES is accepted — the cap is ``>``, not
+        ``>=``. Built from a generator, never one >100 MB allocation."""
+        read = [0]
+        stream = _CountingStream(lambda: (b"\0" * _MB for _ in range(100)), read)
+        client = _stream_client({}, stream)
+        result = await client.download_attachment(_URL9)
+        assert len(result) == _CAP
+
+    async def test_one_byte_over_cap_rejected(self):
+        """cap + 1 byte is rejected; the trailing byte tips it over ``>``."""
+        read = [0]
+        stream = _CountingStream(
+            lambda: itertools.chain((b"\0" * _MB for _ in range(100)), [b"\0"]), read
+        )
+        client = _stream_client({}, stream)
+        with pytest.raises(ValueError, match="too large"):
+            await client.download_attachment(_URL9)
 
 
 class TestUserSearchParam:
