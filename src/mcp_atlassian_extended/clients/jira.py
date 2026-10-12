@@ -22,6 +22,11 @@ MIME_OVERRIDES = {
 
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 
+# Attachment size ceiling, shared by upload and download. Uploads are checked
+# against the file on disk; downloads against the response (Content-Length, then
+# the delivered body as a backstop).
+_MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024
+
 # Default backlog fields: a board can hold hundreds of issues, and ``*all`` on
 # each is hundreds of KB of context. Callers opt into more via the ``fields`` arg.
 _BACKLOG_DEFAULT_FIELDS = "summary,status,issuetype,priority,assignee,labels"
@@ -80,7 +85,6 @@ class JiraExtendedClient:
         params: dict[str, Any] | None = None,
         content: bytes | None = None,
         extra_headers: dict[str, str] | None = None,
-        raw: bool = False,
     ) -> Any:
         headers = {}
         if extra_headers:
@@ -94,8 +98,6 @@ class JiraExtendedClient:
 
         resp = await self._client.request(method, path, **kwargs)
         _raise_for_atlassian(resp)
-        if raw:
-            return resp.content
         return _parse_json(resp)
 
     async def get(self, path: str, params: dict[str, Any] | None = None, **kw: Any) -> Any:
@@ -124,11 +126,33 @@ class JiraExtendedClient:
         if not resolved.is_file():
             msg = f"File not found: {resolved}"
             raise FileNotFoundError(msg)
-        size_mb = resolved.stat().st_size / (1024 * 1024)
-        if size_mb > 100:
+        if resolved.stat().st_size > _MAX_ATTACHMENT_BYTES:
+            size_mb = resolved.stat().st_size / (1024 * 1024)
             msg = f"File too large ({size_mb:.1f}MB). Max 100MB."
             raise ValueError(msg)
         return resolved
+
+    @staticmethod
+    def _check_download_size(resp: httpx.Response) -> bytes:
+        """Reject an oversized attachment, mirroring the 100 MB upload cap.
+
+        The declared ``Content-Length`` is checked first so an honest server is
+        rejected before the body is used; the delivered length is a backstop when
+        the header is absent. ``ponytail: a response with no Content-Length is
+        still fully buffered by httpx before this runs — stream with a running
+        byte cap if a hostile server without Content-Length becomes a concern.``
+        """
+        declared = resp.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > _MAX_ATTACHMENT_BYTES:
+            size_mb = int(declared) / (1024 * 1024)
+            msg = f"Attachment too large ({size_mb:.1f}MB). Max 100MB."
+            raise ValueError(msg)
+        content = resp.content
+        if len(content) > _MAX_ATTACHMENT_BYTES:
+            size_mb = len(content) / (1024 * 1024)
+            msg = f"Attachment too large ({size_mb:.1f}MB). Max 100MB."
+            raise ValueError(msg)
+        return content
 
     def _validate_download_url(self, url: str) -> str:
         """Validate a download URL points at the configured Jira instance.
@@ -196,15 +220,11 @@ class JiraExtendedClient:
         See https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-attachments/#api-rest-api-3-attachment-content-id-get
         """
         content_url = self._validate_download_url(content_url)
-        params = {"redirect": "false"}
-        # Case-insensitive: ``HTTPS://`` is still absolute and must not be sent
-        # as a path relative to base_url.
-        if urlparse(content_url).scheme:
-            # Auth header is already set client-side; no need to repeat it here.
-            resp = await self._client.request("GET", content_url, params=params)
-            _raise_for_atlassian(resp)
-            return resp.content
-        return await self.get(content_url, params=params, raw=True)
+        # httpx applies base_url to a relative path and ignores it for an
+        # absolute URL, so one request covers both. Auth header is client-level.
+        resp = await self._client.request("GET", content_url, params={"redirect": "false"})
+        _raise_for_atlassian(resp)
+        return self._check_download_size(resp)
 
     async def delete_attachment(self, attachment_id: str) -> None:
         await self.delete(f"/rest/api/2/attachment/{_seg(attachment_id)}")
@@ -326,14 +346,6 @@ class JiraExtendedClient:
     async def delete_issue_link(self, link_id: str) -> None:
         """Delete an issue link by ID."""
         await self.delete(f"/rest/api/2/issueLink/{_seg(link_id)}")
-
-    async def get_issue_links(self, issue_key: str) -> list[dict]:
-        """Get all links for an issue."""
-        data = await self.get(
-            f"/rest/api/2/issue/{_seg(issue_key)}",
-            params={"fields": "issuelinks"},
-        )
-        return data.get("fields", {}).get("issuelinks", [])
 
     # ── Versions ──────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import respx
 
 from mcp_atlassian_extended.clients.jira import JiraExtendedClient
 from mcp_atlassian_extended.config import JiraConfig
-from mcp_atlassian_extended.exceptions import AtlassianAuthError
+from mcp_atlassian_extended.exceptions import AtlassianApiError, AtlassianAuthError
 
 BASE = "https://jira.example.com"
 
@@ -191,6 +191,16 @@ class TestFilePathValidation:
         with pytest.raises(FileNotFoundError, match="File not found"):
             self._client()._validate_file_path("nope.txt")
 
+    def test_file_over_100mb_rejected(self, tmp_path, monkeypatch):
+        """The 100 MB cap is on bytes, not a rounded MB figure. A sparse file
+        just over the limit costs no real disk."""
+        monkeypatch.chdir(tmp_path)
+        big = tmp_path / "big.bin"
+        with open(big, "wb") as fh:
+            fh.truncate(100 * 1024 * 1024 + 1)
+        with pytest.raises(ValueError, match="too large"):
+            self._client()._validate_file_path("big.bin")
+
 
 class TestDownloadUrlValidation:
     """Tests for _validate_download_url domain check."""
@@ -360,6 +370,62 @@ class TestDownloadRedirect:
             await client.download_attachment("/rest/api/2/attachment/content/9")
             assert route.calls.last.request.url.params.get("redirect") == "false"
 
+    async def test_303_is_not_followed_off_origin(self):
+        """A 303 to a media host must not be followed — the Authorization header
+        would leak off-origin. The client never follows redirects, so it surfaces
+        the 303 as an error and the media host is never contacted."""
+        async with respx.mock(base_url=BASE, assert_all_called=False) as router:
+            route = router.get("/rest/api/2/attachment/content/9").mock(
+                return_value=httpx.Response(303, headers={"Location": "https://evil.example.net/x"})
+            )
+            evil = router.get("https://evil.example.net/x").mock(
+                return_value=httpx.Response(200, content=b"leaked")
+            )
+            client = _make_client()
+            with pytest.raises(AtlassianApiError) as exc:
+                await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
+            assert exc.value.status_code == 303
+            assert route.called
+            assert not evil.called
+
+
+class TestDownloadSizeCap:
+    """Downloads are capped at 100 MB, mirroring the upload cap — an attachment
+    content URL is attacker-influenceable, and the body is read into memory."""
+
+    async def test_rejects_oversized_content_length(self):
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/attachment/content/9").mock(
+                return_value=httpx.Response(
+                    200,
+                    content=b"small body",
+                    headers={"content-length": str(100 * 1024 * 1024 + 1)},
+                )
+            )
+            client = _make_client()
+            with pytest.raises(ValueError, match="too large"):
+                await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
+
+    async def test_rejects_oversized_body_without_content_length(self):
+        """No Content-Length: the delivered body length is the backstop."""
+        oversized = b"\0" * (100 * 1024 * 1024 + 1)
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/attachment/content/9").mock(
+                return_value=httpx.Response(200, stream=httpx.ByteStream(oversized))
+            )
+            client = _make_client()
+            with pytest.raises(ValueError, match="too large"):
+                await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
+
+    async def test_accepts_body_at_limit(self):
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/attachment/content/9").mock(
+                return_value=httpx.Response(200, content=b"ok")
+            )
+            client = _make_client()
+            result = await client.download_attachment(f"{BASE}/rest/api/2/attachment/content/9")
+            assert result == b"ok"
+
 
 class TestUserSearchParam:
     """AT-R04: Cloud removed ``username`` (GDPR) and needs ``query``; Server/DC
@@ -422,3 +488,60 @@ class TestContentType:
             client = _make_client()
             await client.create_issue("PROJ", "Summary")
             assert route.calls.last.request.headers["content-type"] == "application/json"
+
+    async def test_upload_multipart_part_has_filename_and_mime(self, tmp_path, monkeypatch):
+        """The multipart part carries the file name and a MIME type from
+        MIME_OVERRIDES — a .md uploads as text/markdown, not octet-stream."""
+        monkeypatch.chdir(tmp_path)
+        f = tmp_path / "note.md"
+        f.write_text("# hello")
+        async with respx.mock(base_url=BASE) as router:
+            route = router.post("/rest/api/2/issue/PROJ-1/attachments").mock(
+                return_value=httpx.Response(200, json=[{"id": "9"}])
+            )
+            client = _make_client()
+            await client.upload_attachment("PROJ-1", str(f))
+            body = route.calls.last.request.content
+            assert b'filename="note.md"' in body
+            assert b"Content-Type: text/markdown" in body
+
+    async def test_upload_filename_override_wins(self, tmp_path, monkeypatch):
+        """An explicit filename overrides the on-disk name in the multipart part."""
+        monkeypatch.chdir(tmp_path)
+        f = tmp_path / "note.md"
+        f.write_text("# hello")
+        async with respx.mock(base_url=BASE) as router:
+            route = router.post("/rest/api/2/issue/PROJ-1/attachments").mock(
+                return_value=httpx.Response(200, json=[{"id": "9"}])
+            )
+            client = _make_client()
+            await client.upload_attachment("PROJ-1", str(f), filename="renamed.md")
+            body = route.calls.last.request.content
+            assert b'filename="renamed.md"' in body
+
+
+class TestAuthorizationOnWire:
+    """The Authorization header is actually sent — ``headers = {}`` in the client
+    constructor survives every request-shape test that does not assert it."""
+
+    async def test_bearer_sent(self):
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/project").mock(
+                return_value=httpx.Response(200, json=[])
+            )
+            await JiraExtendedClient(JiraConfig(url=BASE, token="pat-xyz")).list_projects()
+            assert route.calls.last.request.headers["authorization"] == "Bearer pat-xyz"
+
+    async def test_basic_sent(self):
+        import base64
+
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/project").mock(
+                return_value=httpx.Response(200, json=[])
+            )
+            await JiraExtendedClient(
+                JiraConfig(url=BASE, username="me@acme.com", api_token="api-tok")
+            ).list_projects()
+            sent = route.calls.last.request.headers["authorization"]
+            assert sent.startswith("Basic ")
+            assert base64.b64decode(sent.split(" ", 1)[1]).decode() == "me@acme.com:api-tok"

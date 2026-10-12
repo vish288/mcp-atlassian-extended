@@ -551,6 +551,9 @@ class TestDownloadAttachment:
             (".envrc", "must not start with"),
             (".git/hooks/x", "without directories"),
             ("/etc/passwd", "without directories"),
+            ("", "without directories"),
+            (".", "without directories"),
+            ("..", "without directories"),
         ],
     )
     async def test_rejects_unsafe_save_path(
@@ -1005,14 +1008,25 @@ class TestConfluenceSprintCapacity:
             },
         )
         parsed = _parse(result)
+        # Sprint 2024-03-04 (Mon) .. 2024-03-15 (Fri), 5-day week: ten working
+        # days (two Mon-Fri weeks). Exact numbers pin the weekend mapping
+        # (``range(working_days_per_week, 7)``) — a one-day shift there changes
+        # working_days and every figure below.
+        assert parsed["sprint"]["working_days"] == 10
         assert parsed["team"]["members"] == 3
-        assert parsed["sprint"]["working_days"] > 0
-        assert parsed["team"]["max_capacity_days"] > 0
-        assert parsed["team"]["capacity_percentage"] <= 100
-        assert len(parsed["member_breakdown"]) == 3
-        # Alice has time off in this range, so days_off > 0
-        alice = next(m for m in parsed["member_breakdown"] if m["member"] == "Alice Smith")
-        assert alice["days_off"] >= 1
+        assert parsed["team"]["max_capacity_days"] == 30
+        # Alice: ev-1 clamps to Mon 03-04 + Tue 03-05 = 2 off. Bob: ev-2 clamps to
+        # Mon 03-04 = 1 off. Charlie: none.
+        assert parsed["team"]["total_days_off"] == 3
+        assert parsed["team"]["available_capacity_days"] == 27
+        assert parsed["team"]["capacity_percentage"] == 90.0
+        by_member = {m["member"]: m for m in parsed["member_breakdown"]}
+        assert by_member["Alice Smith"]["days_off"] == 2
+        assert by_member["Alice Smith"]["available_days"] == 8
+        assert by_member["Bob Jones"]["days_off"] == 1
+        assert by_member["Bob Jones"]["available_days"] == 9
+        assert by_member["Charlie Brown"]["days_off"] == 0
+        assert by_member["Charlie Brown"]["available_days"] == 10
 
     async def test_no_time_off(self, tool_client):
         client, router = tool_client

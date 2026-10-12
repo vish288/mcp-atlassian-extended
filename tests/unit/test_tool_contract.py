@@ -281,6 +281,9 @@ async def test_request_shape(tool_client, row: Row):
     assert result.is_error is False
     assert "error" not in parsed, parsed
     req = route.calls.last.request
+    # Credentials reach the wire: both clients are configured with TEST_TOKEN as a
+    # bearer PAT. Without this, `headers = {}` in the client constructor survives.
+    assert req.headers.get("authorization") == "Bearer test-token"
     assert (req.method, req.url.host, req.url.path) == (row.method, row.host, row.path)
     assert sorted(req.url.params.multi_items()) == _pairs(row.query)
     if row.body is MULTIPART:
