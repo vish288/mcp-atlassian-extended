@@ -190,7 +190,8 @@ def _err(error: Exception) -> dict[str, Any]:
         )
     elif isinstance(error, WriteDisabledError):
         detail["hint"] = (
-            "Server is in read-only mode. Set ATLASSIAN_READ_ONLY=false to enable writes."
+            "This server is deployed read-only; writes cannot be enabled from the client. "
+            "Ask the deployer."
         )
     elif isinstance(error, AtlassianApiError):
         detail["status_code"] = error.status_code

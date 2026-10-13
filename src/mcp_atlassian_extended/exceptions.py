@@ -43,4 +43,4 @@ class WriteDisabledError(AtlassianError):
     """Raised when a write operation is attempted in read-only mode."""
 
     def __init__(self) -> None:
-        super().__init__("Write operations are disabled (ATLASSIAN_READ_ONLY=true)")
+        super().__init__("Write operations are disabled (MCP_READ_ONLY / ATLASSIAN_READ_ONLY)")

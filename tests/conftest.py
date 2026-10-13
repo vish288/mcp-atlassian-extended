@@ -77,13 +77,28 @@ def _make_mcp(*, read_only: bool = False, download_dir: str = "") -> tuple[FastM
 
 
 async def _client(*, read_only: bool, download_dir: str = ""):
+    from mcp_atlassian_extended import servers
+
     mcp, original_lifespan = _make_mcp(read_only=read_only, download_dir=download_dir)
+    # The lock is applied once per process in the real lifespan; the mock lifespan
+    # does not, so a read-only client must lock here. Snapshot the private transform
+    # list and the instructions (the lock's idempotency marker) so the shared
+    # module-level ``mcp`` is left clean for the writable ``tool_client``.
+    transforms_before = len(mcp._transforms)
+    instructions_before = mcp.instructions
+    if read_only:
+        names = await servers._write_names(mcp, "jira") | await servers._write_names(
+            mcp, "confluence"
+        )
+        servers._lock_read_only(mcp, names=names, sources=["ATLASSIAN_READ_ONLY"])
     try:
         with respx.mock() as router:
             async with Client(mcp) as client:
                 yield client, router
     finally:
         mcp._lifespan = original_lifespan
+        del mcp._transforms[transforms_before:]
+        mcp.instructions = instructions_before
 
 
 @pytest.fixture

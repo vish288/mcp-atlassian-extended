@@ -27,7 +27,7 @@ def _render(filename: str, **kwargs: str) -> str:
     return Template(_load_file(_PROMPTS_DIR, filename)).safe_substitute(kwargs)
 
 
-@mcp.prompt(tags={"jira", "create"})
+@mcp.prompt(tags={"jira", "create", "write"})
 def create_ticket(project_key: str, issue_type: str) -> list[Message]:
     """Create a Jira ticket — gather fields, set custom fields (points, DoD,
     privacy, security), create issue, and add links.
@@ -48,10 +48,13 @@ def create_ticket(project_key: str, issue_type: str) -> list[Message]:
     ]
 
 
-@mcp.prompt(tags={"jira", "agile"})
+@mcp.prompt(tags={"jira", "agile", "write"})
 def plan_sprint(board_id: str, sprint_id: str) -> list[Message]:
     """Plan a sprint — review backlog, calculate capacity, suggest scope,
     and move issues into the sprint.
+
+    Its final step moves issues into the sprint (``jira_move_to_sprint``), so it is
+    tagged ``write`` and hidden when the server is locked read-only.
 
     board_id accepts a full Jira board URL.
     """
@@ -69,7 +72,7 @@ def plan_sprint(board_id: str, sprint_id: str) -> list[Message]:
     ]
 
 
-@mcp.prompt(tags={"jira", "workflow"})
+@mcp.prompt(tags={"jira", "workflow", "write"})
 def close_ticket(issue_key: str) -> list[Message]:
     """Close a Jira ticket — verify DoD, check linked MRs, transition
     statuses, and add closing comment.
@@ -112,7 +115,7 @@ def team_availability(team_members: str, start_date: str, end_date: str) -> list
     ]
 
 
-@mcp.prompt(tags={"jira", "attachments"})
+@mcp.prompt(tags={"jira", "attachments", "write"})
 def manage_attachments(issue_key: str) -> list[Message]:
     """Manage issue attachments — list, identify stale/duplicates,
     upload/download, and clean up.

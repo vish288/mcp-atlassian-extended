@@ -119,17 +119,8 @@ class TestGetAttachments:
 
 
 class TestUploadAttachment:
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_upload_attachment",
-            {"issue_key": "PROJ-123", "file_path": "./test-upload.txt"},
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
-        assert "read-only" in parsed["error"].lower() or "disabled" in parsed["error"].lower()
-
+    # Read-only behaviour (hidden write tools, decorator-level guard) lives in
+    # tests/unit/test_read_only_lock.py — it is identical for every write tool.
     async def test_outside_root_rejected(self, tool_client, tmp_path, monkeypatch):
         client, router = tool_client
         work = tmp_path / "work"
@@ -186,19 +177,6 @@ class TestCreateIssue:
         )
         parsed = _parse(result)
         assert parsed["key"] == "PROJ-124"
-
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_create_issue",
-            {
-                "project_key": "PROJ",
-                "summary": "Test issue",
-            },
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
 
 
 class TestUpdateIssue:
@@ -259,16 +237,6 @@ class TestCreateLink:
         assert parsed["type"] == "Relates"
 
 
-class TestDeleteLink:
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_delete_link", {"link_id": "12345"}, raise_on_error=False
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
-
-
 # ═══════════════════════════════════════════════════════
 # Agile
 # ═══════════════════════════════════════════════════════
@@ -321,16 +289,6 @@ class TestMoveToSprint:
         parsed = _parse(result)
         assert parsed["status"] == "moved"
         assert parsed["sprint_id"] == 7
-
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_move_to_sprint",
-            {"sprint_id": 7, "issue_keys": ["PROJ-1"]},
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
 
 
 # ═══════════════════════════════════════════════════════
@@ -590,19 +548,6 @@ class TestDownloadAttachment:
         assert result["path"] == str(root / "doc-1.pdf")
         assert (root / "doc-1.pdf").read_bytes() == b"NEW"
 
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_download_attachment",
-            {
-                "content_url": f"{TEST_JIRA_URL}/secure/attachment/10000/doc.pdf",
-                "save_path": "doc.pdf",
-            },
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
-
     async def test_over_cap_returns_iserror_with_hint(self, tool_client):
         """An oversized attachment is an expected failure: an ``isError`` result
         carrying the size hint, not a raised ToolError. The oversized
@@ -629,14 +574,6 @@ class TestDeleteAttachment:
         parsed = _parse(result)
         assert parsed["status"] == "deleted"
         assert parsed["attachment_id"] == "123"
-
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_delete_attachment", {"attachment_id": "123"}, raise_on_error=False
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
 
 
 # ═══════════════════════════════════════════════════════
@@ -766,39 +703,6 @@ class TestBoardConfig:
         parsed = _parse(result)
         assert parsed["id"] == 42
         assert len(parsed["columnConfig"]["columns"]) == 2
-
-
-# ═══════════════════════════════════════════════════════
-# Read-Only Guards (remaining write tools)
-# ═══════════════════════════════════════════════════════
-
-
-class TestReadOnlyGuards:
-    async def test_update_issue_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_update_issue",
-            {"issue_key": "PROJ-123", "fields": {"summary": "Nope"}},
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
-        assert "hint" in parsed
-        assert "read-only" in parsed["hint"].lower()
-
-    async def test_create_link_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_create_link",
-            {
-                "link_type": "Relates",
-                "inward_issue": "PROJ-1",
-                "outward_issue": "PROJ-2",
-            },
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
 
 
 # ═══════════════════════════════════════════════════════
@@ -1112,17 +1016,6 @@ class TestCreateVersion:
         assert parsed["id"] == "200"
         assert parsed["name"] == "v3.0.0"
 
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_create_version",
-            {"project_key": "PROJ", "name": "v1.0.0"},
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
-        assert "read-only" in parsed["hint"].lower()
-
 
 class TestUpdateVersion:
     async def test_happy_path(self, tool_client):
@@ -1139,16 +1032,6 @@ class TestUpdateVersion:
         )
         parsed = _parse(result)
         assert parsed["released"] is True
-
-    async def test_read_only_blocked(self, readonly_client):
-        client, router = readonly_client
-        result = await client.call_tool(
-            "jira_update_version",
-            {"version_id": "200", "released": True},
-            raise_on_error=False,
-        )
-        parsed = _err_body(result)
-        assert "error" in parsed
 
 
 # ═══════════════════════════════════════════════════════
