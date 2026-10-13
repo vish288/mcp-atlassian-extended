@@ -11,7 +11,12 @@
 
 **Install:** `uvx mcp-atlassian-extended` | [PyPI](https://pypi.org/project/mcp-atlassian-extended/) | [MCP Registry](https://registry.modelcontextprotocol.io) | [Changelog](https://github.com/vish288/mcp-atlassian-extended/releases)
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for Jira and Confluence. It gives an AI assistant **22 tools**, **15 resources**, and **5 prompts** for Jira and Confluence work. The tools create and update issues with custom fields, link issues, manage attachments, and search users. They also run agile boards and sprints, track project versions (API v2), read team calendars, and plan sprint capacity. It extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap.
+```bash
+uvx mcp-atlassian-extended                          # with writes
+MCP_READ_ONLY=true uvx mcp-atlassian-extended       # locked read-only: write tools are not listed
+```
+
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for Jira and Confluence. It gives an AI assistant **22 tools**, **15 resources**, and **5 prompts** for Jira and Confluence work. The tools create and update issues with custom fields, link issues, manage attachments, and search users. They also run agile boards and sprints, track project versions (API v2), read team calendars, and plan sprint capacity. It extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap. Runs in one of two modes: with writes, or locked read-only (`MCP_READ_ONLY=true`) so the 10 write tools are never offered to the model.
 
 The server supports the MCP **2026-07-28** specification (often called MCP 2.0) and stays compatible with **2025-11-25** clients. It works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
 
@@ -59,7 +64,14 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 ### Claude Code
 
 ```bash
-claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
+# with writes
+claude mcp add atlassian-extended \
+  -e JIRA_URL=https://your-company.atlassian.net -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token \
+  -- uvx mcp-atlassian-extended
+# locked read-only: write tools are not listed
+claude mcp add atlassian-extended -e MCP_READ_ONLY=true \
+  -e JIRA_URL=https://your-company.atlassian.net -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token \
+  -- uvx mcp-atlassian-extended
 ```
 
 ### Windsurf & IntelliJ
@@ -88,10 +100,48 @@ claude mcp add atlassian-extended -- uvx mcp-atlassian-extended
 }
 ```
 
+> Add `"MCP_READ_ONLY": "true"` to the `env` block to lock the server read-only; the 10 write tools are then not listed. Drop it to allow writes. On a shared or hosted server put it in the deployer's env, not the client config.
+
 ### Gemini CLI
 
 ```bash
-gemini mcp add -e JIRA_URL=https://your-company.atlassian.net -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token -e CONFLUENCE_URL=https://your-company.atlassian.net/wiki -e CONFLUENCE_USERNAME=your.email@company.com -e CONFLUENCE_API_TOKEN=your_api_token atlassian-extended uvx mcp-atlassian-extended
+# with writes
+gemini mcp add -e JIRA_URL=https://your-company.atlassian.net -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token atlassian-extended uvx mcp-atlassian-extended
+# locked read-only
+gemini mcp add -e MCP_READ_ONLY=true -e JIRA_URL=https://your-company.atlassian.net -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token atlassian-extended uvx mcp-atlassian-extended
+```
+
+### VS Code
+
+Add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "atlassian-extended": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-atlassian-extended"],
+      "env": {
+        "JIRA_URL": "https://your-company.atlassian.net",
+        "JIRA_USERNAME": "your.email@company.com",
+        "JIRA_API_TOKEN": "your_api_token",
+        "MCP_READ_ONLY": "true"
+      }
+    }
+  }
+}
+```
+
+> Drop `MCP_READ_ONLY` to allow writes.
+
+### Codex
+
+```bash
+# with writes
+codex mcp add atlassian-extended --env JIRA_URL=https://your-company.atlassian.net --env JIRA_USERNAME=your.email@company.com --env JIRA_API_TOKEN=your_api_token -- uvx mcp-atlassian-extended
+# locked read-only
+codex mcp add atlassian-extended --env MCP_READ_ONLY=true --env JIRA_URL=https://your-company.atlassian.net --env JIRA_USERNAME=your.email@company.com --env JIRA_API_TOKEN=your_api_token -- uvx mcp-atlassian-extended
 ```
 
 ### pip / uv
@@ -362,7 +412,8 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 ## Security Considerations
 
 - **Token scope**: For Jira Cloud, use API tokens scoped to the minimum required permissions. For Data Center, use PATs with project-level access.
-- **Read-only mode**: Set `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) to lock the server read-only. Write tools are not listed and calling one returns "Unknown tool"; the guard still refuses any write reached directly. The flag can only be raised, never cleared, from the client, and only a launch the deployer owns enforces it (Claude Code `managed-mcp.json` `env`, container/k8s env).
+- **Read-only mode**: Set `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) in the launch you control and the server starts locked: the 10 write tools and the write-workflow prompts are not listed, a call to one returns "Unknown tool", and the guard refuses any write that still reaches it. Nothing lifts the lock at runtime — not a `false` from another source, not a `.env` file, not tool arguments; any value other than `false`/`0`/`no`/`off`/empty locks, and `--read-only` can only raise it. The lock is only as strong as the launch: set it where users cannot edit it (a managed MCP config such as Claude Code `managed-mcp.json`, a container, k8s or systemd env, or a hosted HTTP deployment). A user who starts the server themselves controls its environment. All write tools are Jira tools; the Confluence tools are read-only in both modes.
+- **HTTP transport auth**: An HTTP transport (`--transport streamable-http`/`sse`) serves every tool with the configured Atlassian credentials to anyone who reaches the port, so a non-loopback bind requires a shared bearer token. Set `ATLASSIAN_HTTP_BEARER_TOKEN` (≥ 16 chars; `openssl rand -hex 32`) and clients send it as `Authorization: Bearer <token>`; the token is compared in constant time. Without it the server refuses to start on any host other than `127.0.0.1`/`localhost`/`::1`. The server also validates the `Host`/`Origin` header on HTTP requests (`host_origin_protection="auto"`) so a DNS-rebinding page cannot drive a loopback-bound server.
 - **Upload root restriction**: `jira_upload_attachment` only reads files inside the upload root — `ATLASSIAN_UPLOAD_DIR` if set, otherwise the working directory. The path is resolved (following symlinks) before the containment check, so a symlink pointing outside the root is rejected; dotfiles and dot-directories below the root are refused. Size is capped at 100 MB.
 - **Download directory restriction**: `jira_download_attachment` writes only into the download directory (`ATLASSIAN_DOWNLOAD_DIR`, default `./atlassian-downloads/`, created on first use). `save_path` must be a bare file name — directories, absolute paths and dotfiles are rejected, not silently stripped. Existing files are never overwritten: a `-1`, `-2` numeric suffix is added and the final path is returned. The downloaded body is capped at 100 MB, mirroring the upload cap. Add `atlassian-downloads/` to your project's `.gitignore`.
 - **Desktop-client caveat**: clients such as Claude Desktop launch stdio servers with a working directory of `/` or `$HOME`, which makes most of the filesystem the upload root (dotfiles excepted). Set `ATLASSIAN_UPLOAD_DIR` (and, if you like, `ATLASSIAN_DOWNLOAD_DIR`) explicitly for such clients.
@@ -400,6 +451,11 @@ uvx mcp-atlassian-extended
 # HTTP transport. Use streamable-http for remote clients.
 uvx mcp-atlassian-extended --transport streamable-http --port 9000
 
+# A non-loopback HTTP bind requires a shared bearer token (>= 16 chars).
+# Clients send it as "Authorization: Bearer <token>".
+ATLASSIAN_HTTP_BEARER_TOKEN=$(openssl rand -hex 32) \
+  uvx mcp-atlassian-extended --transport streamable-http --host 0.0.0.0 --port 9000
+
 # sse still works, but the MCP 2026-07-28 spec deprecates it. The server prints a warning.
 uvx mcp-atlassian-extended --transport sse --host 127.0.0.1 --port 8000
 
@@ -410,6 +466,21 @@ JIRA_PAT=xxx uvx mcp-atlassian-extended --jira-url https://jira.example.com --re
 The `--jira-token`, `--jira-api-token`, `--confluence-token` and `--confluence-api-token` flags still work but are deprecated and hidden from `--help`: they expose the token to `ps` and shell history. Set `JIRA_PAT` / `JIRA_API_TOKEN` / `CONFLUENCE_PAT` / `CONFLUENCE_API_TOKEN` instead.
 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
+
+### Docker
+
+A minimal non-root image is provided. The example run locks the server read-only:
+
+```bash
+docker build -t mcp-atlassian-extended .
+docker run --rm -i \
+  -e JIRA_URL=https://your-company.atlassian.net \
+  -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token \
+  -e MCP_READ_ONLY=true \
+  mcp-atlassian-extended
+```
+
+The entry point is the `mcp-atlassian-extended` command; pass CLI flags after the image name. For an HTTP transport on a published port, also set `ATLASSIAN_HTTP_BEARER_TOKEN` and run with `--transport streamable-http --host 0.0.0.0`.
 
 **Partial configuration**: You configure Jira and Confluence independently. Set either or both. The server always advertises all 22 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server does not fail at startup.
 
@@ -423,9 +494,9 @@ Yes. It implements the MCP 2026-07-28 specification (MCP 2.0) and stays compatib
 
 It supports `stdio` (the default) and `streamable-http` (recommended for remote clients). The `sse` transport still works, but the 2026-07-28 specification deprecates it.
 
-### Is it read-only safe?
+### Can I run mcp-atlassian-extended read-only so the assistant cannot change anything?
 
-Yes. Set `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) in a launch the deployer owns to lock the server read-only: write tools are not listed and cannot be enabled from the client.
+Yes. Start it with `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`). The 10 write tools and the write-workflow prompts are then not listed at all, so the model never sees them; a call to one returns "Unknown tool", and nothing can turn writes back on while the process runs. Set it in a launch you control — a managed MCP config, a container or systemd env, or a hosted deployment — because a user who starts the server themselves can start it without the variable.
 
 ### Does it work with self-hosted Jira and Confluence?
 
