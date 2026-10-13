@@ -10,6 +10,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 - **License**: MIT
 - **Protocol**: MCP 2026-07-28 (MCP 2.0); compatible with 2025-11-25 clients
 - **Transport**: stdio (default), streamable-http (recommended for remote); sse (deprecated by MCP 2026-07-28)
+- **Read-only mode**: `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) hides the 10 write tools and write-workflow prompts for the life of the process; any non-false value locks; set it in the deployer's env
 - **Registry**: `io.github.vish288/mcp-atlassian-extended`
 - **Required env vars** (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 - **Required env vars** (Jira DC): `JIRA_URL`, `JIRA_PAT`
@@ -68,6 +69,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 |----------|---------|-------------|
 | `MCP_READ_ONLY` | `false` | Same as `ATLASSIAN_READ_ONLY`; shared name across the mcp-* servers. Either being truthy locks the server read-only; nothing can turn it back off at runtime |
 | `ATLASSIAN_READ_ONLY` | `false` | Per-server alias for `MCP_READ_ONLY`. Any value other than `false`/`0`/`no`/`off`/empty locks the server read-only; argv (`--read-only`) can only raise the lock, never clear it |
+| `ATLASSIAN_HTTP_BEARER_TOKEN` | - | Shared bearer token required before an HTTP transport binds anywhere but loopback; clients send `Authorization: Bearer <token>` (>= 16 chars, constant-time compare) |
 | `ATLASSIAN_UPLOAD_DIR` | working directory | Upload root for `jira_upload_attachment`; only files under it may be uploaded (relative values resolve against cwd) |
 | `ATLASSIAN_DOWNLOAD_DIR` | `./atlassian-downloads` | Directory `jira_download_attachment` writes into; created on first download |
 | `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
@@ -800,7 +802,8 @@ On success, a tool carries the same pretty-printed JSON as its text content and 
 ## Security Considerations
 
 - **Token scope**: Use API tokens with minimum required permissions. PATs with project-level access for Data Center.
-- **Read-only mode**: `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) locks the server read-only. Write tools are not listed and calling one returns "Unknown tool"; the read-only refusal envelope only reaches a client that reached the guard directly. The flag can only be raised, never cleared, from argv, and only a launch the deployer owns enforces it (Claude Code `managed-mcp.json` `env`, container/k8s env).
+- **Read-only mode**: Set `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) in the launch you control and the server starts locked: the 10 write tools and the write-workflow prompts are not listed, a call to one returns "Unknown tool", and the guard refuses any write that still reaches it. Nothing lifts the lock at runtime — not a `false` from another source, not a `.env` file, not tool arguments; any value other than `false`/`0`/`no`/`off`/empty locks, and `--read-only` can only raise it. The lock is only as strong as the launch: set it where users cannot edit it (a managed MCP config such as Claude Code `managed-mcp.json`, a container, k8s or systemd env, or a hosted HTTP deployment). A user who starts the server themselves controls its environment. All write tools are Jira tools; the Confluence tools are read-only in both modes.
+- **HTTP transport auth**: An HTTP transport serves every tool with the configured Atlassian credentials to anyone who reaches the port, so a non-loopback bind requires `ATLASSIAN_HTTP_BEARER_TOKEN` (>= 16 chars; clients send `Authorization: Bearer <token>`, compared in constant time). Without it the server refuses to start on any host other than loopback. It also validates `Host`/`Origin` (`host_origin_protection="auto"`) against DNS rebinding.
 - **File upload validation**: No path traversal, max 100MB, file must exist.
 - **Download path restriction**: Relative paths only, resolved within the working directory. The server rejects absolute paths and `../`.
 - **Download URL validation**: The server validates each download URL against the configured Jira domain to prevent SSRF.

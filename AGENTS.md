@@ -82,6 +82,12 @@ deprecated and hidden from `--help`; they still work and warn on stderr. Use the
 (`JIRA_PAT`, `JIRA_API_TOKEN`, `CONFLUENCE_PAT`, `CONFLUENCE_API_TOKEN`) so the token does
 not land in `ps` or shell history.
 
+On an HTTP transport the CLI passes `host_origin_protection="auto"` and gates the bind
+behind a shared bearer: `ATLASSIAN_HTTP_BEARER_TOKEN` (>= 16 chars) installs
+`_BearerTokenVerifier` as `mcp.auth` (constant-time `hmac.compare_digest`, non-ASCII
+rejected not crashed); a non-loopback bind with no token exits `2` with a message naming
+the var. stdio ignores both. Tests: `tests/unit/test_transport_security.py`.
+
 ## Patterns
 
 - Every tool is `async def`, takes `ctx: Context` first, and returns a `ToolResult` on

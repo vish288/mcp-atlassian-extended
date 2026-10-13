@@ -10,6 +10,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 - **License**: MIT
 - **Protocol**: MCP 2026-07-28 (MCP 2.0); compatible with 2025-11-25 clients
 - **Transport**: stdio (default), streamable-http (recommended for remote); sse (deprecated by MCP 2026-07-28)
+- **Read-only mode**: `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) hides the 10 write tools and write-workflow prompts for the life of the process; any non-false value locks; set it in the deployer's env
 - **Registry**: `io.github.vish288/mcp-atlassian-extended`
 - **Required env vars** (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 - **Required env vars** (Jira DC): `JIRA_URL`, `JIRA_PAT`

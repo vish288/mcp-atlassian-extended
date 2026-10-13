@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.vish288/mcp-atlassian-extended",
-  "description": "MCP 2026-07-28 server for Jira and Confluence: sprints, boards, attachments, versions, calendars.",
+  "description": "Jira/Confluence MCP server (2026-07-28): sprints, boards, attachments, calendars; read-only lock",
   "repository": {
     "url": "https://github.com/vish288/mcp-atlassian-extended",
     "source": "github"
@@ -74,17 +74,24 @@
         },
         {
           "name": "MCP_READ_ONLY",
-          "description": "Same as ATLASSIAN_READ_ONLY; shared name across the mcp-* servers. Either being truthy locks the server read-only and nothing can turn it back off at runtime.",
+          "description": "Locks the server read-only: write tools and write-workflow prompts are not listed and nothing lifts the lock at runtime. Shared name across the mcp-* servers; set it in the deployer's env",
           "isRequired": false,
           "format": "string",
           "isSecret": false
         },
         {
           "name": "ATLASSIAN_READ_ONLY",
-          "description": "Restrict to read-only operations (true/false)",
+          "description": "Alias for MCP_READ_ONLY. Any value other than false/0/no/off/empty locks the server read-only; --read-only can only raise the lock",
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "name": "ATLASSIAN_HTTP_BEARER_TOKEN",
+          "description": "Shared bearer token required before an HTTP transport binds to a non-loopback host; clients send it as 'Authorization: Bearer <token>'. Must be at least 16 characters; compared in constant time. Without it a non-loopback HTTP bind refuses to start.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
         },
         {
           "name": "ATLASSIAN_UPLOAD_DIR",

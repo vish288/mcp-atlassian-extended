@@ -1,7 +1,7 @@
 [project]
 name = "mcp-atlassian-extended"
 version = "0.15.0"
-description = "Extended MCP tools for Jira and Confluence — attachments, agile boards, sprints, calendars"
+description = "Extended MCP tools for Jira and Confluence — attachments, agile boards, sprints, calendars. Runs with writes or locked read-only with one env var"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -24,6 +24,8 @@ keywords = [
     "automation",
     "time-off",
     "calendar",
+    "read-only",
+    "read-only-mode",
     "sprint-capacity",
     "sprint-planning",
     "backlog",
@@ -103,7 +105,7 @@ select = ["E", "F", "B", "W", "I", "N", "UP", "S", "C4", "EM", "ISC"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]
+"tests/**" = ["S101", "S105", "S106", "S104"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
