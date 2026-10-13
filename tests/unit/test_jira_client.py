@@ -20,47 +20,15 @@ def _make_client() -> JiraExtendedClient:
 
 
 class TestJiraClient:
-    async def test_get_attachments(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/issue/PROJ-123").mock(
-                return_value=httpx.Response(
-                    200, json={"fields": {"attachment": [{"id": "1", "filename": "test.txt"}]}}
-                )
-            )
-            client = _make_client()
-            result = await client.get_attachments("PROJ-123")
-            assert len(result) == 1
-            assert result[0]["filename"] == "test.txt"
+    """Client-level failure that is not pinned by the contract table.
 
-    async def test_search_users(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/user/search").mock(
-                return_value=httpx.Response(
-                    200, json=[{"displayName": "John Doe", "accountId": "abc123"}]
-                )
-            )
-            client = _make_client()
-            result = await client.search_users("john")
-            assert len(result) == 1
-            assert result[0]["displayName"] == "John Doe"
-
-    async def test_list_projects(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/project").mock(
-                return_value=httpx.Response(200, json=[{"key": "PROJ", "name": "Project"}])
-            )
-            client = _make_client()
-            result = await client.list_projects()
-            assert result[0]["key"] == "PROJ"
-
-    async def test_get_board(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/agile/1.0/board/42").mock(
-                return_value=httpx.Response(200, json={"id": 42, "name": "Sprint Board"})
-            )
-            client = _make_client()
-            result = await client.get_board(42)
-            assert result["id"] == 42
+    The passthrough happy paths (get_attachments, search_users, list_projects,
+    get_board, get_sprint, move_to_sprint, delete_attachment) are each a row in
+    ``test_tool_contract.py`` — which pins the wire shape and the response
+    mapping through the real server — so they were removed here. The 401 → auth
+    error below is kept because it exercises the client's own error mapping
+    (``_raise_for_atlassian``) directly, independent of any tool.
+    """
 
     async def test_auth_error(self):
         async with respx.mock(base_url=BASE) as router:
@@ -70,31 +38,6 @@ class TestJiraClient:
             client = _make_client()
             with pytest.raises(AtlassianAuthError):
                 await client.list_projects()
-
-    async def test_delete_attachment(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.delete("/rest/api/2/attachment/123").mock(return_value=httpx.Response(204))
-            client = _make_client()
-            result = await client.delete_attachment("123")
-            assert result is None
-
-    async def test_get_sprint(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/agile/1.0/sprint/10").mock(
-                return_value=httpx.Response(
-                    200, json={"id": 10, "name": "Sprint 5", "state": "active"}
-                )
-            )
-            client = _make_client()
-            result = await client.get_sprint(10)
-            assert result["state"] == "active"
-
-    async def test_move_to_sprint(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.post("/rest/agile/1.0/sprint/10/issue").mock(return_value=httpx.Response(204))
-            client = _make_client()
-            result = await client.move_to_sprint(10, ["PROJ-1", "PROJ-2"])
-            assert result is None
 
 
 class TestFilePathValidation:
@@ -271,56 +214,6 @@ class TestDownloadUrlValidation:
         client = _make_client()
         url = "HTTPS://jira.example.com/rest/api/2/attachment/content/123"
         assert client._validate_download_url(url) == url
-
-
-class TestVersions:
-    async def test_get_project_versions(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.get("/rest/api/2/project/PROJ/versions").mock(
-                return_value=httpx.Response(
-                    200, json=[{"id": "100", "name": "v1.0.0", "released": True}]
-                )
-            )
-            client = _make_client()
-            result = await client.get_project_versions("PROJ")
-            assert len(result) == 1
-            assert result[0]["name"] == "v1.0.0"
-
-    async def test_create_version(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.post("/rest/api/2/version").mock(
-                return_value=httpx.Response(
-                    201, json={"id": "200", "name": "v2.0.0", "project": "PROJ"}
-                )
-            )
-            client = _make_client()
-            result = await client.create_version(
-                "PROJ", "v2.0.0", description="New release", release_date="2026-03-04"
-            )
-            assert result["id"] == "200"
-            assert result["name"] == "v2.0.0"
-
-    async def test_create_version_minimal(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.post("/rest/api/2/version").mock(
-                return_value=httpx.Response(
-                    201, json={"id": "201", "name": "v3.0.0", "project": "PROJ"}
-                )
-            )
-            client = _make_client()
-            result = await client.create_version("PROJ", "v3.0.0")
-            assert result["name"] == "v3.0.0"
-
-    async def test_update_version(self):
-        async with respx.mock(base_url=BASE) as router:
-            router.put("/rest/api/2/version/200").mock(
-                return_value=httpx.Response(
-                    200, json={"id": "200", "name": "v2.0.0", "released": True}
-                )
-            )
-            client = _make_client()
-            result = await client.update_version("200", released=True)
-            assert result["released"] is True
 
 
 class TestPathInjection:
