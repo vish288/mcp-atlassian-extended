@@ -270,7 +270,8 @@ def tool_result(
 
     *write* names the product the tool writes to; the read-only guard runs
     before the body. ``AtlassianError`` subclasses, ``ValueError`` (validation,
-    not-configured, path checks) and ``FileNotFoundError`` come back as a
+    not-configured, path checks), ``FileNotFoundError`` and ``httpx.HTTPError``
+    (unreachable upstream) come back as a
     ``ToolResult`` with ``is_error=True`` carrying the error envelope as text
     (no ``structured_content`` — see ``_error_result``). Anything else is logged
     with a traceback and re-raised as ``ToolError`` — a genuine bug stays

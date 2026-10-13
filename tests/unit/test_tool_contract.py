@@ -23,13 +23,18 @@ EVENTS = "/rest/calendar-services/1.0/calendar/events.json"
 MULTIPART = object()  # body sentinel: multipart upload, not JSON
 
 # One leave calendar with one leave child: enough for get_time_off_events to
-# reach events.json with subCalendarId=child-1.
+# reach events.json with subCalendarId=child-1. The childless "Sprint Events"
+# wrapper has no leave keyword, so get_all_leave_calendars must drop it — the
+# subCalendarId=child-1 query pin proves that exclusion. If the keyword filter
+# were removed, this wrapper would be kept and (having no children) add its own
+# subCalendarId=cal-2 to the request, breaking the single-id pin.
 _LEAVE_CALENDARS = {
     "payload": [
         {
             "subCalendar": {"id": "cal-1", "name": "Team Leaves"},
             "childSubCalendars": [{"subCalendar": {"id": "child-1", "name": "Vacation leaves"}}],
-        }
+        },
+        {"subCalendar": {"id": "cal-2", "name": "Sprint Events"}},
     ]
 }
 _EVENTS_PRELUDE = ((SUBCALS, _LEAVE_CALENDARS),)
