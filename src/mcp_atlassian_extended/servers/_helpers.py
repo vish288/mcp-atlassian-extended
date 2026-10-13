@@ -10,6 +10,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Literal
 
+import httpx
 from fastmcp import Context
 from fastmcp.exceptions import ToolError
 from fastmcp.tools import ToolResult
@@ -28,7 +29,11 @@ from ..exceptions import (
 _log = logging.getLogger(__name__)
 
 # Failures a tool is expected to report as structured JSON. Everything else is a bug.
-_EXPECTED = (AtlassianError, ValueError, FileNotFoundError)
+# ``httpx.HTTPError`` covers an unreachable upstream (connect/timeout/transport error):
+# a site outage or DNS/VPN problem is something the caller can act on, not a code bug,
+# so it is reported as an isError result with a "cannot reach" hint and is not logged
+# with a traceback (D1).
+_EXPECTED = (AtlassianError, ValueError, FileNotFoundError, httpx.HTTPError)
 
 # ID-shaped inputs that land in a REST path segment are validated at the tool
 # boundary so a value like ``../issue/PROJ-1`` is rejected before it reaches the
@@ -224,6 +229,19 @@ def _err(error: Exception) -> dict[str, Any]:
             detail["hint"] = "File exceeds the 100MB size limit."
     elif isinstance(error, FileNotFoundError):
         detail["hint"] = "File not found. Check the file path exists and is accessible."
+    elif isinstance(error, httpx.HTTPError):
+        # Connect/timeout/transport error — the server was never reached. A
+        # RequestError carries the request it failed on; the base HTTPError may
+        # not (``.request`` then raises), so fall back to no URL.
+        try:
+            url = str(error.request.url)
+        except (RuntimeError, AttributeError):
+            url = ""
+        target = f" {url}" if url else ""
+        detail["hint"] = (
+            f"Cannot reach the Atlassian server{target}. Check the URL is correct and "
+            "the host is reachable (network, VPN, firewall), then retry."
+        )
 
     return detail
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any, NamedTuple
 
+import httpx
 import jsonschema
 import pytest
 from httpx import Response
@@ -319,6 +320,29 @@ async def test_forced_failure(tool_client, row: Row, caplog):
     assert result.structured_content is None
     assert set(parsed) == {"error", "status_code", "body", "hint"}
     assert parsed["status_code"] == 404
+    assert caplog.records == []
+
+
+async def test_network_error_is_a_result(tool_client, caplog):
+    """D1: an unreachable upstream (``httpx.HTTPError``) is an expected failure.
+
+    A site outage or DNS/connect error is something the caller can act on, not a
+    code bug: the tool returns an ``isError`` result carrying a "cannot reach"
+    hint (with the target URL) and no ``structuredContent``, and nothing is logged
+    at ERROR. Without ``httpx.HTTPError`` in the expected set the connect error
+    falls to the bug arm — a traceback in the log and a bare ``ToolError``.
+    """
+    client, router = tool_client
+    router.get("/rest/api/2/project").mock(side_effect=httpx.ConnectError("connection refused"))
+
+    with caplog.at_level("ERROR"):
+        result = await client.call_tool("jira_list_projects", {}, raise_on_error=False)
+    parsed = _body(result)
+
+    assert result.is_error is True
+    assert result.structured_content is None
+    assert "cannot reach" in parsed["hint"].lower()
+    assert "jira.example.com" in parsed["hint"]
     assert caplog.records == []
 
 
