@@ -73,6 +73,13 @@
           "isSecret": true
         },
         {
+          "name": "MCP_READ_ONLY",
+          "description": "Same as ATLASSIAN_READ_ONLY; shared name across the mcp-* servers. Either being truthy locks the server read-only and nothing can turn it back off at runtime.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
           "name": "ATLASSIAN_READ_ONLY",
           "description": "Restrict to read-only operations (true/false)",
           "isRequired": false,

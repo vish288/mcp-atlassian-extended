@@ -30,13 +30,18 @@ def _configured(monkeypatch):
         "CONFLUENCE_PAT": "t",
     }.items():
         monkeypatch.setenv(key, value)
+    # Boots the real lifespan against the module-level ``mcp``; a read-only lock
+    # would hide write tools and corrupt the shared server for later tests.
     monkeypatch.delenv("ATLASSIAN_READ_ONLY", raising=False)
+    monkeypatch.delenv("MCP_READ_ONLY", raising=False)
 
 
 @pytest.fixture
 def _unconfigured(monkeypatch):
     monkeypatch.setenv("JIRA_URL", "")
     monkeypatch.setenv("CONFLUENCE_URL", "")
+    monkeypatch.delenv("ATLASSIAN_READ_ONLY", raising=False)
+    monkeypatch.delenv("MCP_READ_ONLY", raising=False)
 
 
 @pytest.mark.usefixtures("_configured")

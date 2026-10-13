@@ -14,7 +14,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 - **Required env vars** (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 - **Required env vars** (Jira DC): `JIRA_URL`, `JIRA_PAT`
 - **Optional env vars** (Confluence): `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` (or `CONFLUENCE_PAT` for DC)
-- **Optional env vars**: `ATLASSIAN_READ_ONLY` (disable writes), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
+- **Optional env vars**: `MCP_READ_ONLY` / `ATLASSIAN_READ_ONLY` (lock read-only), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
 
 ## Documentation
 
@@ -66,7 +66,8 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ATLASSIAN_READ_ONLY` | `false` | Disable all write operations globally |
+| `MCP_READ_ONLY` | `false` | Same as `ATLASSIAN_READ_ONLY`; shared name across the mcp-* servers. Either being truthy locks the server read-only; nothing can turn it back off at runtime |
+| `ATLASSIAN_READ_ONLY` | `false` | Per-server alias for `MCP_READ_ONLY`. Any value other than `false`/`0`/`no`/`off`/empty locks the server read-only; argv (`--read-only`) can only raise the lock, never clear it |
 | `ATLASSIAN_UPLOAD_DIR` | working directory | Upload root for `jira_upload_attachment`; only files under it may be uploaded (relative values resolve against cwd) |
 | `ATLASSIAN_DOWNLOAD_DIR` | `./atlassian-downloads` | Directory `jira_download_attachment` writes into; created on first download |
 | `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
@@ -799,7 +800,7 @@ On success, a tool carries the same pretty-printed JSON as its text content and 
 ## Security Considerations
 
 - **Token scope**: Use API tokens with minimum required permissions. PATs with project-level access for Data Center.
-- **Read-only mode**: `ATLASSIAN_READ_ONLY=true` disables all write operations server-side.
+- **Read-only mode**: `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) locks the server read-only. Write tools are not listed and calling one returns "Unknown tool"; the read-only refusal envelope only reaches a client that reached the guard directly. The flag can only be raised, never cleared, from argv, and only a launch the deployer owns enforces it (Claude Code `managed-mcp.json` `env`, container/k8s env).
 - **File upload validation**: No path traversal, max 100MB, file must exist.
 - **Download path restriction**: Relative paths only, resolved within the working directory. The server rejects absolute paths and `../`.
 - **Download URL validation**: The server validates each download URL against the configured Jira domain to prevent SSRF.

@@ -3,10 +3,75 @@
 from __future__ import annotations
 
 import base64
+import functools
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any, ClassVar
 from urllib.parse import urlparse
+
+_log = logging.getLogger(__name__)
+
+# Shared across the mcp-* servers so one deployer-set env var locks any of them
+# read-only. The per-server alias (ATLASSIAN_READ_ONLY) stays; either being truthy
+# wins and nothing can turn the lock back off at runtime.
+_SHARED_READ_ONLY = "MCP_READ_ONLY"
+_FALSEY = frozenset({"", "0", "false", "no", "off"})
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def _is_locking(value: str | None) -> bool:
+    """Whether a source's value locks read-only.
+
+    Fail closed: a source locks unless it is unset or an explicit falsey value. An
+    unrecognised non-empty value (e.g. ``maybe``) locks — a typo must never silently
+    leave writes enabled.
+    """
+    return value is not None and value.strip().lower() not in _FALSEY
+
+
+def read_only_sources(alias: str) -> list[str]:
+    """Env var names (shared first, then the per-server alias) whose value locks read-only."""
+    return [name for name in (_SHARED_READ_ONLY, alias) if _is_locking(os.getenv(name))]
+
+
+@functools.cache
+def _resolve(shared: str | None, alias_name: str, alias: str | None) -> bool:
+    """Resolve read-only from the raw source values and warn once per process.
+
+    Pure in its arguments, so ``@lru_cache`` makes the warnings fire once per process
+    for a given environment — both products resolve the same two sources, so the lock
+    is resolved once rather than per product. Any locking source locks the server; a
+    falsy value is never an override. One WARNING per ignored falsy source and per
+    unrecognised value taken as locking, each naming the source and value.
+    """
+    pairs = ((_SHARED_READ_ONLY, shared), (alias_name, alias))
+    locked = any(_is_locking(raw) for _, raw in pairs)
+    for name, raw in pairs:
+        if raw is None:
+            continue
+        normalised = raw.strip().lower()
+        if normalised in _FALSEY:
+            if locked:
+                _log.warning(
+                    "read-only is locked on; ignoring %s=%s (a falsy value cannot unlock it)",
+                    name,
+                    raw,
+                )
+        elif normalised not in _TRUTHY:
+            _log.warning(
+                "read-only: locking on unrecognised %s=%s (anything but a falsy value locks)",
+                name,
+                raw,
+            )
+    return locked
+
+
+def _read_only(alias: str) -> bool:
+    """Resolve read-only as ``locking(MCP_READ_ONLY) or locking(<alias>)``."""
+    # ponytail: process-lifetime cache on env values; fine because resolution is pure
+    # and the environment is fixed for a process. Tests monkeypatch distinct values.
+    return _resolve(os.getenv(_SHARED_READ_ONLY), alias, os.getenv(alias))
 
 
 def _auth_header(token: str, username: str, api_token: str) -> dict[str, str]:
@@ -40,7 +105,7 @@ def _config_for(prefix: str) -> dict[str, Any]:
         "token": env("PAT") or env("PERSONAL_TOKEN") or env("TOKEN"),
         "username": env("USERNAME"),
         "api_token": env("API_TOKEN"),
-        "read_only": os.getenv("ATLASSIAN_READ_ONLY", "false").lower() in ("true", "1", "yes"),
+        "read_only": _read_only("ATLASSIAN_READ_ONLY"),
         # Unprefixed like ATLASSIAN_READ_ONLY: one upload/download root per server.
         "upload_dir": os.getenv("ATLASSIAN_UPLOAD_DIR", ""),
         "download_dir": os.getenv("ATLASSIAN_DOWNLOAD_DIR", ""),

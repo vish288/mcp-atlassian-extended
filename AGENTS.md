@@ -142,10 +142,18 @@ delete, move, upload, download.
 
 ### Read-only mode
 
-- Every write tool calls `_check_write(ctx, "jira")` or `_check_write(ctx, "confluence")`
-  before any mutation. The second argument is mandatory and must name the product the
-  tool writes to — the helper reads that product's config, and the two read-only flags
-  are independent even though both default from `ATLASSIAN_READ_ONLY`.
+- `MCP_READ_ONLY` (shared across the mcp-* servers) or `ATLASSIAN_READ_ONLY` locks the
+  server read-only: either being truthy resolves `read_only=True` once in `_config_for`,
+  and the lifespan hides every write tool and write-workflow prompt by name
+  (`server.disable(names=…)`). Write tools are not listed and calling one returns "Unknown
+  tool". A falsy value never unlocks when another source is truthy, and an unrecognised
+  value fails closed (locks) — the lock can only be raised, never cleared, from the client.
+  Only a launch the deployer owns enforces it (`managed-mcp.json` `env`, container/k8s env).
+- Every write tool still calls `_check_write(ctx, "jira")` or `_check_write(ctx, "confluence")`
+  before any mutation (defence in depth). The second argument is mandatory and must name
+  the product the tool writes to — the helper reads that product's config, and the two
+  read-only flags are independent even though both default from `MCP_READ_ONLY` /
+  `ATLASSIAN_READ_ONLY`.
 - `jira_download_attachment` carries the `write` tag because it writes to local disk.
 - All current write tools are Jira tools; the three Confluence tools are read-only.
 
@@ -239,7 +247,8 @@ bodies use `$name` placeholders. An unmatched `$` stays intact and does not rais
 | `CONFLUENCE_USERNAME` + `CONFLUENCE_API_TOKEN` | Basic auth (Cloud) |
 | `CONFLUENCE_TIMEOUT` | Seconds, default `30` |
 | `CONFLUENCE_SSL_VERIFY` | As above |
-| `ATLASSIAN_READ_ONLY` | `true`/`1`/`yes` disables writes; read by both configs |
+| `MCP_READ_ONLY` | Same as `ATLASSIAN_READ_ONLY`; shared name across the mcp-* servers. Either being truthy locks read-only; nothing unlocks it at runtime |
+| `ATLASSIAN_READ_ONLY` | Truthy (anything but `false`/`0`/`no`/`off`/empty) locks writes; read by both configs |
 | `ATLASSIAN_UPLOAD_DIR` | Upload root for `jira_upload_attachment`; default the working directory. Relative values resolve against cwd |
 | `ATLASSIAN_DOWNLOAD_DIR` | Download directory for `jira_download_attachment`; default `./atlassian-downloads/`, created on first use |
 
@@ -260,7 +269,8 @@ Gotchas:
   force Bearer, leave `*_USERNAME` and `*_API_TOKEN` unset.
 - `_check_write(ctx, service)` takes the service explicitly (`"jira"` or `"confluence"`)
   and reads that product's config. Pass the one the calling tool writes to — the two
-  read-only flags are independent even though both default from `ATLASSIAN_READ_ONLY`.
+  read-only flags are independent even though both default from `MCP_READ_ONLY` /
+  `ATLASSIAN_READ_ONLY`.
 - All three Confluence calendar tools hit `/rest/calendar-services/1.0/`, which only exists
   with the Team Calendars add-on. A 404 there raises `TeamCalendarsUnavailableError` so
   the user gets an explanation instead of a bare 404.

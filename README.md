@@ -161,7 +161,8 @@ All Confluence calendar tools require the **Team Calendars** add-on
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ATLASSIAN_READ_ONLY` | `false` | Set to `true` to globally disable write operations across tools |
+| `MCP_READ_ONLY` | `false` | Same as `ATLASSIAN_READ_ONLY`; shared name across the mcp-* servers. Either being truthy locks the server read-only; nothing can turn it back off at runtime |
+| `ATLASSIAN_READ_ONLY` | `false` | Per-server alias for `MCP_READ_ONLY`. Any value other than `false`/`0`/`no`/`off`/empty locks the server read-only; argv (`--read-only`) can only raise the lock, never clear it |
 | `ATLASSIAN_UPLOAD_DIR` | working directory | Only files under this directory may be uploaded (`jira_upload_attachment`). A relative value is resolved against the working directory. |
 | `ATLASSIAN_DOWNLOAD_DIR` | `./atlassian-downloads` | Where `jira_download_attachment` writes. Created on first download. |
 | `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
@@ -361,7 +362,7 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 ## Security Considerations
 
 - **Token scope**: For Jira Cloud, use API tokens scoped to the minimum required permissions. For Data Center, use PATs with project-level access.
-- **Read-only mode**: Set `ATLASSIAN_READ_ONLY=true` to disable all write operations (create, update, delete, upload). The server enforces this before any API call.
+- **Read-only mode**: Set `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) to lock the server read-only. Write tools are not listed and calling one returns "Unknown tool"; the guard still refuses any write reached directly. The flag can only be raised, never cleared, from the client, and only a launch the deployer owns enforces it (Claude Code `managed-mcp.json` `env`, container/k8s env).
 - **Upload root restriction**: `jira_upload_attachment` only reads files inside the upload root — `ATLASSIAN_UPLOAD_DIR` if set, otherwise the working directory. The path is resolved (following symlinks) before the containment check, so a symlink pointing outside the root is rejected; dotfiles and dot-directories below the root are refused. Size is capped at 100 MB.
 - **Download directory restriction**: `jira_download_attachment` writes only into the download directory (`ATLASSIAN_DOWNLOAD_DIR`, default `./atlassian-downloads/`, created on first use). `save_path` must be a bare file name — directories, absolute paths and dotfiles are rejected, not silently stripped. Existing files are never overwritten: a `-1`, `-2` numeric suffix is added and the final path is returned. The downloaded body is capped at 100 MB, mirroring the upload cap. Add `atlassian-downloads/` to your project's `.gitignore`.
 - **Desktop-client caveat**: clients such as Claude Desktop launch stdio servers with a working directory of `/` or `$HOME`, which makes most of the filesystem the upload root (dotfiles excepted). Set `ATLASSIAN_UPLOAD_DIR` (and, if you like, `ATLASSIAN_DOWNLOAD_DIR`) explicitly for such clients.
@@ -424,7 +425,7 @@ It supports `stdio` (the default) and `streamable-http` (recommended for remote 
 
 ### Is it read-only safe?
 
-Yes. Set `ATLASSIAN_READ_ONLY=true` to disable every write operation. The server enforces this before any API call.
+Yes. Set `MCP_READ_ONLY=true` (or `ATLASSIAN_READ_ONLY=true`) in a launch the deployer owns to lock the server read-only: write tools are not listed and cannot be enabled from the client.
 
 ### Does it work with self-hosted Jira and Confluence?
 
