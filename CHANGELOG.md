@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.14.0] - 2026-10-13
+
+### Features
+- feat: treat an unreachable upstream as an expected tool failure (f683800)
+
+### Tests
+- test: pin leave-calendar exclusion and document httpx.HTTPError (15ef7c4)
+- test: drop passthrough duplicates covered by the contract table (b121185)
+
+
 ## [0.13.0] - 2026-10-12
 
 ### Features
