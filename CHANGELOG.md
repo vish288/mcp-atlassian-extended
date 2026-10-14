@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.15.1] - 2026-10-14
+
+### Features
+- feat: HTTP bearer gate, read-only copy, and Dockerfile (86a7900)
+
+### Bug Fixes
+- fix(ci): keep retry.sh stdout clean so captured ids aren't corrupted (3006987)
+- fix(ci): create the release draft by id, no list-lookup race (18de82e)
+
+### Documentation
+- docs(read-only): honour uv.lock, bake read-only, align review copy (c851aa4)
+
+### Other
+- ci: resilient publish pipeline (split jobs, idempotent targets, reconcile) (c80698b)
+
+
 ## [0.15.0] - 2026-10-13
 
 ### Features
