@@ -295,9 +295,17 @@ gh workflow run release.yml -f bump=minor -f dry_run=true  # preview changelog, 
    `workflow_call` and gates the release on them, then bumps `pyproject.toml`, rewrites the
    version line in `llms.txt` / `llms-full.txt`, bumps `server.json` (top level + each
    package) and `gemini-extension.json`, regenerates `uv.lock`, generates `CHANGELOG.md`,
-   then creates the release commit and tag through the GitHub API.
-2. `publish.yml` (triggered by the `v*` tag) builds the wheel, publishes to PyPI, and
-   creates the GitHub Release.
+   then creates the release commit and tag through the GitHub API, and dispatches
+   `publish.yml` on the new tag.
+2. `publish.yml` runs as split, idempotent jobs (`status → build → pypi →
+   github-release → registry`): each target is checked first and written only when not
+   already done, so PyPI, the GitHub release and the MCP Registry each complete
+   independently and recoverably.
+3. Recovery of a failed publish is `gh run rerun <id> --failed` or `gh workflow run
+   publish.yml --ref refs/tags/vX.Y.Z`; both are no-ops for targets that are already done.
+4. `reconcile.yml` does this unattended — about 5 min after a failed publish run, then every
+   6 h on a schedule — scanning the last three tags and dispatching `publish.yml` as needed,
+   capped at 8 failed attempts per tag before it asks for a human.
 
 Rules:
 
@@ -308,7 +316,8 @@ Rules:
   author/committer, so GitHub signs it as `github-actions[bot]` (Verified) with message
   `chore(release): X.Y.Z`; `release.yml` hard-fails if that commit is not verified. Only
   the ref moves (main fast-forward and the tag) use `RELEASE_PAT` — needed to bypass the
-  branch ruleset and to trigger `publish.yml`.
+  branch ruleset; `release.yml` dispatches `publish.yml`, and the PAT's tag push is a
+  duplicate that no-ops.
 - `Vish` commits on `main` that came through a rebase-merged PR show as unsigned: GitHub
   rewrites the committer during rebase and cannot sign the result. PR review plus the
   required checks are the integrity control there.
