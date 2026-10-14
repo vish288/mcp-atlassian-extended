@@ -12,3 +12,5 @@ __pycache__
 .pytest_cache
 .ruff_cache
 atlassian-downloads
+.env
+.env.*

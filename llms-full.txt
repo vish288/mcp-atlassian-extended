@@ -67,9 +67,9 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MCP_READ_ONLY` | `false` | Same as `ATLASSIAN_READ_ONLY`; shared name across the mcp-* servers. Either being truthy locks the server read-only; nothing can turn it back off at runtime |
-| `ATLASSIAN_READ_ONLY` | `false` | Per-server alias for `MCP_READ_ONLY`. Any value other than `false`/`0`/`no`/`off`/empty locks the server read-only; argv (`--read-only`) can only raise the lock, never clear it |
-| `ATLASSIAN_HTTP_BEARER_TOKEN` | - | Shared bearer token required before an HTTP transport binds anywhere but loopback; clients send `Authorization: Bearer <token>` (>= 16 chars, constant-time compare) |
+| `MCP_READ_ONLY` | `false` | Shared name across the mcp-* servers. Any value other than `false`/`0`/`no`/`off`/empty locks the server read-only: the 10 write tools and write-workflow prompts are not listed, and nothing can turn it back off at runtime |
+| `ATLASSIAN_READ_ONLY` | `false` | Per-server alias for `MCP_READ_ONLY`; either one locks the server read-only. `--read-only` can only raise the lock |
+| `ATLASSIAN_HTTP_BEARER_TOKEN` | - | Bearer token (min 16 chars) required to bind an HTTP transport to a non-loopback host; clients send `Authorization: Bearer <token>` |
 | `ATLASSIAN_UPLOAD_DIR` | working directory | Upload root for `jira_upload_attachment`; only files under it may be uploaded (relative values resolve against cwd) |
 | `ATLASSIAN_DOWNLOAD_DIR` | `./atlassian-downloads` | Directory `jira_download_attachment` writes into; created on first download |
 | `JIRA_TIMEOUT` | `30` | HTTP request timeout for Jira in seconds |
