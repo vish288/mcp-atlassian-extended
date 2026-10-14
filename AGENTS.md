@@ -322,8 +322,7 @@ Rules:
   author/committer, so GitHub signs it as `github-actions[bot]` (Verified) with message
   `chore(release): X.Y.Z`; `release.yml` hard-fails if that commit is not verified. Only
   the ref moves (main fast-forward and the tag) use `RELEASE_PAT` — needed to bypass the
-  branch ruleset; `release.yml` dispatches `publish.yml`, and the PAT's tag push is a
-  duplicate that no-ops.
+  branch ruleset; `release.yml` dispatches `publish.yml`, and the PAT's tag push no longer triggers publish (publish.yml is dispatch-only).
 - `Vish` commits on `main` that came through a rebase-merged PR show as unsigned: GitHub
   rewrites the committer during rebase and cannot sign the result. PR review plus the
   required checks are the integrity control there.
