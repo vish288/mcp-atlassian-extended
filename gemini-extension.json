@@ -1,7 +1,7 @@
 {
   "name": "mcp-atlassian-extended",
   "version": "0.15.0",
-  "description": "Jira/Confluence MCP server (2026-07-28): sprints, boards, attachments, calendars; read-only lock",
+  "description": "Jira/Confluence MCP server (MCP 2026-07-28): sprints, boards, attachments; writes or read-only",
   "mcpServers": {
     "mcp-atlassian-extended": {
       "command": "uvx",
@@ -73,7 +73,7 @@
     },
     {
       "name": "ATLASSIAN_HTTP_BEARER_TOKEN",
-      "description": "Shared bearer token required before an HTTP transport binds to a non-loopback host; clients send it as 'Authorization: Bearer <token>'. Must be at least 16 characters; compared in constant time. Without it a non-loopback HTTP bind refuses to start.",
+      "description": "Bearer token (min 16 chars) required to bind an HTTP transport to a non-loopback host; clients send it as 'Authorization: Bearer <token>'",
       "required": false,
       "sensitive": true
     },
