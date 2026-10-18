@@ -1,0 +1,10 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v1.1.0
+_src_path: gh:vish288/.github
+coverage_min: 95
+llms_split_marker: '
+
+    ## Environment Variables'
+pyright: false
+service: mcp-atlassian-extended
+

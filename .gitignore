@@ -35,7 +35,14 @@ Thumbs.db
 .claude/
 .cursorrules
 .cursor/
+
+# 1Password shell-plugin config: local tool state, not project config.
+.op/
+
+# Internal ticket tracker and spec; never committed.
 .internal/
 
-# Default jira_download_attachment output directory
+# Local addition (not template-owned): default jira_download_attachment output
+# dir (servers/__init__.py:98). Kept after the template block so `copier update`
+# leaves it alone.
 atlassian-downloads/

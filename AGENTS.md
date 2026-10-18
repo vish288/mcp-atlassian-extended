@@ -289,6 +289,15 @@ Gotchas:
 
 Releases run through GitHub Actions. Never bump versions or create tags by hand.
 
+The six workflows (`tests`, `lint`, `link-check`, `release`, `publish`, `reconcile`) are thin
+stubs that call reusable `workflow_call` workflows in
+[`vish288/.github`](https://github.com/vish288/.github), pinned by commit SHA with a `# vX.Y.Z`
+comment so Dependabot bumps them. The shared `scripts/ci/*.sh` and `scripts/derive_artifacts.py`
+live there too; this repo no longer carries its own copies. The stubs are Copier-owned
+(`.copier-answers.yml`): change CI in `vish288/.github` and run `copier update` here, not by
+editing these files directly. A CI fix is one PR in `vish288/.github` plus a tag bump, not a
+change in each server.
+
 ```bash
 gh workflow run release.yml -f bump=patch                  # 0.6.14 → 0.6.15
 gh workflow run release.yml -f bump=minor                  # 0.6.14 → 0.7.0
@@ -303,9 +312,12 @@ gh workflow run release.yml -f bump=minor -f dry_run=true  # preview changelog, 
    package) and `gemini-extension.json`, regenerates `uv.lock`, generates `CHANGELOG.md`,
    then creates the release commit and tag through the GitHub API, and dispatches
    `publish.yml` on the new tag.
-2. `publish.yml` runs as split, idempotent jobs (`status → build → pypi →
-   github-release → registry`): each target is checked first and written only when not
-   already done, so PyPI, the GitHub release and the MCP Registry each complete
+2. `publish.yml` runs as split, idempotent jobs: the reusable `publish-prepare.yml`
+   (`status → build`), then a **local top-level `pypi` job** with `environment: pypi` (PyPI
+   trusted publishing checks the OIDC `job_workflow_ref`, so the `pypa/gh-action-pypi-publish`
+   job must stay in this repo's `publish.yml`), then the reusable `publish-finish.yml`
+   (`confirm-pypi → github-release → registry`). Each target is checked first and written only
+   when not already done, so PyPI, the GitHub release and the MCP Registry each complete
    independently and recoverably.
 3. Recovery of a failed publish is `gh run rerun <id> --failed` or `gh workflow run
    publish.yml --ref refs/tags/vX.Y.Z`; both are no-ops for targets that are already done.
@@ -344,6 +356,12 @@ of these in the same commit:
 Checklist: registered tool count matches the documented count; the category list is
 complete; new tools appear in every reference section with their parameters and
 annotations.
+
+`llms.txt` and `gemini-extension.json` are derived from `llms-full.txt` / `server.json` by
+`derive_artifacts.py`, which now lives in [`vish288/.github`](https://github.com/vish288/.github)
+and is run by the `release.yml` pipeline (with this server's `\n## Environment Variables` split
+marker). Do not hand-edit them; to preview locally, run the script from a `vish288/.github`
+checkout against this repo root: `LLMS_SPLIT_MARKER=$'\n## Environment Variables' python /path/to/.github/scripts/derive_artifacts.py`.
 
 ## Known limitations
 

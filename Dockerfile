@@ -1,27 +1,42 @@
 # Minimal non-root image for mcp-atlassian-extended.
-# Build:  docker build -t mcp-atlassian-extended .
-# Run (stdio is for local clients; for a network bind set a bearer token):
+#
+#   docker build -t mcp-atlassian-extended .
+#
+# Run (stdio; the image defaults to locked read-only — pass
+# -e MCP_READ_ONLY=false to allow writes):
 #   docker run --rm -i \
-#     -e JIRA_URL=https://your-company.atlassian.net \
-#     -e JIRA_USERNAME=you@company.com -e JIRA_API_TOKEN=... \
+#     -e ARGOCD_URL=https://argocd.example.com \
+#     -e ARGOCD_TOKEN=<token> \
 #     mcp-atlassian-extended
-# The image defaults to locked read-only (MCP_READ_ONLY=true); pass
-# -e MCP_READ_ONLY=false to allow writes.
+#
+# Serve over HTTP (requires a bearer token on a non-loopback host):
+#   docker run --rm -p 9000:9000 \
+#     -e ARGOCD_URL=... -e ARGOCD_TOKEN=... \
+#     -e ARGOCD_HTTP_BEARER_TOKEN=$(openssl rand -hex 32) \
+#     mcp-atlassian-extended --transport streamable-http --host 0.0.0.0 --port 9000
 FROM python:3.13-slim
 
-# uv binary, version-pinned; dependencies come from the committed uv.lock.
+# uv provides reproducible, frozen installs from uv.lock.
 COPY --from=ghcr.io/astral-sh/uv:0.9.2 /uv /uvx /bin/
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
+
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN uv sync --frozen --no-dev \
-    && useradd --create-home --uid 10001 app \
-    && chown -R app:app /app
+RUN uv sync --frozen --no-dev
 
+# Drop privileges: run as a non-root user that owns the venv.
+RUN useradd --create-home --uid 10001 app && chown -R app:app /app
 USER app
-ENV PATH="/app/.venv/bin:$PATH" \
-    MCP_READ_ONLY=true
+
+# Default to the locked read-only mode; override with `-e MCP_READ_ONLY=false`
+# at `docker run` to allow writes.
+ENV MCP_READ_ONLY=true
 
 ENTRYPOINT ["mcp-atlassian-extended"]
+CMD []
