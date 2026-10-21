@@ -68,7 +68,9 @@ def _warn_argv_token(flag: str, env: str) -> None:
     "--confluence-api-token", hidden=True, help="Deprecated: set CONFLUENCE_API_TOKEN instead"
 )
 @click.option("--read-only", is_flag=True, help="Disable write operations")
+@click.pass_context
 def main(
+    ctx: click.Context,
     transport: str,
     port: int,
     host: str,
@@ -86,9 +88,14 @@ def main(
     load_dotenv()
 
     # Start from the environment (picks up timeout/ssl/token aliases and .env),
-    # then let explicit CLI flags win — no writing back through os.environ.
-    jira_config = JiraConfig.from_env()
-    confluence_config = ConfluenceConfig.from_env()
+    # then let explicit CLI flags win — no writing back through os.environ. A bad
+    # *_TIMEOUT is one clear line and exit 2 (D7), not a startup traceback.
+    try:
+        jira_config = JiraConfig.from_env()
+        confluence_config = ConfluenceConfig.from_env()
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        ctx.exit(2)
     if jira_url:
         jira_config.url = jira_url.rstrip("/")
     if jira_token:
@@ -112,6 +119,19 @@ def main(
     if read_only:
         jira_config.read_only = True
         confluence_config.read_only = True
+
+    # Fail fast when NOTHING is configured (D7): the server used to start
+    # "healthy" and report "not configured" on every tool call, so a broken
+    # launch looked fine to the client. One product configured and the other not
+    # is a legitimate single-product deployment and still starts.
+    if not (jira_config.is_configured or confluence_config.is_configured):
+        msg = (
+            "No Atlassian product is configured. Set JIRA_URL plus either "
+            "JIRA_USERNAME+JIRA_API_TOKEN (Cloud) or JIRA_PAT (Data Center), "
+            "and/or the matching CONFLUENCE_* variables."
+        )
+        click.echo(f"Error: {msg}", err=True)
+        ctx.exit(2)
 
     logging.basicConfig(
         level=logging.INFO,

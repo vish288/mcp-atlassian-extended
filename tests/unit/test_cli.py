@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
 from mcp_atlassian_extended import main
+
+
+@pytest.fixture(autouse=True)
+def _configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A product must be configured or the CLI exits 2 before reaching the body (D7).
+
+    ``JIRA_TOKEN`` is the ``TOKEN`` alias and is not in ``_ALL_TOKEN_ENVS``, so the
+    flag-plumbing tests (which delete PAT/API_TOKEN) still start Jira configured.
+    Tests that want the unconfigured path clear the environment themselves.
+    """
+    monkeypatch.setenv("JIRA_URL", "https://jira.example.com")
+    monkeypatch.setenv("JIRA_TOKEN", "baseline-tok")
+
 
 # (flag, env var, configure() positional arg index, config attribute)
 TOKEN_FLAGS = [
@@ -82,3 +96,44 @@ def test_sse_transport_warns_deprecated():
     assert "deprecated in MCP 2026-07-28" in result.stderr
     assert "streamable-http" in result.stderr
     mock_run.assert_called_once()
+
+
+def test_nothing_configured_exits_2_with_one_line():
+    """D7: with no product configured the CLI exits 2 before starting, one stderr line."""
+    runner = CliRunner()
+    with patch.dict(os.environ, {}, clear=True):
+        result = runner.invoke(main, [])
+    assert result.exit_code == 2
+    lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert len(lines) == 1
+    assert lines[0].startswith("Error:")
+    assert "No Atlassian product is configured" in lines[0]
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_single_product_configured_still_starts():
+    """One product configured (Jira only) is a valid single-product deployment."""
+    runner = CliRunner()
+    env = {"JIRA_URL": "https://jira.example.com", "JIRA_TOKEN": "tok"}
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch("mcp_atlassian_extended.asyncio.run") as mock_run,
+        patch("mcp_atlassian_extended.servers.mcp.run_async", new_callable=MagicMock),
+        patch("mcp_atlassian_extended.servers.configure"),
+    ):
+        result = runner.invoke(main, [])
+    assert result.exit_code == 0
+    mock_run.assert_called_once()
+
+
+def test_invalid_timeout_exits_2():
+    """A non-integer *_TIMEOUT is one clear line and exit 2, not a startup traceback."""
+    runner = CliRunner()
+    env = {"JIRA_URL": "https://jira.example.com", "JIRA_TOKEN": "tok", "JIRA_TIMEOUT": "30s"}
+    with patch.dict(os.environ, env, clear=True):
+        result = runner.invoke(main, [])
+    assert result.exit_code == 2
+    lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert len(lines) == 1
+    assert lines[0].startswith("Error:")
+    assert "JIRA_TIMEOUT" in lines[0]

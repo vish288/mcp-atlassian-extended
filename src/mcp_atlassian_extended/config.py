@@ -100,6 +100,16 @@ def _config_for(prefix: str) -> dict[str, Any]:
     def env(name: str, default: str = "") -> str:
         return os.getenv(f"{prefix}_{name}", default)
 
+    raw_timeout = env("TIMEOUT", "30")
+    try:
+        timeout = int(raw_timeout)
+    except ValueError:
+        msg = f"{prefix}_TIMEOUT must be an integer number of seconds, got {raw_timeout!r}"
+        raise ValueError(msg) from None
+    if timeout <= 0:
+        msg = f"{prefix}_TIMEOUT must be a positive integer number of seconds, got {raw_timeout!r}"
+        raise ValueError(msg)
+
     return {
         "url": env("URL").rstrip("/"),
         "token": env("PAT") or env("PERSONAL_TOKEN") or env("TOKEN"),
@@ -109,7 +119,7 @@ def _config_for(prefix: str) -> dict[str, Any]:
         # Unprefixed like ATLASSIAN_READ_ONLY: one upload/download root per server.
         "upload_dir": os.getenv("ATLASSIAN_UPLOAD_DIR", ""),
         "download_dir": os.getenv("ATLASSIAN_DOWNLOAD_DIR", ""),
-        "timeout": int(env("TIMEOUT", "30")),
+        "timeout": timeout,
         "ssl_verify": env("SSL_VERIFY", "true").lower() not in ("false", "0", "no"),
     }
 

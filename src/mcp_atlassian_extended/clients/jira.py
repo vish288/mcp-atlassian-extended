@@ -12,7 +12,7 @@ import httpx
 
 from ..config import JiraConfig
 from ..paths import _inside
-from ._http import _parse_json, _raise_for_atlassian
+from ._http import _parse_json, _raise_for_atlassian, _send, _transport_error
 
 MIME_OVERRIDES = {
     ".md": "text/markdown",
@@ -70,8 +70,12 @@ class JiraExtendedClient:
         self._client = httpx.AsyncClient(
             base_url=self.config.url,
             headers=headers,
-            timeout=self.config.timeout,
+            timeout=httpx.Timeout(self.config.timeout, connect=min(10, self.config.timeout)),
             verify=self.config.ssl_verify,
+            # verify= on the transport too: httpx 0.28 ignores the client-level
+            # verify once a transport is supplied, but the client-level one is
+            # still used for proxy mounts, so both carry the same value.
+            transport=httpx.AsyncHTTPTransport(retries=2, verify=self.config.ssl_verify),
         )
 
     async def close(self) -> None:
@@ -97,7 +101,7 @@ class JiraExtendedClient:
         if content is not None:
             kwargs["content"] = content
 
-        resp = await self._client.request(method, path, **kwargs)
+        resp = await _send(self._client, method, path, unreachable_url=self.config.url, **kwargs)
         _raise_for_atlassian(resp)
         return _parse_json(resp)
 
@@ -181,8 +185,11 @@ class JiraExtendedClient:
         data = await asyncio.to_thread(p.read_bytes)
         files = {"file": (fname, data, content_type)}
         # Auth header is already set client-side; only the CSRF opt-out is per request.
-        resp = await self._client.post(
+        resp = await _send(
+            self._client,
+            "POST",
             f"/rest/api/2/issue/{_seg(issue_key)}/attachments",
+            unreachable_url=self.config.url,
             files=files,
             headers={"X-Atlassian-Token": "no-check"},
         )
@@ -207,23 +214,31 @@ class JiraExtendedClient:
         content_url = self._validate_download_url(content_url)
         # httpx applies base_url to a relative path and ignores it for an
         # absolute URL, so one request covers both. Auth header is client-level.
-        async with self._client.stream("GET", content_url, params={"redirect": "false"}) as resp:
-            if not resp.is_success:
-                # _raise_for_atlassian needs the body (error text); read it first.
-                await resp.aread()
-                _raise_for_atlassian(resp)
-            declared = resp.headers.get("content-length", "")
-            if declared.isdigit() and int(declared) > _MAX_ATTACHMENT_BYTES:
-                size_mb = int(declared) / (1024 * 1024)
-                msg = f"Attachment too large ({size_mb:.1f}MB). Max 100MB."
-                raise ValueError(msg)
-            buf = bytearray()
-            async for chunk in resp.aiter_bytes():
-                buf.extend(chunk)
-                if len(buf) > _MAX_ATTACHMENT_BYTES:
-                    msg = "Attachment too large (exceeds 100MB). Max 100MB."
+        # The stream gets the same timeout-vs-unreachable mapping as the request
+        # path (R2); the size-cap ValueError and _raise_for_atlassian are not
+        # httpx errors, so they pass through untouched.
+        try:
+            async with self._client.stream(
+                "GET", content_url, params={"redirect": "false"}
+            ) as resp:
+                if not resp.is_success:
+                    # _raise_for_atlassian needs the body (error text); read it first.
+                    await resp.aread()
+                    _raise_for_atlassian(resp)
+                declared = resp.headers.get("content-length", "")
+                if declared.isdigit() and int(declared) > _MAX_ATTACHMENT_BYTES:
+                    size_mb = int(declared) / (1024 * 1024)
+                    msg = f"Attachment too large ({size_mb:.1f}MB). Max 100MB."
                     raise ValueError(msg)
-            return bytes(buf)
+                buf = bytearray()
+                async for chunk in resp.aiter_bytes():
+                    buf.extend(chunk)
+                    if len(buf) > _MAX_ATTACHMENT_BYTES:
+                        msg = "Attachment too large (exceeds 100MB). Max 100MB."
+                        raise ValueError(msg)
+                return bytes(buf)
+        except httpx.TransportError as e:
+            raise _transport_error(e, self.config.url) from e
 
     async def delete_attachment(self, attachment_id: str) -> None:
         await self.delete(f"/rest/api/2/attachment/{_seg(attachment_id)}")

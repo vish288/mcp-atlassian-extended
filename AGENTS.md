@@ -26,7 +26,7 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 | --- | --- |
 | `src/mcp_atlassian_extended/__init__.py` | click CLI entry point (`main`) |
 | `src/mcp_atlassian_extended/config.py` | `JiraConfig`, `ConfluenceConfig` — dataclasses built from env |
-| `src/mcp_atlassian_extended/clients/` | `JiraExtendedClient`, `ConfluenceExtendedClient` (httpx) |
+| `src/mcp_atlassian_extended/clients/` | `JiraExtendedClient`, `ConfluenceExtendedClient` (httpx); `clients/_http.py` holds the shared `_send` (R2 transport) + response handling |
 | `src/mcp_atlassian_extended/servers/__init__.py` | `FastMCP` instance, `lifespan`, `_register_tools()` |
 | `src/mcp_atlassian_extended/servers/_helpers.py` | shared `_get_jira`, `_get_confluence`, `_check_write`, `_ok`, `_err`, `_paginated`, `_load_file`, Jira URL parsers |
 | `src/mcp_atlassian_extended/servers/jira_extended.py` | 11 tools — attachments, users, metadata, versions, backlog |
@@ -102,7 +102,20 @@ the var. stdio ignores both. Tests: `tests/unit/test_transport_security.py`.
   body raise; do not wrap it in `try/except`.
 - `_ok(data)` for single objects, `_paginated(items)` for lists (adds `items` + `count`).
 - `_err` attaches an actionable `hint` keyed off the exception type and HTTP status
-  (401/403, 404, 400, 409, 422, 429). Extend it there, not in individual tools.
+  (401/403, 404, 400, 409, 422, 429) plus the transport exceptions
+  (`AtlassianRateLimitError` with `retry_after`, `AtlassianTimeoutError`,
+  `AtlassianConnectionError`). Extend it there, not in individual tools.
+- Transport (R2): both clients send through the shared `_http._send`, which wraps a
+  per-phase `httpx.Timeout` (connect capped at 10s) + `AsyncHTTPTransport(retries=2)` with
+  GET-only status retries — 502/503/504 with jitter, and 429 only when `Retry-After` ≤ 5s,
+  max 2 attempts; writes are never retried. A 429 that is not resolved surfaces
+  `retry_after` via `AtlassianRateLimitError`; a timeout (`AtlassianTimeoutError`) is split
+  from an unreachable host (`AtlassianConnectionError`; a `ConnectTimeout` counts as
+  unreachable, and the streamed attachment download gets the same mapping). `*_TIMEOUT` is
+  validated with a named, positive-only error. Worst-case latency against a hard-down host
+  is roughly `2 × (3 × connect-cap + timeout) + jitter` — connect cap 10s, the two outer
+  attempts are the GET status-retry and each wraps httpx's three connect tries
+  (`retries=2`).
 - Import helpers from `._helpers` — never re-declare `_get_jira`, `_ok`, `_err`, etc.
 - Jira tools accept either a key/ID or a browser URL: `_parse_jira_issue_url`,
   `_parse_jira_project_url`, `_parse_jira_board_url` pass non-URLs through unchanged.
@@ -280,8 +293,11 @@ Gotchas:
 - All three Confluence calendar tools hit `/rest/calendar-services/1.0/`, which only exists
   with the Team Calendars add-on. A 404 there raises `TeamCalendarsUnavailableError` so
   the user gets an explanation instead of a bare 404.
-- You configure Jira and Confluence independently. An unconfigured client is `None`,
-  and its tools return a "not configured" error rather than failing at startup.
+- You configure Jira and Confluence independently. One product configured and the other
+  not is a legitimate single-product deployment: the unconfigured client is `None` and its
+  tools return a "not configured" error. But if **neither** product is configured the CLI
+  now exits `2` with one line before starting (D7) — the server no longer boots "healthy"
+  and reports "not configured" on every call.
 - The CLI loads `.env` via `load_dotenv()` from the working directory. The repo
   ships no `.env.example`; the variable tables above are the reference.
 

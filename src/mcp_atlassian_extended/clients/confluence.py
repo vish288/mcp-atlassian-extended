@@ -8,7 +8,7 @@ import httpx
 
 from ..config import ConfluenceConfig
 from ..exceptions import TeamCalendarsUnavailableError
-from ._http import _parse_json, _raise_for_atlassian
+from ._http import _parse_json, _raise_for_atlassian, _send
 
 LEAVE_KEYWORDS = ("vacation", "time off", "leaves", "time-off", "pto")
 
@@ -25,15 +25,21 @@ class ConfluenceExtendedClient:
         self._client = httpx.AsyncClient(
             base_url=self.config.url,
             headers=headers,
-            timeout=self.config.timeout,
+            timeout=httpx.Timeout(self.config.timeout, connect=min(10, self.config.timeout)),
             verify=self.config.ssl_verify,
+            # verify= on the transport too: httpx 0.28 ignores the client-level
+            # verify once a transport is supplied, but the client-level one is
+            # still used for proxy mounts, so both carry the same value.
+            transport=httpx.AsyncHTTPTransport(retries=2, verify=self.config.ssl_verify),
         )
 
     async def close(self) -> None:
         await self._client.aclose()
 
     async def _get(self, path: str, params: Any = None) -> Any:
-        resp = await self._client.get(path, params=params)
+        resp = await _send(
+            self._client, "GET", path, unreachable_url=self.config.url, params=params
+        )
         # Only the Team Calendars namespace turns a 404 into "add-on not installed".
         not_found = TeamCalendarsUnavailableError if path.startswith(CALENDAR_API) else None
         _raise_for_atlassian(resp, not_found=not_found)

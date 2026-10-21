@@ -80,6 +80,18 @@ def test_timeout_default_and_override():
         assert JiraConfig.from_env().timeout == 60
 
 
+def test_timeout_invalid_names_the_variable():
+    env = {"JIRA_URL": URL, "JIRA_PAT": "x", "JIRA_TIMEOUT": "30s"}
+    with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="JIRA_TIMEOUT"):
+        JiraConfig.from_env()
+
+
+def test_timeout_non_positive_rejected():
+    env = {"JIRA_URL": URL, "JIRA_PAT": "x", "JIRA_TIMEOUT": "0"}
+    with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="positive"):
+        JiraConfig.from_env()
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [("false", False), ("0", False), ("no", False), ("true", True), ("", True)],

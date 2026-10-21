@@ -46,6 +46,14 @@ def _reset_auth() -> Iterator[None]:
     server_mcp.auth = None
 
 
+@pytest.fixture(autouse=True)
+def _configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configure Jira so the CLI reaches the transport logic: with no product
+    configured it exits 2 first (D7)."""
+    monkeypatch.setenv("JIRA_URL", "https://jira.example.com")
+    monkeypatch.setenv("JIRA_TOKEN", "baseline-tok")
+
+
 def _invoke(runner: CliRunner, args: list[str]):
     with (
         patch("mcp_atlassian_extended.asyncio.run") as mock_run,

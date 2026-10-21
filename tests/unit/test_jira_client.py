@@ -2,17 +2,30 @@
 
 from __future__ import annotations
 
+import asyncio
 import itertools
+import ssl
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 
 import httpx
 import pytest
 import respx
 
+from mcp_atlassian_extended.clients import _http
+from mcp_atlassian_extended.clients.confluence import ConfluenceExtendedClient
 from mcp_atlassian_extended.clients.jira import JiraExtendedClient
-from mcp_atlassian_extended.config import JiraConfig
-from mcp_atlassian_extended.exceptions import AtlassianApiError, AtlassianAuthError
+from mcp_atlassian_extended.config import ConfluenceConfig, JiraConfig
+from mcp_atlassian_extended.exceptions import (
+    AtlassianApiError,
+    AtlassianAuthError,
+    AtlassianConnectionError,
+    AtlassianRateLimitError,
+    AtlassianTimeoutError,
+)
 
 BASE = "https://jira.example.com"
+CONFLUENCE_BASE = "https://confluence.example.com"
 
 
 def _make_client() -> JiraExtendedClient:
@@ -483,3 +496,221 @@ class TestAuthorizationOnWire:
             sent = route.calls.last.request.headers["authorization"]
             assert sent.startswith("Basic ")
             assert base64.b64decode(sent.split(" ", 1)[1]).decode() == "me@acme.com:api-tok"
+
+
+class TestTransportRetries:
+    """R2: GET-only retries, Retry-After, and the timeout-vs-unreachable split,
+    shared by both product clients via clients/_http._send."""
+
+    @pytest.fixture
+    def _no_jitter(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import mcp_atlassian_extended.clients._http as http_mod
+
+        monkeypatch.setattr(http_mod._jitter, "uniform", lambda _a, _b: 0.0)
+
+    async def test_get_retries_on_503_then_succeeds(self, _no_jitter: None) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/project").mock(
+                side_effect=[
+                    httpx.Response(503, headers={"Retry-After": "1"}, text="unavailable"),
+                    httpx.Response(200, json=[{"key": "PROJ"}]),
+                ]
+            )
+            client = _make_client()
+            result = await client.get("/rest/api/2/project")
+            assert result == [{"key": "PROJ"}]
+            assert route.call_count == 2
+
+    async def test_get_retries_on_429_with_short_retry_after(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/project").mock(
+                side_effect=[
+                    httpx.Response(429, headers={"Retry-After": "0"}, text="slow down"),
+                    httpx.Response(200, json=[]),
+                ]
+            )
+            client = _make_client()
+            assert await client.get("/rest/api/2/project") == []
+            assert route.call_count == 2
+
+    async def test_write_is_never_retried(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            route = router.delete("/rest/api/2/issue/PROJ-1").mock(
+                side_effect=[httpx.Response(503, text="unavailable"), httpx.Response(204)]
+            )
+            client = _make_client()
+            with pytest.raises(AtlassianApiError) as exc:
+                await client.delete("/rest/api/2/issue/PROJ-1")
+            assert exc.value.status_code == 503
+            assert route.call_count == 1
+
+    async def test_long_retry_after_429_surfaces_retry_after(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/project").mock(
+                return_value=httpx.Response(429, headers={"Retry-After": "30"}, text="slow")
+            )
+            client = _make_client()
+            with pytest.raises(AtlassianRateLimitError) as exc:
+                await client.get("/rest/api/2/project")
+            assert exc.value.retry_after == 30.0
+            assert exc.value.status_code == 429
+            assert route.call_count == 1
+
+    async def test_timeout_is_distinct_from_unreachable(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/project").mock(side_effect=httpx.ReadTimeout("slow"))
+            client = _make_client()
+            with pytest.raises(AtlassianTimeoutError):
+                await client.get("/rest/api/2/project")
+
+    async def test_connect_error_is_unreachable(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/project").mock(side_effect=httpx.ConnectError("refused"))
+            client = _make_client()
+            with pytest.raises(AtlassianConnectionError):
+                await client.get("/rest/api/2/project")
+
+    async def test_connect_phase_capped(self) -> None:
+        client = JiraExtendedClient(JiraConfig(url=BASE, token="t", timeout=50))
+        assert client._client.timeout.connect == 10  # min(10, 50)
+        assert client._client.timeout.read == 50
+        assert isinstance(client._client._transport, httpx.AsyncHTTPTransport)
+
+    async def test_confluence_client_shares_retry_path(self, _no_jitter: None) -> None:
+        async with respx.mock(base_url=CONFLUENCE_BASE) as router:
+            route = router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+                side_effect=[
+                    httpx.Response(503, text="unavailable"),
+                    httpx.Response(200, json={"payload": [{"id": "c1"}]}),
+                ]
+            )
+            client = ConfluenceExtendedClient(ConfluenceConfig(url=CONFLUENCE_BASE, token="t"))
+            result = await client.list_calendars()
+            assert result == [{"id": "c1"}]
+            assert route.call_count == 2
+
+
+class TestTransportTLS:
+    """R2 fix: verify= must be on the transport (httpx 0.28 ignores the
+    client-level verify once a transport is supplied)."""
+
+    def test_jira_transport_verify_false(self) -> None:
+        client = JiraExtendedClient(JiraConfig(url=BASE, token="t", ssl_verify=False))
+        assert client._client._transport._pool._ssl_context.verify_mode == ssl.CERT_NONE
+
+    def test_jira_transport_verify_true(self) -> None:
+        client = JiraExtendedClient(JiraConfig(url=BASE, token="t", ssl_verify=True))
+        assert client._client._transport._pool._ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+    def test_confluence_transport_verify_false(self) -> None:
+        client = ConfluenceExtendedClient(
+            ConfluenceConfig(url=CONFLUENCE_BASE, token="t", ssl_verify=False)
+        )
+        assert client._client._transport._pool._ssl_context.verify_mode == ssl.CERT_NONE
+
+    def test_confluence_transport_verify_true(self) -> None:
+        client = ConfluenceExtendedClient(
+            ConfluenceConfig(url=CONFLUENCE_BASE, token="t", ssl_verify=True)
+        )
+        assert client._client._transport._pool._ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+
+class TestTransportBounds:
+    """R2 fix: retry is bounded, cancellation is not swallowed, ConnectTimeout is
+    unreachable, and credentials never leak into error text."""
+
+    @pytest.fixture
+    def _no_jitter(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(_http._jitter, "uniform", lambda _a, _b: 0.0)
+
+    async def test_connect_timeout_is_unreachable(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/project").mock(side_effect=httpx.ConnectTimeout("no route"))
+            with pytest.raises(AtlassianConnectionError):
+                await _make_client().get("/rest/api/2/project")
+
+    async def test_get_gives_up_after_two_attempts(self, _no_jitter: None) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            route = router.get("/rest/api/2/project").mock(
+                return_value=httpx.Response(503, text="unavailable")
+            )
+            with pytest.raises(AtlassianApiError) as exc:
+                await _make_client().get("/rest/api/2/project")
+            assert exc.value.status_code == 503
+            assert route.call_count == 2
+
+    async def test_cancellation_propagates_without_retry(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # respx cannot carry a BaseException side_effect; patch the httpx client.
+        client = _make_client()
+        calls = 0
+
+        async def _boom(*_a, **_k):
+            nonlocal calls
+            calls += 1
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr(client._client, "request", _boom)
+        with pytest.raises(asyncio.CancelledError):
+            await client.get("/rest/api/2/project")
+        assert calls == 1
+
+    async def test_url_userinfo_stripped_from_error(self) -> None:
+        client = JiraExtendedClient(
+            JiraConfig(url="https://user:secret@jira.example.com", token="t")
+        )
+        async with respx.mock(base_url="https://jira.example.com") as router:
+            router.get("/rest/api/2/project").mock(side_effect=httpx.ConnectError("refused"))
+            with pytest.raises(AtlassianConnectionError) as exc:
+                await client.get("/rest/api/2/project")
+            assert "secret" not in str(exc.value)
+
+
+class TestStreamingDownloadTransport:
+    """R2 fix 7: the streamed attachment download gets the same mapping."""
+
+    async def test_stream_read_timeout_is_timeout(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/attachment/content/9").mock(
+                side_effect=httpx.ReadTimeout("slow")
+            )
+            with pytest.raises(AtlassianTimeoutError):
+                await _make_client().download_attachment("/rest/api/2/attachment/content/9")
+
+    async def test_stream_connect_error_is_unreachable(self) -> None:
+        async with respx.mock(base_url=BASE) as router:
+            router.get("/rest/api/2/attachment/content/9").mock(
+                side_effect=httpx.ConnectError("refused")
+            )
+            with pytest.raises(AtlassianConnectionError):
+                await _make_client().download_attachment("/rest/api/2/attachment/content/9")
+
+
+class TestRetryAfterParsing:
+    """_retry_after_seconds handles both forms, clamps, and rejects non-finite."""
+
+    @staticmethod
+    def _resp(retry_after: str | None) -> httpx.Response:
+        headers = {"Retry-After": retry_after} if retry_after is not None else {}
+        return httpx.Response(429, headers=headers)
+
+    def test_delta_seconds(self) -> None:
+        assert _http._retry_after_seconds(self._resp("5")) == 5.0
+
+    def test_http_date(self) -> None:
+        when = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=100))
+        secs = _http._retry_after_seconds(self._resp(when))
+        assert secs is not None
+        assert 80 <= secs <= 100
+
+    def test_past_date_and_negative_clamped(self) -> None:
+        assert _http._retry_after_seconds(self._resp("Wed, 21 Oct 2015 07:28:00 GMT")) == 0.0
+        assert _http._retry_after_seconds(self._resp("-5")) == 0.0
+
+    def test_non_finite_rejected(self) -> None:
+        assert _http._retry_after_seconds(self._resp("nan")) is None
+        assert _http._retry_after_seconds(self._resp("inf")) is None
+
+    def test_absent(self) -> None:
+        assert _http._retry_after_seconds(self._resp(None)) is None

@@ -39,6 +39,49 @@ class TeamCalendarsUnavailableError(AtlassianApiError):
         )
 
 
+class AtlassianRateLimitError(AtlassianApiError):
+    """Raised on a 429 that the bounded retry did not resolve.
+
+    ``retry_after`` is the parsed ``Retry-After`` delta-seconds (None when the
+    header was absent or an HTTP-date); it is surfaced in the error envelope so
+    the caller knows how long to wait. Mirrors mcp-coda/mcp-argocd.
+    """
+
+    def __init__(
+        self, status_code: int, body: str = "", *, retry_after: float | None = None
+    ) -> None:
+        super().__init__(status_code, "Rate limited", body)
+        self.retry_after = retry_after
+
+
+class AtlassianTimeoutError(AtlassianError):
+    """A request to the Atlassian API exceeded its deadline (connect/read/write).
+
+    Split out from ``AtlassianConnectionError`` (ported from mcp-argocd) so "the
+    server is slow" is distinguishable from "the server is unreachable".
+    """
+
+    def __init__(self, url: str, detail: str = "") -> None:
+        self.url = url
+        self.detail = detail
+        msg = f"Timed out reaching {url}"
+        if detail:
+            msg = f"{msg}: {detail}"
+        super().__init__(msg)
+
+
+class AtlassianConnectionError(AtlassianError):
+    """The Atlassian API could not be reached (DNS, connect, TLS — not a timeout)."""
+
+    def __init__(self, url: str, detail: str = "") -> None:
+        self.url = url
+        self.detail = detail
+        msg = f"Cannot reach {url}"
+        if detail:
+            msg = f"{msg}: {detail}"
+        super().__init__(msg)
+
+
 class WriteDisabledError(AtlassianError):
     """Raised when a write operation is attempted in read-only mode."""
 

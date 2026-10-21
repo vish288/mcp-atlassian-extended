@@ -21,7 +21,10 @@ from ..clients.jira import JiraExtendedClient
 from ..exceptions import (
     AtlassianApiError,
     AtlassianAuthError,
+    AtlassianConnectionError,
     AtlassianError,
+    AtlassianRateLimitError,
+    AtlassianTimeoutError,
     TeamCalendarsUnavailableError,
     WriteDisabledError,
 )
@@ -192,6 +195,24 @@ def _err(error: Exception) -> dict[str, Any]:
         detail["hint"] = (
             "This server is deployed read-only; writes cannot be enabled from the client. "
             "Ask the deployer."
+        )
+    elif isinstance(error, AtlassianRateLimitError):
+        detail["status_code"] = error.status_code
+        detail["body"] = error.body
+        if error.retry_after is not None:
+            detail["retry_after"] = error.retry_after
+        detail["hint"] = (
+            "Rate limited. The client retries a 429 once when Retry-After is <= 5s; "
+            "otherwise wait retry_after seconds before retrying."
+        )
+    elif isinstance(error, AtlassianTimeoutError):
+        detail["hint"] = (
+            f"Timed out reaching {error.url}. The request may be slow; retry, or raise "
+            "JIRA_TIMEOUT / CONFLUENCE_TIMEOUT."
+        )
+    elif isinstance(error, AtlassianConnectionError):
+        detail["hint"] = (
+            f"Cannot reach {error.url}. Check the product URL and network connectivity, then retry."
         )
     elif isinstance(error, AtlassianApiError):
         detail["status_code"] = error.status_code
