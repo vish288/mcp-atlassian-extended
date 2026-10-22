@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.16.0] - 2026-10-22
+
+### Features
+- feat(transport): R2 timeouts, GET retries, exit 2 when nothing configured (c47d11c)
+
+### Chores
+- chore(fleet): template v1.1.1 (4557fdd)
+
+
 ## [0.15.2] - 2026-10-18
 
 ### Bug Fixes
