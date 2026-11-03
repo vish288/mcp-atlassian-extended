@@ -37,6 +37,19 @@ def test_confluence_config_from_env():
     assert config.is_configured is True
 
 
+def test_confluence_leave_keywords_from_env():
+    env = {"CONFLUENCE_LEAVE_KEYWORDS": " Abwesenheit, ferien ,,"}
+    with patch.dict(os.environ, env, clear=True):
+        config = ConfluenceConfig.from_env()
+    assert config.leave_keywords == ("abwesenheit", "ferien")
+
+
+def test_confluence_leave_keywords_default_empty():
+    with patch.dict(os.environ, {}, clear=True):
+        config = ConfluenceConfig.from_env()
+    assert config.leave_keywords == ()
+
+
 def test_read_only_flag():
     env = {"JIRA_URL": "https://jira.example.com", "JIRA_PAT": "x", "ATLASSIAN_READ_ONLY": "true"}
     with patch.dict(os.environ, env, clear=True):

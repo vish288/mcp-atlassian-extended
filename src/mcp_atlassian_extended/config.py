@@ -182,7 +182,18 @@ class JiraConfig(AtlassianConfig):
     _prefix = "JIRA"
 
 
+@dataclass
 class ConfluenceConfig(AtlassianConfig):
     """Confluence connection configuration: ``CONFLUENCE_URL`` plus ``CONFLUENCE_*`` credentials."""
 
-    _prefix = "CONFLUENCE"
+    _prefix: ClassVar[str] = "CONFLUENCE"
+
+    # Extra calendar-name keywords that mark a leave calendar, on top of the
+    # built-in English ones — e.g. "abwesenheit,ferien" for German calendars.
+    leave_keywords: tuple[str, ...] = ()
+
+    @classmethod
+    def from_env(cls):
+        raw = os.getenv("CONFLUENCE_LEAVE_KEYWORDS", "")
+        keywords = tuple(k.strip().lower() for k in raw.split(",") if k.strip())
+        return cls(**_config_for(cls._prefix), leave_keywords=keywords)

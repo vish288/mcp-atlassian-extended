@@ -106,6 +106,13 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "name": "CONFLUENCE_LEAVE_KEYWORDS",
+          "description": "Comma-separated extra calendar-name keywords that mark a leave calendar (e.g. abwesenheit,ferien), on top of the built-in English ones",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
         }
       ]
     }

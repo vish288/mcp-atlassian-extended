@@ -16,7 +16,7 @@ uvx mcp-atlassian-extended                          # with writes
 MCP_READ_ONLY=true uvx mcp-atlassian-extended       # locked read-only: write tools are not listed
 ```
 
-**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for Jira and Confluence. It gives an AI assistant **22 tools**, **15 resources**, and **5 prompts** for Jira and Confluence work. The tools create and update issues with custom fields, link issues, manage attachments, and search users. They also run agile boards and sprints, track project versions (API v2), read team calendars, and plan sprint capacity. It extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap. Runs in one of two modes: with writes, or locked read-only (`MCP_READ_ONLY=true`) so the 10 write tools are never offered to the model.
+**mcp-atlassian-extended** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for Jira and Confluence. It gives an AI assistant **23 tools**, **15 resources**, and **5 prompts** for Jira and Confluence work. The tools create and update issues with custom fields, link issues, manage attachments, and search users. They also run agile boards and sprints, track project versions (API v2), read team calendars, and plan sprint capacity. It extends [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) with zero tool overlap. Runs in one of two modes: with writes, or locked read-only (`MCP_READ_ONLY=true`) so the 10 write tools are never offered to the model.
 
 The server supports the MCP **2026-07-28** specification (often called MCP 2.0) and stays compatible with **2025-11-25** clients. It works with Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, and any MCP-compatible client.
 
@@ -220,6 +220,7 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | `JIRA_SSL_VERIFY` | `true` | Set to `false` to skip SSL verification for Jira |
 | `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
 | `CONFLUENCE_SSL_VERIFY` | `true` | Set to `false` to skip SSL verification for Confluence |
+| `CONFLUENCE_LEAVE_KEYWORDS` | - | Comma-separated extra calendar-name keywords that mark a leave calendar for `confluence_get_time_off` / `confluence_sprint_capacity`, on top of the built-in English ones (e.g. `abwesenheit,ferien`) |
 
 ## Compatibility
 
@@ -232,7 +233,7 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | VS Code Copilot | Yes | `.vscode/mcp.json` |
 | Any MCP client | Yes | stdio or HTTP transport |
 
-## Tools (22)
+## Tools (23)
 
 | Category | Count | Tools |
 |----------|-------|-------|
@@ -243,7 +244,7 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | **Jira Metadata** | 3 | list projects, list fields, backlog |
 | **Jira Agile** | 4 | get board, board config, get sprint, move to sprint |
 | **Jira Versions** | 3 | get project versions, create version, update version |
-| **Confluence Calendars** | 3 | list (type/search filter), time-off (date range, per-person), sprint capacity |
+| **Confluence Calendars** | 4 | list (type/search/space filter), events of any type (date range, space, calendar), time-off (date range, per-person), sprint capacity |
 
 <details>
 <summary>Full tool reference (click to expand)</summary>
@@ -298,7 +299,8 @@ All Confluence calendar tools require the **Team Calendars** add-on
 ### Confluence Calendars
 | Tool | Description |
 |------|-------------|
-| `confluence_list_calendars` | List calendars; optional `filter_type` and name/space `search` |
+| `confluence_list_calendars` | List calendars; optional `filter_type`, name/space `search`, and `space_key` (all calendars of a space, not only subscribed ones) |
+| `confluence_get_calendar_events` | Events of any type in a date range; optional `space_key`, `calendar` (ID or name), `time_zone` |
 | `confluence_get_time_off` | Time-off events for a date range; optional `person` (exact match) and `group_by_person` |
 | `confluence_sprint_capacity` | Calculate sprint capacity with time-off |
 
@@ -468,7 +470,7 @@ The `--jira-token`, `--jira-api-token`, `--confluence-token` and `--confluence-a
 
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 
-**Partial configuration**: You configure Jira and Confluence independently. Set either or both. The server always advertises all 22 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server does not fail at startup.
+**Partial configuration**: You configure Jira and Confluence independently. Set either or both. The server always advertises all 23 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server does not fail at startup.
 
 ## Docker
 
@@ -512,11 +514,11 @@ No. It runs alongside mcp-atlassian with zero tool overlap. mcp-atlassian handle
 
 ### Do the Confluence tools need an add-on?
 
-Yes. The three Confluence calendar tools need the Team Calendars add-on. Without it, they return a 404 with a hint that names the add-on.
+Yes. The four Confluence calendar tools need the Team Calendars add-on. Without it, they return a 404 with a hint that names the add-on.
 
 ### How many tools does it provide?
 
-It provides 22 tools, 15 resources, and 5 prompts for Jira and Confluence.
+It provides 23 tools, 15 resources, and 5 prompts for Jira and Confluence.
 
 ## Related MCP Servers
 

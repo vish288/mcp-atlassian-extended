@@ -57,9 +57,18 @@ async def confluence_list_calendars(
         str | None,
         Field(description="Filter by calendar name, space name, or space key (case-insensitive)"),
     ] = None,
+    space_key: Annotated[
+        str | None,
+        Field(
+            description=(
+                "List every calendar of this space (e.g. 'EAP'). Without it, only "
+                "calendars the user subscribed to are returned"
+            )
+        ),
+    ] = None,
 ) -> ToolResult:
     """List Confluence calendars, optionally narrowed by type or a name/space search."""
-    data = await _get_confluence(ctx).list_calendars()
+    data = await _get_confluence(ctx).list_calendars(space_key)
     if filter_type:
         ft = filter_type.lower()
         data = [
@@ -92,9 +101,48 @@ async def confluence_list_calendars(
                 "space_name": sub.get("spaceName"),
                 "child_count": len(children),
                 "child_ids": [c.get("subCalendar", {}).get("id") for c in children],
+                "children": [
+                    {
+                        "id": c.get("subCalendar", {}).get("id"),
+                        "name": c.get("subCalendar", {}).get("name"),
+                    }
+                    for c in children
+                ],
             }
         )
     return _paginated(result)
+
+
+@mcp.tool(
+    tags={"confluence", "calendars", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
+)
+@tool_result
+async def confluence_get_calendar_events(
+    ctx: Context,
+    start_date: Annotated[str, Field(description="Start date (YYYY-MM-DD, 'today', '+14d', etc.)")],
+    end_date: Annotated[str, Field(description="End date (YYYY-MM-DD, 'today', '+14d', etc.)")],
+    space_key: Annotated[
+        str | None,
+        Field(description="Read the calendars of this space (e.g. 'EAP'); default: subscribed"),
+    ] = None,
+    calendar: Annotated[
+        str | None,
+        Field(description="Calendar ID, or part of a parent or child calendar name"),
+    ] = None,
+    time_zone: Annotated[
+        str | None,
+        Field(description="IANA time zone for event times (e.g. 'Europe/Zurich'); default UTC"),
+    ] = None,
+) -> ToolResult:
+    """Get events of any type from Team Calendars in a date range. Returns title, start,
+    end, category, description, invitees and calendar name, sorted by start."""
+    start = _resolve_date(start_date)
+    end = _resolve_date(end_date)
+    events = await _get_confluence(ctx).get_calendar_events(
+        start, end, space_key=space_key, calendar=calendar, time_zone=time_zone
+    )
+    return _ok({"start": start, "end": end, "events": events, "count": len(events)})
 
 
 @mcp.tool(
