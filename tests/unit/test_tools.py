@@ -10,8 +10,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+import respx
 from httpx import Response
 
+from mcp_atlassian_extended.clients.confluence import ConfluenceExtendedClient
 from mcp_atlassian_extended.config import ConfluenceConfig, JiraConfig
 from mcp_atlassian_extended.exceptions import WriteDisabledError
 from mcp_atlassian_extended.servers._helpers import _check_write, _get_confluence, _get_jira
@@ -969,6 +971,185 @@ class TestConfluenceSprintCapacity:
         parsed = _parse(result)
         assert parsed["team"]["total_days_off"] == 0
         assert parsed["team"]["capacity_percentage"] == 100.0
+
+
+# A space calendar as Team Calendars returns it: a parent without events and two
+# custom children that carry them.
+_SPACE_CALENDARS = {
+    "payload": [
+        {
+            "subCalendar": {
+                "id": "p-1",
+                "name": "Operations",
+                "spaceKey": "OPS",
+                "customEventTypes": [
+                    {"customEventTypeId": "t-maint", "title": "Maintenance window"}
+                ],
+            },
+            "childSubCalendars": [
+                {"subCalendar": {"id": "c-maint", "name": "Maintenance windows"}},
+                {"subCalendar": {"id": "c-pay", "name": "Payroll"}},
+            ],
+        },
+        {"subCalendar": {"id": "p-2", "name": "Absences", "spaceKey": "OPS"}},
+    ]
+}
+
+_EVENTS_BY_CALENDAR = {
+    "c-maint": {
+        "success": True,
+        "events": [
+            {
+                "id": "e-2",
+                "title": "SAP maintenance",
+                "start": "2024-03-07T22:00:00.000+01:00",
+                "end": "2024-03-08T02:00:00.000+01:00",
+                "allDay": False,
+                "eventType": "custom",
+                "className": "campaign",
+                "customEventTypeId": "t-maint",
+            },
+            # events.json pads the range to whole calendar views; this one lies
+            # after end_date and must be dropped.
+            {
+                "id": "e-3",
+                "title": "April maintenance",
+                "start": "2024-04-03T22:00:00.000+02:00",
+                "end": "2024-04-04T02:00:00.000+02:00",
+                "eventType": "custom",
+                "className": "campaign",
+            },
+        ],
+    },
+    "c-pay": {
+        "success": True,
+        "events": [
+            {
+                "id": "e-1",
+                "title": "Payroll run",
+                "start": "2024-03-05T07:00:00.000+01:00",
+                "end": "2024-03-05T08:00:00.000+01:00",
+                "eventType": "custom",
+                "className": "events",
+                "invitees": [{"displayName": "Alice Smith"}],
+            }
+        ],
+    },
+    # An empty calendar answers without an "events" key.
+    "p-2": {"success": True},
+}
+
+
+def _mock_space_calendars(router, *, events: bool = True):
+    subcals = router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+        return_value=Response(200, json=_SPACE_CALENDARS)
+    )
+    if not events:
+        return subcals, None
+    events_route = router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+        side_effect=lambda request: Response(
+            200, json=_EVENTS_BY_CALENDAR[request.url.params["subCalendarId"]]
+        )
+    )
+    return subcals, events_route
+
+
+class TestConfluenceGetCalendarEvents:
+    async def test_all_calendars_one_request_each(self, tool_client):
+        client, router = tool_client
+        _, events = _mock_space_calendars(router)
+        result = await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31"},
+        )
+        parsed = _parse(result)
+        # events.json honours only the first subCalendarId, so each child is
+        # queried on its own; the parent with children is never queried.
+        queried = [c.request.url.params.get_list("subCalendarId") for c in events.calls]
+        assert queried == [["c-maint"], ["c-pay"], ["p-2"]]
+        assert parsed["count"] == 2
+        assert [e["title"] for e in parsed["events"]] == ["Payroll run", "SAP maintenance"]
+        # Category is the custom event type's title when there is one, else className.
+        assert [e["category"] for e in parsed["events"]] == ["events", "Maintenance window"]
+        first = parsed["events"][0]
+        assert first["calendar_name"] == "Payroll"
+        assert first["parent_calendar_name"] == "Operations"
+        assert first["invitees"] == ["Alice Smith"]
+
+    async def test_space_key_sets_space_context(self, tool_client):
+        client, router = tool_client
+        subcals, _ = _mock_space_calendars(router)
+        await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31", "space_key": "OPS"},
+        )
+        params = subcals.calls.last.request.url.params
+        assert params["calendarContext"] == "spaceCalendars"
+        assert params["viewingSpaceKey"] == "OPS"
+
+    async def test_calendar_filter_by_child_name(self, tool_client):
+        client, router = tool_client
+        _, events = _mock_space_calendars(router)
+        result = await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31", "calendar": "maintenance"},
+        )
+        parsed = _parse(result)
+        assert events.call_count == 1
+        assert [e["title"] for e in parsed["events"]] == ["SAP maintenance"]
+
+    async def test_calendar_filter_by_parent_expands_children(self, tool_client):
+        client, router = tool_client
+        _, events = _mock_space_calendars(router)
+        result = await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31", "calendar": "p-1"},
+        )
+        assert events.call_count == 2
+        assert _parse(result)["count"] == 2
+
+    async def test_free_text_date_rejected(self, tool_client):
+        client, _ = tool_client
+        result = await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "March", "end_date": "2024-03-31"},
+            raise_on_error=False,
+        )
+        assert "Unrecognised date 'March'" in _err_body(result)["error"]
+
+
+class TestConfluenceListCalendarsSpace:
+    async def test_space_key_and_child_names(self, tool_client):
+        client, router = tool_client
+        subcals, _ = _mock_space_calendars(router, events=False)
+        result = await client.call_tool("confluence_list_calendars", {"space_key": "OPS"})
+        parsed = _parse(result)
+        assert subcals.calls.last.request.url.params["viewingSpaceKey"] == "OPS"
+        assert parsed["items"][0]["children"] == [
+            {"id": "c-maint", "name": "Maintenance windows"},
+            {"id": "c-pay", "name": "Payroll"},
+        ]
+
+    async def test_without_space_key_no_context(self, tool_client):
+        client, router = tool_client
+        subcals, _ = _mock_space_calendars(router, events=False)
+        await client.call_tool("confluence_list_calendars", {})
+        assert "viewingSpaceKey" not in subcals.calls.last.request.url.params
+
+
+class TestLeaveKeywords:
+    async def test_configured_keyword_finds_german_calendar(self):
+        config = ConfluenceConfig(
+            url=TEST_CONFLUENCE_URL, token="t", leave_keywords=("abwesenheit",)
+        )
+        client = ConfluenceExtendedClient(config)
+        payload = {"payload": [{"subCalendar": {"id": "a", "name": "Abwesenheiten"}}]}
+        async with respx.mock(base_url=TEST_CONFLUENCE_URL) as router:
+            router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+                return_value=Response(200, json=payload)
+            )
+            assert len(await client.get_all_leave_calendars()) == 1
+        await client.close()
 
 
 # ═══════════════════════════════════════════════════════
