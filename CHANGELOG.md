@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.2] - 2026-11-04
+
+### Chores
+- chore(deps): bump fastmcp to 4.1.2 and opentelemetry to 1.45.1 (05a8450)
+
+
 ## [0.16.1] - 2026-11-04
 
 ### Bug Fixes
