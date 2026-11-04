@@ -369,14 +369,14 @@ Tags: confluence, calendars, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 #### `confluence_get_calendar_events`
-Get events of any type from Team Calendars in a date range. Returns title, start, end, category, description, invitees and calendar name, sorted by start. Events live on child calendars, so a matched parent calendar is expanded into its children; one request is sent per calendar, because `events.json` answers only for the first `subCalendarId` of a query. The API pads the range to whole calendar views, so events outside `[start_date, end_date]` are dropped.
+Get events of any type from Team Calendars in a date range. Returns title, start, end, category, description, invitees and calendar name, sorted by start. Events live on child calendars, so a matched parent calendar is expanded into its children; one request is sent per calendar (at most 5 at a time), because `events.json` answers only for the first `subCalendarId` of a query. The API pads the range to whole calendar views, so events outside `[start_date, end_date]` are dropped; for all-day events `events.json` returns an inclusive `end`. A `calendar` that matches nothing is an error that points to `confluence_list_calendars`, not an empty result.
 
 Parameters:
 - `start_date` (str, required): Start date (YYYY-MM-DD, "today", "+14d", etc.)
 - `end_date` (str, required): End date (YYYY-MM-DD, "today", "+14d", etc.), inclusive
 - `space_key` (str, optional): Read the calendars of this space (e.g. "EAP"); without it, only calendars the user subscribed to
 - `calendar` (str, optional): Calendar ID, or part of a parent or child calendar name
-- `time_zone` (str, optional): IANA time zone for event times (e.g. "Europe/Zurich"); default UTC
+- `time_zone` (str, optional): IANA time zone for event times (e.g. "Europe/Zurich"), sent as `userTimeZoneId`. Omitted: times as Team Calendars returns them (UTC on Data Center in testing)
 
 Tags: confluence, calendars, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true

@@ -67,31 +67,24 @@ async def confluence_list_calendars(
         ),
     ] = None,
 ) -> ToolResult:
-    """List Confluence calendars, optionally narrowed by type or a name/space search."""
+    """List Confluence calendars, optionally narrowed by type or a name/space search.
+    Pass ``space_key`` to list every calendar of a space, not only subscribed ones."""
     data = await _get_confluence(ctx).list_calendars(space_key)
+
+    def field(wrapper: dict, key: str) -> str:
+        return ((wrapper.get("subCalendar") or {}).get(key) or "").lower()
+
     if filter_type:
         ft = filter_type.lower()
-        data = [
-            w
-            for w in data
-            if ft in w.get("subCalendar", {}).get("typeKey", "").lower()
-            or ft in w.get("subCalendar", {}).get("name", "").lower()
-        ]
+        data = [w for w in data if ft in field(w, "typeKey") or ft in field(w, "name")]
     if search:
         q = search.lower()
-        data = [
-            w
-            for w in data
-            if any(
-                q in w.get("subCalendar", {}).get(k, "").lower()
-                for k in ("name", "spaceName", "spaceKey")
-            )
-        ]
+        data = [w for w in data if any(q in field(w, k) for k in ("name", "spaceName", "spaceKey"))]
     # Simplify output
     result = []
     for wrapper in data:
-        sub = wrapper.get("subCalendar", {})
-        children = wrapper.get("childSubCalendars", [])
+        sub = wrapper.get("subCalendar") or {}
+        children = [c.get("subCalendar") or {} for c in wrapper.get("childSubCalendars") or []]
         result.append(
             {
                 "id": sub.get("id"),
@@ -100,14 +93,8 @@ async def confluence_list_calendars(
                 "space_key": sub.get("spaceKey"),
                 "space_name": sub.get("spaceName"),
                 "child_count": len(children),
-                "child_ids": [c.get("subCalendar", {}).get("id") for c in children],
-                "children": [
-                    {
-                        "id": c.get("subCalendar", {}).get("id"),
-                        "name": c.get("subCalendar", {}).get("name"),
-                    }
-                    for c in children
-                ],
+                "child_ids": [c.get("id") for c in children],
+                "children": [{"id": c.get("id"), "name": c.get("name")} for c in children],
             }
         )
     return _paginated(result)
@@ -121,7 +108,9 @@ async def confluence_list_calendars(
 async def confluence_get_calendar_events(
     ctx: Context,
     start_date: Annotated[str, Field(description="Start date (YYYY-MM-DD, 'today', '+14d', etc.)")],
-    end_date: Annotated[str, Field(description="End date (YYYY-MM-DD, 'today', '+14d', etc.)")],
+    end_date: Annotated[
+        str, Field(description="End date, inclusive (YYYY-MM-DD, 'today', '+14d', etc.)")
+    ],
     space_key: Annotated[
         str | None,
         Field(description="Read the calendars of this space (e.g. 'EAP'); default: subscribed"),
@@ -132,11 +121,17 @@ async def confluence_get_calendar_events(
     ] = None,
     time_zone: Annotated[
         str | None,
-        Field(description="IANA time zone for event times (e.g. 'Europe/Zurich'); default UTC"),
+        Field(
+            description=(
+                "IANA time zone for event times (e.g. 'Europe/Zurich'). Omitted: times "
+                "as Team Calendars returns them (UTC on Data Center in testing)"
+            )
+        ),
     ] = None,
 ) -> ToolResult:
     """Get events of any type from Team Calendars in a date range. Returns title, start,
-    end, category, description, invitees and calendar name, sorted by start."""
+    end, category, description, invitees and calendar name, sorted by start. An unknown
+    ``calendar`` is an error that points to confluence_list_calendars."""
     start = _resolve_date(start_date)
     end = _resolve_date(end_date)
     events = await _get_confluence(ctx).get_calendar_events(
