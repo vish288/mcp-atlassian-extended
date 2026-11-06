@@ -1,6 +1,6 @@
 # mcp-atlassian-extended — Agent Context
 
-MCP server exposing 22 tools, 15 resources, and 5 prompts for Jira and Confluence
+MCP server exposing 23 tools, 15 resources, and 5 prompts for Jira and Confluence
 operations beyond core CRUD. Complements [mcp-atlassian](https://github.com/sooperset/mcp-atlassian)
 with zero tool overlap: issue creation/update with custom fields, issue links,
 attachments, agile boards and sprints, project versions, team calendars, and sprint
@@ -32,7 +32,7 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 | `src/mcp_atlassian_extended/servers/jira_extended.py` | 11 tools — attachments, users, metadata, versions, backlog |
 | `src/mcp_atlassian_extended/servers/jira_agile.py` | 4 tools — boards, sprints |
 | `src/mcp_atlassian_extended/servers/jira_issues.py` | 4 tools — issues, links |
-| `src/mcp_atlassian_extended/servers/confluence_extended.py` | 3 tools — calendars, time off, capacity |
+| `src/mcp_atlassian_extended/servers/confluence_extended.py` | 4 tools — calendars, calendar events, time off, capacity |
 | `src/mcp_atlassian_extended/servers/resources.py` | 15 MCP resources |
 | `src/mcp_atlassian_extended/servers/prompts.py` | 5 MCP prompts |
 | `src/mcp_atlassian_extended/resources/*.md` | resource bodies (+ `prompts/` subdir for prompt bodies) |
@@ -174,13 +174,13 @@ delete, move, upload, download.
   read-only flags are independent even though both default from `MCP_READ_ONLY` /
   `ATLASSIAN_READ_ONLY`.
 - `jira_download_attachment` carries the `write` tag because it writes to local disk.
-- All current write tools are Jira tools; the three Confluence tools are read-only.
+- All current write tools are Jira tools; the four Confluence tools are read-only.
 
 ### Errors
 
 Never leak stack traces, tokens, or internal paths in error text.
 
-## Tools (22)
+## Tools (23)
 
 | Category | Count | Tools |
 | --- | --- | --- |
@@ -191,7 +191,7 @@ Never leak stack traces, tokens, or internal paths in error text.
 | Jira Metadata | 3 | `jira_list_projects`, `jira_list_fields`, `jira_backlog` |
 | Jira Agile | 4 | `jira_get_board`, `jira_board_config`, `jira_get_sprint`, `jira_move_to_sprint` |
 | Jira Versions | 3 | `jira_get_project_versions`, `jira_create_version`, `jira_update_version` |
-| Confluence Calendars | 3 | `confluence_list_calendars` (type/search filter), `confluence_get_time_off` (date range, optional `person`), `confluence_sprint_capacity` |
+| Confluence Calendars | 4 | `confluence_list_calendars` (type/search/`space_key` filter), `confluence_get_calendar_events` (any event type; date range, `space_key`, `calendar`, `time_zone`), `confluence_get_time_off` (date range, optional `person`), `confluence_sprint_capacity` |
 
 ### Upstream APIs
 
@@ -266,6 +266,7 @@ bodies use `$name` placeholders. An unmatched `$` stays intact and does not rais
 | `CONFLUENCE_USERNAME` + `CONFLUENCE_API_TOKEN` | Basic auth (Cloud) |
 | `CONFLUENCE_TIMEOUT` | Seconds, default `30` |
 | `CONFLUENCE_SSL_VERIFY` | As above |
+| `CONFLUENCE_LEAVE_KEYWORDS` | Comma-separated extra leave-calendar name keywords (lower-cased), added to the built-in English ones |
 | `MCP_READ_ONLY` | Same as `ATLASSIAN_READ_ONLY`; shared name across the mcp-* servers. Either being truthy locks read-only; nothing unlocks it at runtime |
 | `ATLASSIAN_READ_ONLY` | Truthy (anything but `false`/`0`/`no`/`off`/empty) locks writes; read by both configs |
 | `ATLASSIAN_UPLOAD_DIR` | Upload root for `jira_upload_attachment`; default the working directory. Relative values resolve against cwd |
@@ -290,7 +291,7 @@ Gotchas:
   and reads that product's config. Pass the one the calling tool writes to — the two
   read-only flags are independent even though both default from `MCP_READ_ONLY` /
   `ATLASSIAN_READ_ONLY`.
-- All three Confluence calendar tools hit `/rest/calendar-services/1.0/`, which only exists
+- All four Confluence calendar tools hit `/rest/calendar-services/1.0/`, which only exists
   with the Team Calendars add-on. A 404 there raises `TeamCalendarsUnavailableError` so
   the user gets an explanation instead of a bare 404.
 - You configure Jira and Confluence independently. One product configured and the other

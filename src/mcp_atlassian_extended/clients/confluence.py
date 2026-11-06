@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -14,6 +15,25 @@ LEAVE_KEYWORDS = ("vacation", "time off", "leaves", "time-off", "pto")
 
 # Every calendar endpoint lives under the Team Calendars add-on namespace.
 CALENDAR_API = "/rest/calendar-services/1.0/calendar"
+
+# events.json takes one sub-calendar per request; cap how many run at once.
+MAX_CONCURRENT_EVENT_REQUESTS = 5
+
+
+def _overlaps(event: dict, start: str, end: str) -> bool:
+    """Whether *event* overlaps the dates [start, end], both inclusive.
+
+    For all-day events events.json returns an inclusive ``end`` (a one-day
+    event on 25 Dec has start and end on 25 Dec; the iCal export of the same
+    event has the exclusive DTEND 26 Dec). A timed event that ends exactly at
+    midnight on *start* ends before that day begins, so it is left out.
+    """
+    ev_start = event.get("start") or ""
+    ev_end = event.get("end") or ev_start
+    if ev_start[:10] > end or ev_end[:10] < start:
+        return False
+    ends_at_midnight = ev_end[11:19] == "00:00:00" and ev_end != ev_start
+    return not (ev_end[:10] == start and not event.get("allDay") and ends_at_midnight)
 
 
 class ConfluenceExtendedClient:
@@ -47,8 +67,20 @@ class ConfluenceExtendedClient:
 
     # ── Calendars ─────────────────────────────────────────────────
 
-    async def list_calendars(self) -> list[dict]:
-        data = await self._get(f"{CALENDAR_API}/subcalendars.json")
+    @property
+    def leave_keywords(self) -> tuple[str, ...]:
+        """Built-in leave keywords plus any from ``CONFLUENCE_LEAVE_KEYWORDS``."""
+        return LEAVE_KEYWORDS + self.config.leave_keywords
+
+    async def list_calendars(self, space_key: str | None = None) -> list[dict]:
+        """List calendars. Without *space_key* the API returns only the calendars the
+        user subscribed to; with it, every calendar of that space."""
+        params = (
+            {"calendarContext": "spaceCalendars", "viewingSpaceKey": space_key}
+            if space_key
+            else None
+        )
+        data = await self._get(f"{CALENDAR_API}/subcalendars.json", params=params)
         if isinstance(data, dict):
             return data.get("payload", [])
         return data or []
@@ -58,31 +90,143 @@ class ConfluenceExtendedClient:
         sub_calendar_ids: list[str],
         start: str,
         end: str,
+        time_zone: str | None = None,
     ) -> list[dict]:
         """Get events from one or more sub-calendars."""
-        params: list[tuple[str, str]] = [("start", start), ("end", end)]
-        for cal_id in sub_calendar_ids:
-            params.append(("subCalendarId", cal_id))
-        data = await self._get(f"{CALENDAR_API}/events.json", params=params)
-        events = data.get("events", []) if isinstance(data, dict) else data
-        return events or []
+        per_calendar = await self._events_per_calendar(sub_calendar_ids, start, end, time_zone)
+        return [event for page in per_calendar for event in page]
+
+    async def _events_per_calendar(
+        self,
+        sub_calendar_ids: list[str],
+        start: str,
+        end: str,
+        time_zone: str | None,
+    ) -> list[list[dict]]:
+        """Fetch each sub-calendar's events, one list per id in the given order.
+
+        One request per sub-calendar: events.json answers only for the first
+        ``subCalendarId`` when several are passed in one query. The requests run
+        concurrently, at most ``MAX_CONCURRENT_EVENT_REQUESTS`` at a time.
+        """
+        limit = asyncio.Semaphore(MAX_CONCURRENT_EVENT_REQUESTS)
+
+        async def fetch(cal_id: str) -> list[dict]:
+            params: list[tuple[str, str]] = [
+                ("start", start),
+                ("end", end),
+                ("subCalendarId", cal_id),
+            ]
+            if time_zone:
+                params.append(("userTimeZoneId", time_zone))
+            async with limit:
+                data = await self._get(f"{CALENDAR_API}/events.json", params=params)
+            # An empty calendar answers {"success": true} with no "events" key.
+            return (data.get("events") if isinstance(data, dict) else data) or []
+
+        return list(await asyncio.gather(*(fetch(cal_id) for cal_id in sub_calendar_ids)))
+
+    async def get_calendar_events(
+        self,
+        start: str,
+        end: str,
+        space_key: str | None = None,
+        calendar: str | None = None,
+        time_zone: str | None = None,
+    ) -> list[dict]:
+        """Get events of every calendar, optionally narrowed to a space and/or a calendar.
+
+        *calendar* matches a parent or child calendar by exact ID or by name
+        (case-insensitive substring). Events live on the child calendars, so a
+        matched parent is expanded into its children.
+        """
+        wrappers = await self.list_calendars(space_key)
+        wanted = calendar.lower() if calendar else None
+
+        def matches(sub: dict) -> bool:
+            return (
+                wanted is None
+                or sub.get("id") == calendar
+                or wanted in (sub.get("name") or "").lower()
+            )
+
+        # sub-calendar id -> (calendar name, parent calendar name)
+        targets: dict[str, tuple[str, str]] = {}
+        # Custom event types are defined on the parent; their titles are the
+        # category names the Confluence UI shows ("Wartungsfenster", ...).
+        type_titles: dict[str, str] = {}
+        for wrapper in wrappers:
+            parent = wrapper.get("subCalendar") or {}
+            parent_name = parent.get("name") or ""
+            for t in parent.get("customEventTypes") or []:
+                type_titles[t.get("customEventTypeId") or ""] = t.get("title") or ""
+            children = [c.get("subCalendar") or {} for c in wrapper.get("childSubCalendars") or []]
+            parent_hit = matches(parent)
+            for child in children:
+                # A calendar without an id cannot be queried; skip it.
+                if child.get("id") and (parent_hit or matches(child)):
+                    targets[child["id"]] = (child.get("name") or "", parent_name)
+            if not children and parent_hit and parent.get("id"):
+                targets[parent["id"]] = (parent_name, parent_name)
+
+        if calendar and not targets:
+            msg = (
+                f"No calendar matches {calendar!r}"
+                + (f" in space {space_key!r}" if space_key else "")
+                + ". Use confluence_list_calendars to see calendar names and IDs."
+            )
+            raise ValueError(msg)
+
+        ids = list(targets)
+        pages = await self._events_per_calendar(ids, start, end, time_zone)
+        result: list[dict] = []
+        for cal_id, page in zip(ids, pages, strict=True):
+            cal_name, parent_name = targets[cal_id]
+            for event in page:
+                # events.json pads the range to whole calendar views.
+                if not _overlaps(event, start, end):
+                    continue
+                invitees = event.get("invitees") or []
+                result.append(
+                    {
+                        "id": event.get("id"),
+                        "title": event.get("title", ""),
+                        "start": event.get("start"),
+                        "end": event.get("end"),
+                        "all_day": event.get("allDay", False),
+                        "event_type": event.get("eventType"),
+                        "category": type_titles.get(
+                            event.get("customEventTypeId", ""), event.get("className")
+                        ),
+                        "description": event.get("description", ""),
+                        "location": event.get("where"),
+                        "url": event.get("url"),
+                        "invitees": [i.get("displayName") for i in invitees],
+                        "calendar_name": cal_name,
+                        "parent_calendar_name": parent_name,
+                        "calendar_id": cal_id,
+                    }
+                )
+        result.sort(key=lambda e: e["start"] or "")
+        return result
 
     async def get_all_leave_calendars(self) -> list[dict]:
         """Find all calendar wrappers that contain leave/time-off calendars."""
         all_cals = await self.list_calendars()
+        keywords = self.leave_keywords
         result = []
         for wrapper in all_cals:
-            sub = wrapper.get("subCalendar", {})
-            name_lower = sub.get("name", "").lower()
-            if any(kw in name_lower for kw in LEAVE_KEYWORDS):
+            sub = wrapper.get("subCalendar") or {}
+            name_lower = (sub.get("name") or "").lower()
+            if any(kw in name_lower for kw in keywords):
                 result.append(wrapper)
                 continue
             # Check child calendars
-            children = wrapper.get("childSubCalendars", [])
+            children = wrapper.get("childSubCalendars") or []
             for child_wrapper in children:
-                child_sub = child_wrapper.get("subCalendar", {})
-                child_name = child_sub.get("name", "").lower()
-                if any(kw in child_name for kw in LEAVE_KEYWORDS):
+                child_sub = child_wrapper.get("subCalendar") or {}
+                child_name = (child_sub.get("name") or "").lower()
+                if any(kw in child_name for kw in keywords):
                     result.append(wrapper)
                     break
         return result
@@ -99,28 +243,28 @@ class ConfluenceExtendedClient:
             leave_cals = [
                 w
                 for w in leave_cals
-                if calendar_name.lower() in w.get("subCalendar", {}).get("name", "").lower()
+                if calendar_name.lower() in ((w.get("subCalendar") or {}).get("name") or "").lower()
             ]
 
         all_events: list[dict] = []
         for wrapper in leave_cals:
             # Collect child sub-calendar IDs (children-only to avoid API 0-result bug)
             cal_ids: list[str] = []
-            children = wrapper.get("childSubCalendars", [])
+            children = wrapper.get("childSubCalendars") or []
             if children:
                 for child in children:
-                    child_sub = child.get("subCalendar", {})
-                    child_name = child_sub.get("name", "").lower()
-                    if any(kw in child_name for kw in LEAVE_KEYWORDS):
+                    child_sub = child.get("subCalendar") or {}
+                    child_name = (child_sub.get("name") or "").lower()
+                    if child_sub.get("id") and any(kw in child_name for kw in self.leave_keywords):
                         cal_ids.append(child_sub["id"])
-            else:
+            elif (wrapper.get("subCalendar") or {}).get("id"):
                 cal_ids.append(wrapper["subCalendar"]["id"])
 
             if not cal_ids:
                 continue
 
             events = await self.get_events(cal_ids, start, end)
-            cal_name = wrapper.get("subCalendar", {}).get("name", "")
+            cal_name = (wrapper.get("subCalendar") or {}).get("name") or ""
             for event in events:
                 event_type = event.get("eventType", "")
                 class_name = event.get("className", "")
