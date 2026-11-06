@@ -6,7 +6,7 @@
     "mcp-atlassian-extended": {
       "command": "uvx",
       "args": [
-        "mcp-atlassian-extended"
+        "mcp-atlassian-extended@0.16.2"
       ]
     }
   },

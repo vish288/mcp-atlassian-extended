@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import ssl
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 
 import httpx
@@ -699,7 +699,7 @@ class TestRetryAfterParsing:
         assert _http._retry_after_seconds(self._resp("5")) == 5.0
 
     def test_http_date(self) -> None:
-        when = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=100))
+        when = format_datetime(datetime.now(UTC) + timedelta(seconds=100))
         secs = _http._retry_after_seconds(self._resp(when))
         assert secs is not None
         assert 80 <= secs <= 100
