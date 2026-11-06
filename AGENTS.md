@@ -57,8 +57,8 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-CI: `tests.yml` (matrix 3.10–3.13) and `lint.yml` run on every push and PR.
-Ruff is line-length 100, target py310, rules `E,F,B,W,I,N,UP,S,C4,EM,ISC`.
+CI: `tests.yml` (matrix 3.11–3.14) and `lint.yml` run on every push and PR.
+Ruff is line-length 100, target py311, rules `E,F,B,W,I,N,UP,S,C4,EM,ISC`.
 `tests/**` ignores `S101`, `S105`, `S106`.
 
 Shared fixtures live in `tests/conftest.py`: `jira_config`, `confluence_config`,
