@@ -1578,6 +1578,22 @@ class TestCalendarFanoutBound:
         )
         assert _parse(result)["events"] == []
 
+    async def test_unfiltered_calendar_events_over_limit_errors(self, tool_client):
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=self._wrapper_with_children(26))
+        )
+        # No events.json mock: the bound must fail before any such request is sent.
+        parsed = _err_body(
+            await client.call_tool(
+                "confluence_get_calendar_events",
+                {"start_date": "2026-12-01", "end_date": "2026-12-31"},
+                raise_on_error=False,
+            )
+        )
+        assert "max_calendars" in parsed["error"]
+        assert "confluence_list_calendars" in parsed["error"]
+
     async def test_calendar_events_bound_skipped_when_filtered(self, tool_client):
         client, router = tool_client
         router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
@@ -1590,6 +1606,25 @@ class TestCalendarFanoutBound:
         result = await client.call_tool(
             "confluence_get_calendar_events",
             {"start_date": "2026-12-01", "end_date": "2026-12-31", "space_key": "OPS"},
+        )
+        assert _parse(result)["events"] == []
+
+    async def test_time_off_bound_skipped_when_filtered(self, tool_client):
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=self._wrapper_with_children(26))
+        )
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+            return_value=Response(200, json={"success": True})
+        )
+        # A calendar_name filter narrows the query, so the fan-out bound does not apply.
+        result = await client.call_tool(
+            "confluence_get_time_off",
+            {
+                "start_date": "2026-12-01",
+                "end_date": "2026-12-31",
+                "calendar_name": "Team Vacation",
+            },
         )
         assert _parse(result)["events"] == []
 
