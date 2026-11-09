@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from mcp.types import Icon
 
 from ..clients.confluence import ConfluenceExtendedClient
 from ..clients.jira import JiraExtendedClient
@@ -132,6 +133,13 @@ mcp = FastMCP(
     name="Atlassian Extended MCP Server",
     version=version("mcp-atlassian-extended"),
     website_url="https://vish288.github.io/mcp-install?server=mcp-atlassian-extended",
+    icons=[
+        Icon(
+            src="https://raw.githubusercontent.com/vish288/mcp-atlassian-extended/main/assets/icon.svg",
+            mime_type="image/svg+xml",
+            sizes=["any"],
+        )
+    ],
     instructions=(
         "Extended tools for Jira and Confluence that complement mcp-atlassian. "
         "Provides issue creation/update with custom fields, issue links, "

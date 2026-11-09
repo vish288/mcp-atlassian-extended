@@ -106,6 +106,7 @@ async def test_server_identity_and_cache_hints():
         assert info["websiteUrl"] == (
             "https://vish288.github.io/mcp-install?server=mcp-atlassian-extended"
         )
+        assert info["icons"][0]["src"].endswith("mcp-atlassian-extended/main/assets/icon.svg")
 
 
 @pytest.mark.usefixtures("_configured")
