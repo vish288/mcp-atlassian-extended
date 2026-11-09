@@ -88,6 +88,12 @@
       "description": "Directory jira_download_attachment writes into; created on first download. Default: ./atlassian-downloads/.",
       "required": false,
       "sensitive": false
+    },
+    {
+      "name": "CONFLUENCE_LEAVE_KEYWORDS",
+      "description": "Comma-separated extra calendar-name keywords that mark a leave calendar (e.g. abwesenheit,ferien), on top of the built-in English ones",
+      "required": false,
+      "sensitive": false
     }
   ]
 }

@@ -232,6 +232,27 @@ ROWS = [
         host=CONFLUENCE,
         prelude=_EVENTS_PRELUDE,
     ),
+    # "vacation" matches only the child calendar, so exactly one events.json request.
+    Row(
+        "confluence_get_calendar_events",
+        {
+            "start_date": "2024-03-01",
+            "end_date": "2024-03-10",
+            "space_key": "ENG",
+            "calendar": "vacation",
+            "time_zone": "Europe/Zurich",
+        },
+        "GET",
+        EVENTS,
+        [
+            ("start", "2024-03-01"),
+            ("end", "2024-03-10"),
+            ("subCalendarId", "child-1"),
+            ("userTimeZoneId", "Europe/Zurich"),
+        ],
+        host=CONFLUENCE,
+        prelude=_EVENTS_PRELUDE,
+    ),
     Row(
         "confluence_sprint_capacity",
         {"team_members": ["Alice"], "sprint_start": "2024-03-04", "sprint_end": "2024-03-08"},

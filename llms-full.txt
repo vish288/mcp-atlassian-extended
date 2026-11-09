@@ -1,6 +1,6 @@
 # mcp-atlassian-extended
 
-> MCP server extending mcp-atlassian — 22 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, project versions (API v2), calendars, time-off tracking, and sprint capacity planning.
+> MCP server extending mcp-atlassian — 23 tools, 15 resources, and 5 prompts for Jira and Confluence: issue creation with custom fields, issue links, attachments, agile boards, sprints, project versions (API v2), calendars, time-off tracking, and sprint capacity planning.
 
 MCP server that complements mcp-atlassian with zero tool overlap. It provides issue CRUD with custom fields, agile board management, Confluence calendar and time-off tracking, and sprint capacity planning. It supports the MCP 2026-07-28 specification (MCP 2.0) and stays compatible with 2025-11-25 clients. Built with FastMCP, httpx, and Pydantic.
 
@@ -19,7 +19,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 
 ## Documentation
 
-- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 22 tools, 15 resources, 5 prompts
+- [README](https://github.com/vish288/mcp-atlassian-extended#readme): canonical reference for setup, env vars, all 23 tools, 15 resources, 5 prompts
 - [PyPI](https://pypi.org/project/mcp-atlassian-extended/): install via `pip install mcp-atlassian-extended` or `uvx mcp-atlassian-extended`
 - [GitHub](https://github.com/vish288/mcp-atlassian-extended): source code, issue tracker, development setup
 - [MCP Registry](https://registry.modelcontextprotocol.io): discover and install MCP servers
@@ -76,6 +76,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 | `JIRA_SSL_VERIFY` | `true` | Skip SSL verification for Jira |
 | `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
 | `CONFLUENCE_SSL_VERIFY` | `true` | Skip SSL verification for Confluence |
+| `CONFLUENCE_LEAVE_KEYWORDS` | - | Comma-separated extra calendar-name keywords that mark a leave calendar for `confluence_get_time_off` / `confluence_sprint_capacity`, on top of the built-in English ones (e.g. `abwesenheit,ferien`) |
 
 ### Attachment roots
 
@@ -91,9 +92,9 @@ Basic auth wins. If you set both `JIRA_USERNAME` and `JIRA_API_TOKEN`, the serve
 
 ### Team Calendars add-on
 
-All three Confluence tools call `/rest/calendar-services/1.0/`, which exists only with the **Team Calendars** add-on. Without it, every Confluence tool returns a 404 whose hint names the add-on.
+All four Confluence tools call `/rest/calendar-services/1.0/`, which exists only with the **Team Calendars** add-on. Without it, every Confluence tool returns a 404 whose hint names the add-on.
 
-You configure Jira and Confluence independently, so set either or both. The server always advertises all 22 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server loads `.env` files from the working directory automatically.
+You configure Jira and Confluence independently, so set either or both. The server always advertises all 23 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server loads `.env` files from the working directory automatically.
 
 ## Configuration Example
 
@@ -136,7 +137,7 @@ JIRA_PAT=xxx uvx mcp-atlassian-extended --jira-url https://jira.example.com --re
 
 ---
 
-## Tools (22) — Full Reference
+## Tools (23) — Full Reference
 
 ### Jira Issues (2)
 
@@ -354,7 +355,7 @@ Parameters:
 Tags: jira, versions, write
 Annotations: readOnlyHint=false, idempotentHint=true, openWorldHint=true
 
-### Confluence Calendars (3)
+### Confluence Calendars (4)
 
 #### `confluence_list_calendars`
 List Confluence calendars, optionally narrowed by type or a name/space search.
@@ -362,6 +363,20 @@ List Confluence calendars, optionally narrowed by type or a name/space search.
 Parameters:
 - `filter_type` (str, optional): Filter by calendar type (e.g. "leaves")
 - `search` (str, optional): Filter by calendar name, space name, or space key (case-insensitive)
+- `space_key` (str, optional): List every calendar of this space (e.g. "EAP"); without it, only calendars the user subscribed to
+
+Tags: confluence, calendars, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
+
+#### `confluence_get_calendar_events`
+Get events of any type from Team Calendars in a date range. Returns title, start, end, category, description, invitees and calendar name, sorted by start. Events live on child calendars, so a matched parent calendar is expanded into its children; one request is sent per calendar (at most 5 at a time), because `events.json` answers only for the first `subCalendarId` of a query. The API pads the range to whole calendar views, so events outside `[start_date, end_date]` are dropped; for all-day events `events.json` returns an inclusive `end`. A `calendar` that matches nothing is an error that points to `confluence_list_calendars`, not an empty result; so is a `start_date` after `end_date` or an unknown `time_zone`.
+
+Parameters:
+- `start_date` (str, required): Start date (YYYY-MM-DD, "today", "+14d", etc.)
+- `end_date` (str, required): End date (YYYY-MM-DD, "today", "+14d", etc.), inclusive
+- `space_key` (str, optional): Read the calendars of this space (e.g. "EAP"); without it, only calendars the user subscribed to
+- `calendar` (str, optional): Calendar ID, or part of a parent or child calendar name
+- `time_zone` (str, optional): IANA time zone for event times (e.g. "Europe/Zurich"), validated against the IANA database and sent as `userTimeZoneId`. Omitted: times as Team Calendars returns them (UTC on Data Center in testing)
 
 Tags: confluence, calendars, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true

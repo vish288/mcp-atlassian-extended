@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastmcp import Context
 from fastmcp.tools import ToolResult
@@ -43,6 +44,31 @@ def _resolve_date(value: str) -> str:
         raise ValueError(msg) from None
 
 
+def _resolve_range(start_date: str, end_date: str) -> tuple[str, str]:
+    """Resolve both dates and reject a range whose start lies after its end."""
+    start = _resolve_date(start_date)
+    end = _resolve_date(end_date)
+    if start > end:
+        msg = f"start_date {start} is after end_date {end}"
+        raise ValueError(msg)
+    return start, end
+
+
+def _check_time_zone(value: str | None) -> str | None:
+    """Reject a time zone that is not a valid IANA name (e.g. 'Europe/Zurich')."""
+    if value is None:
+        return None
+    value = value.strip()
+    try:
+        ZoneInfo(value)
+    # ZoneInfo raises ValueError for malformed keys and OSError when the key
+    # names a directory of the zone database (e.g. "Europe").
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        msg = f"Unknown time zone {value!r}; use an IANA name such as 'Europe/Zurich'"
+        raise ValueError(msg) from None
+    return value
+
+
 @mcp.tool(
     tags={"confluence", "calendars", "read"},
     annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
@@ -57,32 +83,34 @@ async def confluence_list_calendars(
         str | None,
         Field(description="Filter by calendar name, space name, or space key (case-insensitive)"),
     ] = None,
+    space_key: Annotated[
+        str | None,
+        Field(
+            description=(
+                "List every calendar of this space (e.g. 'EAP'). Without it, only "
+                "calendars the user subscribed to are returned"
+            )
+        ),
+    ] = None,
 ) -> ToolResult:
-    """List Confluence calendars, optionally narrowed by type or a name/space search."""
-    data = await _get_confluence(ctx).list_calendars()
+    """List Confluence calendars, optionally narrowed by type or a name/space search.
+    Pass ``space_key`` to list every calendar of a space, not only subscribed ones."""
+    data = await _get_confluence(ctx).list_calendars(space_key)
+
+    def field(wrapper: dict, key: str) -> str:
+        return ((wrapper.get("subCalendar") or {}).get(key) or "").lower()
+
     if filter_type:
         ft = filter_type.lower()
-        data = [
-            w
-            for w in data
-            if ft in w.get("subCalendar", {}).get("typeKey", "").lower()
-            or ft in w.get("subCalendar", {}).get("name", "").lower()
-        ]
+        data = [w for w in data if ft in field(w, "typeKey") or ft in field(w, "name")]
     if search:
         q = search.lower()
-        data = [
-            w
-            for w in data
-            if any(
-                q in w.get("subCalendar", {}).get(k, "").lower()
-                for k in ("name", "spaceName", "spaceKey")
-            )
-        ]
+        data = [w for w in data if any(q in field(w, k) for k in ("name", "spaceName", "spaceKey"))]
     # Simplify output
     result = []
     for wrapper in data:
-        sub = wrapper.get("subCalendar", {})
-        children = wrapper.get("childSubCalendars", [])
+        sub = wrapper.get("subCalendar") or {}
+        children = [c.get("subCalendar") or {} for c in wrapper.get("childSubCalendars") or []]
         result.append(
             {
                 "id": sub.get("id"),
@@ -91,10 +119,50 @@ async def confluence_list_calendars(
                 "space_key": sub.get("spaceKey"),
                 "space_name": sub.get("spaceName"),
                 "child_count": len(children),
-                "child_ids": [c.get("subCalendar", {}).get("id") for c in children],
+                "child_ids": [c.get("id") for c in children],
+                "children": [{"id": c.get("id"), "name": c.get("name")} for c in children],
             }
         )
     return _paginated(result)
+
+
+@mcp.tool(
+    tags={"confluence", "calendars", "read"},
+    annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
+)
+@tool_result
+async def confluence_get_calendar_events(
+    ctx: Context,
+    start_date: Annotated[str, Field(description="Start date (YYYY-MM-DD, 'today', '+14d', etc.)")],
+    end_date: Annotated[
+        str, Field(description="End date, inclusive (YYYY-MM-DD, 'today', '+14d', etc.)")
+    ],
+    space_key: Annotated[
+        str | None,
+        Field(description="Read the calendars of this space (e.g. 'EAP'); default: subscribed"),
+    ] = None,
+    calendar: Annotated[
+        str | None,
+        Field(description="Calendar ID, or part of a parent or child calendar name"),
+    ] = None,
+    time_zone: Annotated[
+        str | None,
+        Field(
+            description=(
+                "IANA time zone for event times (e.g. 'Europe/Zurich'). Omitted: times "
+                "as Team Calendars returns them (UTC on Data Center in testing)"
+            )
+        ),
+    ] = None,
+) -> ToolResult:
+    """Get events of any type from Team Calendars in a date range. Returns title, start,
+    end, category, description, invitees and calendar name, sorted by start. An unknown
+    ``calendar`` is an error that points to confluence_list_calendars."""
+    start, end = _resolve_range(start_date, end_date)
+    events = await _get_confluence(ctx).get_calendar_events(
+        start, end, space_key=space_key, calendar=calendar, time_zone=_check_time_zone(time_zone)
+    )
+    return _ok({"start": start, "end": end, "events": events, "count": len(events)})
 
 
 @mcp.tool(
@@ -118,8 +186,7 @@ async def confluence_get_time_off(
     Pass ``person`` for one person's events, or a single day for ``start_date`` and
     ``end_date`` to see who is out on that day.
     """
-    start = _resolve_date(start_date)
-    end = _resolve_date(end_date)
+    start, end = _resolve_range(start_date, end_date)
     events = await _get_confluence(ctx).get_time_off_events(start, end, calendar_name)
 
     if person:
