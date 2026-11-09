@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastmcp import Context
 from fastmcp.tools import ToolResult
@@ -41,6 +42,31 @@ def _resolve_date(value: str) -> str:
             "'tomorrow', '+Nd', '-Nd' or 'next week'"
         )
         raise ValueError(msg) from None
+
+
+def _resolve_range(start_date: str, end_date: str) -> tuple[str, str]:
+    """Resolve both dates and reject a range whose start lies after its end."""
+    start = _resolve_date(start_date)
+    end = _resolve_date(end_date)
+    if start > end:
+        msg = f"start_date {start} is after end_date {end}"
+        raise ValueError(msg)
+    return start, end
+
+
+def _check_time_zone(value: str | None) -> str | None:
+    """Reject a time zone that is not a valid IANA name (e.g. 'Europe/Zurich')."""
+    if value is None:
+        return None
+    value = value.strip()
+    try:
+        ZoneInfo(value)
+    # ZoneInfo raises ValueError for malformed keys and OSError when the key
+    # names a directory of the zone database (e.g. "Europe").
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        msg = f"Unknown time zone {value!r}; use an IANA name such as 'Europe/Zurich'"
+        raise ValueError(msg) from None
+    return value
 
 
 @mcp.tool(
@@ -132,10 +158,9 @@ async def confluence_get_calendar_events(
     """Get events of any type from Team Calendars in a date range. Returns title, start,
     end, category, description, invitees and calendar name, sorted by start. An unknown
     ``calendar`` is an error that points to confluence_list_calendars."""
-    start = _resolve_date(start_date)
-    end = _resolve_date(end_date)
+    start, end = _resolve_range(start_date, end_date)
     events = await _get_confluence(ctx).get_calendar_events(
-        start, end, space_key=space_key, calendar=calendar, time_zone=time_zone
+        start, end, space_key=space_key, calendar=calendar, time_zone=_check_time_zone(time_zone)
     )
     return _ok({"start": start, "end": end, "events": events, "count": len(events)})
 
@@ -161,8 +186,7 @@ async def confluence_get_time_off(
     Pass ``person`` for one person's events, or a single day for ``start_date`` and
     ``end_date`` to see who is out on that day.
     """
-    start = _resolve_date(start_date)
-    end = _resolve_date(end_date)
+    start, end = _resolve_range(start_date, end_date)
     events = await _get_confluence(ctx).get_time_off_events(start, end, calendar_name)
 
     if person:

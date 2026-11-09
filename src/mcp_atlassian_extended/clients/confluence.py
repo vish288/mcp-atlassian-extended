@@ -159,7 +159,10 @@ class ConfluenceExtendedClient:
             parent = wrapper.get("subCalendar") or {}
             parent_name = parent.get("name") or ""
             for t in parent.get("customEventTypes") or []:
-                type_titles[t.get("customEventTypeId") or ""] = t.get("title") or ""
+                # A type without an id cannot be referenced; storing it under ""
+                # would give its title to every event without a custom type.
+                if t.get("customEventTypeId"):
+                    type_titles[t["customEventTypeId"]] = t.get("title") or ""
             children = [c.get("subCalendar") or {} for c in wrapper.get("childSubCalendars") or []]
             parent_hit = matches(parent)
             for child in children:
@@ -196,7 +199,7 @@ class ConfluenceExtendedClient:
                         "all_day": event.get("allDay", False),
                         "event_type": event.get("eventType"),
                         "category": type_titles.get(
-                            event.get("customEventTypeId", ""), event.get("className")
+                            event.get("customEventTypeId") or "", event.get("className")
                         ),
                         "description": event.get("description", ""),
                         "location": event.get("where"),

@@ -1118,6 +1118,61 @@ class TestConfluenceGetCalendarEvents:
         )
         assert "Unrecognised date 'March'" in _err_body(result)["error"]
 
+    @pytest.mark.parametrize("tool", ["confluence_get_calendar_events", "confluence_get_time_off"])
+    async def test_start_after_end_rejected(self, tool_client, tool):
+        """No route is mocked: the range is rejected before any request is sent."""
+        client, _ = tool_client
+        result = await client.call_tool(
+            tool, {"start_date": "2024-03-31", "end_date": "2024-03-01"}, raise_on_error=False
+        )
+        assert _err_body(result)["error"] == "start_date 2024-03-31 is after end_date 2024-03-01"
+
+    @pytest.mark.parametrize("zone", ["Mars/Base", "Europe", "../etc/passwd", ""])
+    async def test_invalid_time_zone_rejected(self, tool_client, zone):
+        client, _ = tool_client
+        result = await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31", "time_zone": zone},
+            raise_on_error=False,
+        )
+        assert _err_body(result)["error"].startswith(f"Unknown time zone {zone!r}")
+
+    async def test_time_zone_is_stripped(self, tool_client):
+        client, router = tool_client
+        _, events = _mock_space_calendars(router)
+        await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31", "time_zone": " Europe/Zurich "},
+        )
+        zones = {c.request.url.params["userTimeZoneId"] for c in events.calls}
+        assert zones == {"Europe/Zurich"}
+
+    async def test_custom_type_without_id_is_ignored(self, tool_client):
+        """A type without an id must not become the category of untyped events."""
+        client, router = tool_client
+        payload = {
+            "payload": [
+                {
+                    "subCalendar": {
+                        "id": "c",
+                        "name": "C",
+                        "customEventTypes": [{"title": "Orphan type"}],
+                    }
+                }
+            ]
+        }
+        event = {"id": "e", "title": "Plain", "start": "2024-03-05", "className": "events"}
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=payload)
+        )
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+            return_value=Response(200, json={"events": [event]})
+        )
+        result = await client.call_tool(
+            "confluence_get_calendar_events", {"start_date": "2024-03-01", "end_date": "2024-03-31"}
+        )
+        assert [e["category"] for e in _parse(result)["events"]] == ["events"]
+
     async def test_unknown_calendar_is_an_error(self, tool_client):
         client, router = tool_client
         _mock_space_calendars(router, events=False)
