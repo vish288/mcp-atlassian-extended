@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0] - 2026-11-09
+
+### Features
+- feat(confluence): bound the unfiltered Team Calendars fan-out (ec8f985)
+
+### Bug Fixes
+- fix(confluence): align allDay default and widen no-sub-calendar error (e28fdb9)
+
+### Tests
+- test(confluence): mirror the fan-out bound cases across both tools (9dc1cb9)
+
+
 ## [0.18.0] - 2026-11-09
 
 ### Features
