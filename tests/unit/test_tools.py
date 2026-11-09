@@ -1218,6 +1218,62 @@ class TestConfluenceGetCalendarEvents:
         assert _parse(result)["count"] == 0
         assert [c.request.url.params["subCalendarId"] for c in events.calls] == ["c-2"]
 
+    async def test_time_zone_omitted_sends_no_param(self, tool_client):
+        """Without time_zone the request carries no userTimeZoneId at all."""
+        client, router = tool_client
+        _, events = _mock_space_calendars(router)
+        await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31"},
+        )
+        assert all("userTimeZoneId" not in c.request.url.params for c in events.calls)
+
+    async def test_concurrent_subcalendar_404_surfaces_addon_error(self, tool_client):
+        """A 404 on one of several concurrent sub-calendar requests surfaces the
+        Team Calendars envelope, not a bare or partial result."""
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=_SPACE_CALENDARS)
+        )
+
+        def answer(request):
+            if request.url.params["subCalendarId"] == "c-pay":
+                return Response(404, text="not found")
+            return Response(200, json={"success": True})
+
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(side_effect=answer)
+        parsed = _err_body(
+            await client.call_tool(
+                "confluence_get_calendar_events",
+                {"start_date": "2024-03-01", "end_date": "2024-03-31"},
+                raise_on_error=False,
+            )
+        )
+        assert parsed["status_code"] == 404
+        assert "Team Calendars add-on" in parsed["hint"]
+
+    async def test_matched_calendar_without_queryable_subcalendars(self, tool_client):
+        """A calendar matches by name but all its children lack an id — a distinct
+        error from matching nothing at all."""
+        client, router = tool_client
+        payload = {
+            "payload": [
+                {
+                    "subCalendar": {"id": "p", "name": "Holidays"},
+                    "childSubCalendars": [{"subCalendar": {"name": "No id"}}],
+                }
+            ]
+        }
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=payload)
+        )
+        result = await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2024-03-01", "end_date": "2024-03-31", "calendar": "holidays"},
+            raise_on_error=False,
+        )
+        assert _err_body(result)["error"] == "Calendar 'holidays' has no queryable sub-calendars"
+
 
 # Real all-day events as events.json returns them (Team Calendars for Data Center,
 # userTimeZoneId=Europe/Zurich): "end" is inclusive. A one-day holiday has start
@@ -1334,6 +1390,47 @@ class TestTimeOffAcrossLeaveCalendars:
         names = sorted(e["person_name"] for e in _parse(result)["events"])
         assert names == ["Alice Smith", "Bob Jones"]
 
+    async def test_leave_outside_range_is_dropped(self, tool_client):
+        """Team Calendars pads events.json to whole views, so a November query
+        still returns December leave; the range filter removes it (fold-in fix)."""
+        client, router = tool_client
+        payload = {"payload": [{"subCalendar": {"id": "cal", "name": "Vacation"}}]}
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=payload)
+        )
+        events = {
+            "events": [
+                {
+                    "id": "nov",
+                    "title": "November leave",
+                    "eventType": "leaves",
+                    "allDay": True,
+                    "start": "2026-11-20T00:00:00.000+01:00",
+                    "end": "2026-11-21T00:00:00.000+01:00",
+                    "subCalendarId": "cal",
+                    "invitees": [{"displayName": "Alice Smith"}],
+                },
+                {
+                    "id": "dec",
+                    "title": "December leave",
+                    "eventType": "leaves",
+                    "allDay": True,
+                    "start": "2026-12-24T00:00:00.000+01:00",
+                    "end": "2026-12-26T00:00:00.000+01:00",
+                    "subCalendarId": "cal",
+                    "invitees": [{"displayName": "Bob Jones"}],
+                },
+            ]
+        }
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+            return_value=Response(200, json=events)
+        )
+        result = await client.call_tool(
+            "confluence_get_time_off", {"start_date": "2026-11-01", "end_date": "2026-11-30"}
+        )
+        names = [e["person_name"] for e in _parse(result)["events"]]
+        assert names == ["Alice Smith"]
+
 
 class TestConfluenceListCalendarsSpace:
     async def test_space_key_and_child_names(self, tool_client):
@@ -1377,12 +1474,14 @@ class TestLeaveKeywords:
         )
         client = ConfluenceExtendedClient(config)
         payload = {"payload": [{"subCalendar": {"id": "a", "name": "Abwesenheiten"}}]}
-        async with respx.mock(base_url=TEST_CONFLUENCE_URL) as router:
-            router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
-                return_value=Response(200, json=payload)
-            )
-            assert len(await client.get_all_leave_calendars()) == 1
-        await client.close()
+        try:
+            async with respx.mock(base_url=TEST_CONFLUENCE_URL) as router:
+                router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+                    return_value=Response(200, json=payload)
+                )
+                assert len(await client.get_all_leave_calendars()) == 1
+        finally:
+            await client.close()
 
 
 # ═══════════════════════════════════════════════════════

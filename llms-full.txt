@@ -15,7 +15,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 - **Required env vars** (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 - **Required env vars** (Jira DC): `JIRA_URL`, `JIRA_PAT`
 - **Optional env vars** (Confluence): `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` (or `CONFLUENCE_PAT` for DC)
-- **Optional env vars**: `MCP_READ_ONLY` / `ATLASSIAN_READ_ONLY` (lock read-only), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`
+- **Optional env vars**: `MCP_READ_ONLY` / `ATLASSIAN_READ_ONLY` (lock read-only), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`, `CONFLUENCE_LEAVE_KEYWORDS` (extra leave-calendar name keywords)
 
 ## Documentation
 
@@ -358,7 +358,7 @@ Annotations: readOnlyHint=false, idempotentHint=true, openWorldHint=true
 ### Confluence Calendars (4)
 
 #### `confluence_list_calendars`
-List Confluence calendars, optionally narrowed by type or a name/space search.
+List Confluence calendars, optionally narrowed by type or a name/space search. Each calendar carries `id`, `name`, `type`, `space_key`, `space_name`, `child_count`, `child_ids`, and `children` — the last a list of `{id, name}` for every child sub-calendar, so a parent and its queryable children can be passed straight to `confluence_get_calendar_events`.
 
 Parameters:
 - `filter_type` (str, optional): Filter by calendar type (e.g. "leaves")

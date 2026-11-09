@@ -152,6 +152,8 @@ class ConfluenceExtendedClient:
 
         # sub-calendar id -> (calendar name, parent calendar name)
         targets: dict[str, tuple[str, str]] = {}
+        # Whether *calendar* matched any calendar at all, queryable or not.
+        matched = False
         # Custom event types are defined on the parent; their titles are the
         # category names the Confluence UI shows ("Wartungsfenster", ...).
         type_titles: dict[str, str] = {}
@@ -165,14 +167,20 @@ class ConfluenceExtendedClient:
                     type_titles[t["customEventTypeId"]] = t.get("title") or ""
             children = [c.get("subCalendar") or {} for c in wrapper.get("childSubCalendars") or []]
             parent_hit = matches(parent)
+            matched = matched or parent_hit
             for child in children:
+                child_hit = parent_hit or matches(child)
+                matched = matched or child_hit
                 # A calendar without an id cannot be queried; skip it.
-                if child.get("id") and (parent_hit or matches(child)):
+                if child.get("id") and child_hit:
                     targets[child["id"]] = (child.get("name") or "", parent_name)
             if not children and parent_hit and parent.get("id"):
                 targets[parent["id"]] = (parent_name, parent_name)
 
         if calendar and not targets:
+            if matched:
+                msg = f"Calendar {calendar!r} has no queryable sub-calendars"
+                raise ValueError(msg)
             msg = (
                 f"No calendar matches {calendar!r}"
                 + (f" in space {space_key!r}" if space_key else "")
@@ -269,6 +277,10 @@ class ConfluenceExtendedClient:
             events = await self.get_events(cal_ids, start, end)
             cal_name = (wrapper.get("subCalendar") or {}).get("name") or ""
             for event in events:
+                # events.json pads the range to whole calendar views, so a
+                # November query still returns the surrounding December leave.
+                if not _overlaps(event, start, end):
+                    continue
                 event_type = event.get("eventType", "")
                 class_name = event.get("className", "")
                 if event_type == "leaves" or class_name == "leaves":

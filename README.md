@@ -300,7 +300,7 @@ All Confluence calendar tools require the **Team Calendars** add-on
 ### Confluence Calendars
 | Tool | Description |
 |------|-------------|
-| `confluence_list_calendars` | List calendars; optional `filter_type`, name/space `search`, and `space_key` (all calendars of a space, not only subscribed ones) |
+| `confluence_list_calendars` | List calendars; optional `filter_type`, name/space `search`, and `space_key` (all calendars of a space, not only subscribed ones). Each result carries a `children` list of `{id, name}` for its child sub-calendars |
 | `confluence_get_calendar_events` | Events of any type in a date range; optional `space_key`, `calendar` (ID or name), `time_zone` |
 | `confluence_get_time_off` | Time-off events for a date range; optional `person` (exact match) and `group_by_person` |
 | `confluence_sprint_capacity` | Calculate sprint capacity with time-off |

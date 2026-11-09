@@ -60,8 +60,9 @@ dependencies = [
     "pydantic>=2.10.0,<3.0",
     "python-dotenv>=1.0.1,<2",
     "click>=8.1.7,<9",
-    # zoneinfo has no IANA database of its own on Windows.
-    "tzdata>=2024.1; sys_platform == 'win32'",
+    # zoneinfo only falls back to the tzdata package; slim/distroless Linux
+    # images ship no system IANA database either, so install it everywhere.
+    "tzdata>=2024.1,<2027",
 ]
 
 [project.urls]
