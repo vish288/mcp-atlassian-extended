@@ -30,6 +30,7 @@ Built with [FastMCP](https://github.com/jlowin/fastmcp), [httpx](https://www.pyt
 - It stays compatible with **2025-11-25** clients.
 - Transports: `stdio` (default) and `streamable-http` (recommended for remote clients). The `sse` transport still works, but the 2026-07-28 specification deprecates it, so the server prints a warning.
 - The server uses no roots, sampling, logging, elicitation, or resource subscriptions. The 2026-07-28 deprecations do not affect it.
+- `serverInfo` reports the installed package version and the install page as `websiteUrl`, so every response names the exact release. List results carry the 2026-07-28 cache hints `ttlMs: 300000` (5-minute TTL) and `cacheScope: private` — private because `resources/read` can vary by the per-user token. Both are inert for clients that do not read them.
 - Built on FastMCP 4.x and the MCP Python SDK 2.x.
 
 ### Error results
