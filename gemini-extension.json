@@ -1,12 +1,12 @@
 {
   "name": "mcp-atlassian-extended",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Jira/Confluence MCP server (MCP 2026-07-28): sprints, boards, attachments; writes or read-only",
   "mcpServers": {
     "mcp-atlassian-extended": {
       "command": "uvx",
       "args": [
-        "mcp-atlassian-extended@0.17.0"
+        "mcp-atlassian-extended@0.18.0"
       ]
     }
   },

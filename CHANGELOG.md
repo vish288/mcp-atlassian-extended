@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.18.0] - 2026-11-09
+
+### Features
+- feat(confluence): read events of any type from Team Calendars (792c799)
+- feat: add server icon (registry and identity) (7663c72)
+- feat: cache hints and server identity (5e1502e)
+
+### Bug Fixes
+- fix(confluence): tighten calendar ranges and docs (8d26a51)
+- fix(annotations): require approval on destructive tools (9e35b75)
+- fix(registry): title, websiteUrl and runtimeHint in server.json (ba1bbb3)
+
+### Documentation
+- docs: link contributing and security policy (f9e39d2)
+
+### Chores
+- chore(fleet): template v1.4.1 (97077d7)
+- chore(fleet): template v1.4.0 (b65a3d3)
+- chore(deps): weekly patch 2026-11-08 (ff9e68e)
+- chore(deps): weekly patch 2026-11-06 (deecfda)
+
+
 ## [0.17.0] - 2026-11-06
 
 ### Features
