@@ -1272,7 +1272,10 @@ class TestConfluenceGetCalendarEvents:
             {"start_date": "2024-03-01", "end_date": "2024-03-31", "calendar": "holidays"},
             raise_on_error=False,
         )
-        assert _err_body(result)["error"] == "Calendar 'holidays' has no queryable sub-calendars"
+        assert _err_body(result)["error"] == (
+            "Calendar 'holidays' has no queryable sub-calendars. "
+            "Use confluence_list_calendars to see calendar names and IDs."
+        )
 
 
 # Real all-day events as events.json returns them (Team Calendars for Data Center,
@@ -1430,6 +1433,101 @@ class TestTimeOffAcrossLeaveCalendars:
         )
         names = [e["person_name"] for e in _parse(result)["events"]]
         assert names == ["Alice Smith"]
+
+    @pytest.mark.parametrize(
+        ("start", "end", "names"),
+        [
+            # All-day end is inclusive, so leave ending exactly on start_date and
+            # leave starting exactly on end_date both survive, as does leave that
+            # spans both edges; a timed event ending at 00:00 on start_date does not.
+            (
+                "2026-12-09",
+                "2026-12-12",
+                ["Ends On Start", "Spans Both", "Starts On End"],
+            ),
+            # Tight boundaries: the 09 Dec and 12 Dec edges fall outside 10-11 Dec.
+            ("2026-12-10", "2026-12-11", ["Spans Both"]),
+        ],
+    )
+    async def test_range_edges_inclusive(self, tool_client, start, end, names):
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(
+                200, json={"payload": [{"subCalendar": {"id": "cal", "name": "Vacation"}}]}
+            )
+        )
+
+        def leave(ev_id, who, ev_start, ev_end, *, all_day=True):
+            event = {
+                "id": ev_id,
+                "title": who,
+                "eventType": "leaves",
+                "start": ev_start,
+                "end": ev_end,
+                "subCalendarId": "cal",
+                "invitees": [{"displayName": who}],
+            }
+            if all_day is not None:
+                event["allDay"] = all_day
+            return event
+
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+            return_value=Response(
+                200,
+                json={
+                    "events": [
+                        leave("s", "Ends On Start", "2026-12-01T00:00:00", "2026-12-09T00:00:00"),
+                        leave("e", "Starts On End", "2026-12-12T00:00:00", "2026-12-14T00:00:00"),
+                        leave("b", "Spans Both", "2026-12-01T00:00:00", "2026-12-31T00:00:00"),
+                        leave(
+                            "t",
+                            "Timed Midnight",
+                            "2026-12-08T22:00:00",
+                            "2026-12-09T00:00:00",
+                            all_day=False,
+                        ),
+                    ]
+                },
+            )
+        )
+        result = await client.call_tool(
+            "confluence_get_time_off", {"start_date": start, "end_date": end}
+        )
+        assert sorted(e["person_name"] for e in _parse(result)["events"]) == sorted(names)
+
+    async def test_missing_all_day_defaults_to_timed(self, tool_client):
+        """An event without ``allDay`` is reported as timed (all_day False), so the
+        filter and the output agree on the same default."""
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(
+                200, json={"payload": [{"subCalendar": {"id": "cal", "name": "Vacation"}}]}
+            )
+        )
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+            return_value=Response(
+                200,
+                json={
+                    "events": [
+                        {
+                            "id": "no-flag",
+                            "title": "Carol",
+                            "eventType": "leaves",
+                            "start": "2026-12-10T00:00:00",
+                            "end": "2026-12-12T00:00:00",
+                            "subCalendarId": "cal",
+                            "invitees": [{"displayName": "Carol"}],
+                        }
+                    ]
+                },
+            )
+        )
+        result = await client.call_tool(
+            "confluence_get_time_off", {"start_date": "2026-12-10", "end_date": "2026-12-15"}
+        )
+        events = _parse(result)["events"]
+        assert [e["person_name"] for e in events] == ["Carol"]
+        assert events[0]["all_day"] is False
 
 
 class TestConfluenceListCalendarsSpace:

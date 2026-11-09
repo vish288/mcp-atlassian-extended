@@ -20,6 +20,12 @@ CALENDAR_API = "/rest/calendar-services/1.0/calendar"
 MAX_CONCURRENT_EVENT_REQUESTS = 5
 
 
+def _is_all_day(event: dict) -> bool:
+    """A missing ``allDay`` means timed: ``events.json`` sets it explicitly on real
+    all-day events, so the filter and the output agree on treating absence as False."""
+    return bool(event.get("allDay"))
+
+
 def _overlaps(event: dict, start: str, end: str) -> bool:
     """Whether *event* overlaps the dates [start, end], both inclusive.
 
@@ -33,7 +39,7 @@ def _overlaps(event: dict, start: str, end: str) -> bool:
     if ev_start[:10] > end or ev_end[:10] < start:
         return False
     ends_at_midnight = ev_end[11:19] == "00:00:00" and ev_end != ev_start
-    return not (ev_end[:10] == start and not event.get("allDay") and ends_at_midnight)
+    return not (ev_end[:10] == start and not _is_all_day(event) and ends_at_midnight)
 
 
 class ConfluenceExtendedClient:
@@ -179,7 +185,11 @@ class ConfluenceExtendedClient:
 
         if calendar and not targets:
             if matched:
-                msg = f"Calendar {calendar!r} has no queryable sub-calendars"
+                msg = (
+                    f"Calendar {calendar!r} has no queryable sub-calendars"
+                    + (f" in space {space_key!r}" if space_key else "")
+                    + ". Use confluence_list_calendars to see calendar names and IDs."
+                )
                 raise ValueError(msg)
             msg = (
                 f"No calendar matches {calendar!r}"
@@ -204,7 +214,7 @@ class ConfluenceExtendedClient:
                         "title": event.get("title", ""),
                         "start": event.get("start"),
                         "end": event.get("end"),
-                        "all_day": event.get("allDay", False),
+                        "all_day": _is_all_day(event),
                         "event_type": event.get("eventType"),
                         "category": type_titles.get(
                             event.get("customEventTypeId") or "", event.get("className")
@@ -296,7 +306,7 @@ class ConfluenceExtendedClient:
                             "end_date": event.get("end", "")[:10],
                             "calendar_name": cal_name,
                             "calendar_id": event.get("subCalendarId"),
-                            "all_day": event.get("allDay", True),
+                            "all_day": _is_all_day(event),
                         }
                     )
 

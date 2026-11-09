@@ -36,7 +36,7 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 | `src/mcp_atlassian_extended/servers/resources.py` | 15 MCP resources |
 | `src/mcp_atlassian_extended/servers/prompts.py` | 5 MCP prompts |
 | `src/mcp_atlassian_extended/resources/*.md` | resource bodies (+ `prompts/` subdir for prompt bodies) |
-| `tests/unit/` | unit + FastMCP in-process client tests (~155 tests; `test_tools.py` alone has 66) |
+| `tests/unit/` | unit + FastMCP in-process client tests (~450 tests; `test_tools.py` alone has 108) |
 | `tests/test_links.py` | CI link checker — fetches every URL in README, pyproject, server.json, llms*.txt |
 | `evaluations/eval.xml` | tool-selection eval fixtures |
 

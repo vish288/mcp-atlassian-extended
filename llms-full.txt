@@ -382,7 +382,7 @@ Tags: confluence, calendars, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 #### `confluence_get_time_off`
-Get time-off events for a date range across all leave calendars. Supports relative dates: "today", "tomorrow", "next week", "+14d", "-7d". Pass `person` for one person's events, or a single day for `start_date`/`end_date` to see who is out that day.
+Get time-off events for a date range across all leave calendars. Supports relative dates: "today", "tomorrow", "next week", "+14d", "-7d". Pass `person` for one person's events, or a single day for `start_date`/`end_date` to see who is out that day. Team Calendars pads `events.json` to whole calendar views, so leave outside `[start_date, end_date]` is dropped.
 
 Parameters:
 - `start_date` (str, required): Start date (YYYY-MM-DD, "today", "+14d", etc.)
