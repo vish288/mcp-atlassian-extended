@@ -1530,6 +1530,70 @@ class TestTimeOffAcrossLeaveCalendars:
         assert events[0]["all_day"] is False
 
 
+class TestCalendarFanoutBound:
+    """With no calendar/space filter the query fans out one request per sub-calendar;
+    ``max_calendars`` bounds that so a broad default fails fast with guidance."""
+
+    @staticmethod
+    def _wrapper_with_children(n: int) -> dict:
+        return {
+            "payload": [
+                {
+                    "subCalendar": {"id": "p", "name": "Team Vacation"},
+                    "childSubCalendars": [
+                        {"subCalendar": {"id": f"c{i}", "name": f"Team {i} leaves"}}
+                        for i in range(n)
+                    ],
+                }
+            ]
+        }
+
+    async def test_unfiltered_time_off_over_limit_errors(self, tool_client):
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=self._wrapper_with_children(26))
+        )
+        # No events.json mock: the bound must fail before any such request is sent.
+        parsed = _err_body(
+            await client.call_tool(
+                "confluence_get_time_off",
+                {"start_date": "2026-12-01", "end_date": "2026-12-31"},
+                raise_on_error=False,
+            )
+        )
+        assert "max_calendars" in parsed["error"]
+        assert "confluence_list_calendars" in parsed["error"]
+
+    async def test_raised_limit_lifts_the_bound(self, tool_client):
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=self._wrapper_with_children(26))
+        )
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+            return_value=Response(200, json={"success": True})
+        )
+        result = await client.call_tool(
+            "confluence_get_time_off",
+            {"start_date": "2026-12-01", "end_date": "2026-12-31", "max_calendars": 30},
+        )
+        assert _parse(result)["events"] == []
+
+    async def test_calendar_events_bound_skipped_when_filtered(self, tool_client):
+        client, router = tool_client
+        router.get("/rest/calendar-services/1.0/calendar/subcalendars.json").mock(
+            return_value=Response(200, json=self._wrapper_with_children(26))
+        )
+        router.get("/rest/calendar-services/1.0/calendar/events.json").mock(
+            return_value=Response(200, json={"success": True})
+        )
+        # A space_key filter narrows the query, so the fan-out bound does not apply.
+        result = await client.call_tool(
+            "confluence_get_calendar_events",
+            {"start_date": "2026-12-01", "end_date": "2026-12-31", "space_key": "OPS"},
+        )
+        assert _parse(result)["events"] == []
+
+
 class TestConfluenceListCalendarsSpace:
     async def test_space_key_and_child_names(self, tool_client):
         client, router = tool_client

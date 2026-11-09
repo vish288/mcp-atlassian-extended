@@ -191,7 +191,7 @@ Never leak stack traces, tokens, or internal paths in error text.
 | Jira Metadata | 3 | `jira_list_projects`, `jira_list_fields`, `jira_backlog` |
 | Jira Agile | 4 | `jira_get_board`, `jira_board_config`, `jira_get_sprint`, `jira_move_to_sprint` |
 | Jira Versions | 3 | `jira_get_project_versions`, `jira_create_version`, `jira_update_version` |
-| Confluence Calendars | 4 | `confluence_list_calendars` (type/search/`space_key` filter), `confluence_get_calendar_events` (any event type; date range, `space_key`, `calendar`, `time_zone`), `confluence_get_time_off` (date range, optional `person`), `confluence_sprint_capacity` |
+| Confluence Calendars | 4 | `confluence_list_calendars` (type/search/`space_key` filter), `confluence_get_calendar_events` (any event type; date range, `space_key`, `calendar`, `time_zone`, `max_calendars`), `confluence_get_time_off` (date range, optional `person`, `max_calendars`), `confluence_sprint_capacity` |
 
 ### Upstream APIs
 

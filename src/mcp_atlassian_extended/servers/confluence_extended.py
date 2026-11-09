@@ -154,13 +154,28 @@ async def confluence_get_calendar_events(
             )
         ),
     ] = None,
+    max_calendars: Annotated[
+        int,
+        Field(
+            description=(
+                "With no space_key/calendar filter, refuse the query if more than this "
+                "many calendars would be fetched; narrow the query or raise this limit"
+            ),
+            ge=1,
+        ),
+    ] = 25,
 ) -> ToolResult:
     """Get events of any type from Team Calendars in a date range. Returns title, start,
     end, category, description, invitees and calendar name, sorted by start. An unknown
     ``calendar`` is an error that points to confluence_list_calendars."""
     start, end = _resolve_range(start_date, end_date)
     events = await _get_confluence(ctx).get_calendar_events(
-        start, end, space_key=space_key, calendar=calendar, time_zone=_check_time_zone(time_zone)
+        start,
+        end,
+        space_key=space_key,
+        calendar=calendar,
+        time_zone=_check_time_zone(time_zone),
+        max_calendars=max_calendars,
     )
     return _ok({"start": start, "end": end, "events": events, "count": len(events)})
 
@@ -180,6 +195,16 @@ async def confluence_get_time_off(
         Field(description="Return only this person's events (exact, case-insensitive name match)"),
     ] = None,
     group_by_person: Annotated[bool, Field(description="Group results by person")] = False,
+    max_calendars: Annotated[
+        int,
+        Field(
+            description=(
+                "With no calendar_name filter, refuse the query if more than this many "
+                "leave calendars would be fetched; narrow the query or raise this limit"
+            ),
+            ge=1,
+        ),
+    ] = 25,
 ) -> ToolResult:
     """Get time-off events for a date range across all leave calendars.
 
@@ -187,7 +212,9 @@ async def confluence_get_time_off(
     ``end_date`` to see who is out on that day.
     """
     start, end = _resolve_range(start_date, end_date)
-    events = await _get_confluence(ctx).get_time_off_events(start, end, calendar_name)
+    events = await _get_confluence(ctx).get_time_off_events(
+        start, end, calendar_name, max_calendars=max_calendars
+    )
 
     if person:
         pl = person.lower()

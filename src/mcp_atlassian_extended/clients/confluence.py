@@ -20,6 +20,24 @@ CALENDAR_API = "/rest/calendar-services/1.0/calendar"
 MAX_CONCURRENT_EVENT_REQUESTS = 5
 
 
+# With no calendar/space filter the fan-out is one events.json request per
+# subscribed sub-calendar; a large subscription can send dozens. Bound only
+# that unfiltered path so a broad default query fails fast with guidance
+# instead of hammering the instance; a filter or a raised limit lifts it.
+DEFAULT_MAX_CALENDARS = 25
+
+
+def _check_calendar_fanout(count: int, limit: int) -> None:
+    """Refuse an unfiltered query that would fan out over more than *limit* calendars."""
+    if count > limit:
+        msg = (
+            f"{count} calendars match this query, above the max_calendars limit of {limit}. "
+            "Narrow it with a calendar or space filter, raise max_calendars, or use "
+            "confluence_list_calendars to choose specific calendars."
+        )
+        raise ValueError(msg)
+
+
 def _is_all_day(event: dict) -> bool:
     """A missing ``allDay`` means timed: ``events.json`` sets it explicitly on real
     all-day events, so the filter and the output agree on treating absence as False."""
@@ -139,6 +157,7 @@ class ConfluenceExtendedClient:
         space_key: str | None = None,
         calendar: str | None = None,
         time_zone: str | None = None,
+        max_calendars: int = DEFAULT_MAX_CALENDARS,
     ) -> list[dict]:
         """Get events of every calendar, optionally narrowed to a space and/or a calendar.
 
@@ -199,6 +218,9 @@ class ConfluenceExtendedClient:
             raise ValueError(msg)
 
         ids = list(targets)
+        # Bound only the unfiltered fan-out; a space or calendar filter already narrows it.
+        if calendar is None and space_key is None:
+            _check_calendar_fanout(len(ids), max_calendars)
         pages = await self._events_per_calendar(ids, start, end, time_zone)
         result: list[dict] = []
         for cal_id, page in zip(ids, pages, strict=True):
@@ -257,6 +279,7 @@ class ConfluenceExtendedClient:
         start: str,
         end: str,
         calendar_name: str | None = None,
+        max_calendars: int = DEFAULT_MAX_CALENDARS,
     ) -> list[dict]:
         """Get time-off events across all leave calendars."""
         leave_cals = await self.get_all_leave_calendars()
@@ -267,7 +290,9 @@ class ConfluenceExtendedClient:
                 if calendar_name.lower() in ((w.get("subCalendar") or {}).get("name") or "").lower()
             ]
 
-        all_events: list[dict] = []
+        # Resolve the sub-calendars to query up front so the fan-out can be bounded
+        # before any events.json request is sent.
+        plans: list[tuple[list[str], str]] = []  # (sub-calendar ids, calendar name)
         for wrapper in leave_cals:
             # Collect child sub-calendar IDs (children-only to avoid API 0-result bug)
             cal_ids: list[str] = []
@@ -281,11 +306,16 @@ class ConfluenceExtendedClient:
             elif (wrapper.get("subCalendar") or {}).get("id"):
                 cal_ids.append(wrapper["subCalendar"]["id"])
 
-            if not cal_ids:
-                continue
+            if cal_ids:
+                plans.append((cal_ids, (wrapper.get("subCalendar") or {}).get("name") or ""))
 
+        # Bound only the unfiltered fan-out; a calendar_name filter already narrows it.
+        if calendar_name is None:
+            _check_calendar_fanout(sum(len(ids) for ids, _ in plans), max_calendars)
+
+        all_events: list[dict] = []
+        for cal_ids, cal_name in plans:
             events = await self.get_events(cal_ids, start, end)
-            cal_name = (wrapper.get("subCalendar") or {}).get("name") or ""
             for event in events:
                 # events.json pads the range to whole calendar views, so a
                 # November query still returns the surrounding December leave.

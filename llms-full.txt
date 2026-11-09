@@ -369,7 +369,7 @@ Tags: confluence, calendars, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 #### `confluence_get_calendar_events`
-Get events of any type from Team Calendars in a date range. Returns title, start, end, category, description, invitees and calendar name, sorted by start. Events live on child calendars, so a matched parent calendar is expanded into its children; one request is sent per calendar (at most 5 at a time), because `events.json` answers only for the first `subCalendarId` of a query. The API pads the range to whole calendar views, so events outside `[start_date, end_date]` are dropped; for all-day events `events.json` returns an inclusive `end`. A `calendar` that matches nothing is an error that points to `confluence_list_calendars`, not an empty result; so is a `start_date` after `end_date` or an unknown `time_zone`.
+Get events of any type from Team Calendars in a date range. Returns title, start, end, category, description, invitees and calendar name, sorted by start. Events live on child calendars, so a matched parent calendar is expanded into its children; one request is sent per calendar (at most 5 at a time), because `events.json` answers only for the first `subCalendarId` of a query. The API pads the range to whole calendar views, so events outside `[start_date, end_date]` are dropped; for all-day events `events.json` returns an inclusive `end`. With no `space_key`/`calendar` filter the query fans out one request per subscribed calendar; above `max_calendars` it errors with guidance instead, so a broad default query fails fast. A `calendar` that matches nothing is an error that points to `confluence_list_calendars`, not an empty result; so is a `start_date` after `end_date` or an unknown `time_zone`.
 
 Parameters:
 - `start_date` (str, required): Start date (YYYY-MM-DD, "today", "+14d", etc.)
@@ -377,12 +377,13 @@ Parameters:
 - `space_key` (str, optional): Read the calendars of this space (e.g. "EAP"); without it, only calendars the user subscribed to
 - `calendar` (str, optional): Calendar ID, or part of a parent or child calendar name
 - `time_zone` (str, optional): IANA time zone for event times (e.g. "Europe/Zurich"), validated against the IANA database and sent as `userTimeZoneId`. Omitted: times as Team Calendars returns them (UTC on Data Center in testing)
+- `max_calendars` (int, default 25): With no `space_key`/`calendar` filter, refuse the query if more than this many calendars would be fetched; narrow the query or raise this limit
 
 Tags: confluence, calendars, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 #### `confluence_get_time_off`
-Get time-off events for a date range across all leave calendars. Supports relative dates: "today", "tomorrow", "next week", "+14d", "-7d". Pass `person` for one person's events, or a single day for `start_date`/`end_date` to see who is out that day. Team Calendars pads `events.json` to whole calendar views, so leave outside `[start_date, end_date]` is dropped.
+Get time-off events for a date range across all leave calendars. Supports relative dates: "today", "tomorrow", "next week", "+14d", "-7d". Pass `person` for one person's events, or a single day for `start_date`/`end_date` to see who is out that day. Team Calendars pads `events.json` to whole calendar views, so leave outside `[start_date, end_date]` is dropped. With no `calendar_name` filter the query fans out one request per leave calendar; above `max_calendars` it errors with guidance instead.
 
 Parameters:
 - `start_date` (str, required): Start date (YYYY-MM-DD, "today", "+14d", etc.)
@@ -390,6 +391,7 @@ Parameters:
 - `calendar_name` (str, optional): Filter by calendar name
 - `person` (str, optional): Return only this person's events (exact, case-insensitive name match)
 - `group_by_person` (bool, default false): Group results by person
+- `max_calendars` (int, default 25): With no `calendar_name` filter, refuse the query if more than this many leave calendars would be fetched; narrow the query or raise this limit
 
 Tags: confluence, time_off, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
