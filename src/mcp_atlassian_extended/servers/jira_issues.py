@@ -114,6 +114,7 @@ async def jira_create_link(
 @mcp.tool(
     tags={"jira", "links", "write"},
     annotations={"destructiveHint": True, "readOnlyHint": False, "openWorldHint": True},
+    meta={"anthropic/requiresUserInteraction": True},
 )
 @tool_result(write="jira")
 async def jira_delete_link(

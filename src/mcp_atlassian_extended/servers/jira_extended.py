@@ -59,6 +59,9 @@ async def jira_upload_attachment(
 @mcp.tool(
     tags={"jira", "attachments", "write"},
     annotations={"readOnlyHint": False, "openWorldHint": True},
+    # Raise the 50k-char persist-to-disk threshold (max 500k): a downloaded text
+    # attachment can exceed it. A different meta key from the destructive approval flag.
+    meta={"anthropic/maxResultSizeChars": 200000},
 )
 @tool_result(write="jira")
 async def jira_download_attachment(
@@ -122,6 +125,7 @@ async def jira_download_attachment(
 @mcp.tool(
     tags={"jira", "attachments", "write"},
     annotations={"destructiveHint": True, "readOnlyHint": False, "openWorldHint": True},
+    meta={"anthropic/requiresUserInteraction": True},
 )
 @tool_result(write="jira")
 async def jira_delete_attachment(

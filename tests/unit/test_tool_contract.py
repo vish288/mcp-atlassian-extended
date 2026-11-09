@@ -412,3 +412,23 @@ async def test_every_tool_has_a_row(tool_client):
     registered_tools = {t.name for t in await client.list_tools()}
     table_tools = {r.tool for r in ROWS}
     assert table_tools == registered_tools
+
+
+async def test_destructive_tools_require_user_interaction(tool_client):
+    """Exactly the destructiveHint tools carry the ``anthropic/requiresUserInteraction``
+    meta (G8): Claude Code then forces a permission prompt on every destructive call and
+    never on a read/non-destructive write. ``maxResultSizeChars`` on the download reader is
+    a different meta key and must not count as requiresUserInteraction.
+    """
+    client, _router = tool_client
+    for t in await client.list_tools():
+        destructive = bool(t.annotations and t.annotations.destructive_hint)
+        requires = bool((t.meta or {}).get("anthropic/requiresUserInteraction"))
+        assert destructive == requires, t.name
+
+
+async def test_bulk_reader_raises_result_size_cap(tool_client):
+    """jira_download_attachment lifts the 50k persist-to-disk cap for a large text file."""
+    client, _router = tool_client
+    dl = next(t for t in await client.list_tools() if t.name == "jira_download_attachment")
+    assert (dl.meta or {}).get("anthropic/maxResultSizeChars") == 200000

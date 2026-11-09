@@ -422,6 +422,7 @@ The server provides [MCP prompts](https://modelcontextprotocol.io/docs/concepts/
 - **Download URL validation**: The server validates each attachment download URL against the configured Jira URL domain to prevent SSRF.
 - **SSL verification**: The server enables SSL verification by default for Jira and Confluence. Disable it only for self-signed certificates in trusted networks.
 - **MCP tool annotations**: Each tool declares `readOnlyHint`, `destructiveHint`, and `idempotentHint` for client-side permission prompts.
+- **Approval on destructive tools**: each destructive tool (`jira_delete_link`, `jira_delete_attachment`) carries the `anthropic/requiresUserInteraction` client-vendor meta, so Claude Code forces a permission prompt on every call — even under `acceptEdits`, `auto`, and `bypassPermissions` — with no "don't ask again". The meta is inert for clients that do not read it.
 - **No credential storage**: The server reads tokens from environment variables at startup. It never stores them.
 
 ## Rate Limits & Permissions
