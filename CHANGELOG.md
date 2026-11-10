@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.20.0] - 2026-11-10
+
+### Features
+- feat(http): /health route (a3c0f63)
+- feat(config): MCP_TOOLSETS (733dbcc)
+
+### Documentation
+- docs: Claude Code plugin install (4e072b6)
+
+### Chores
+- chore(fleet): template v1.5.0 (072deea)
+
+
 ## [0.19.0] - 2026-11-09
 
 ### Features

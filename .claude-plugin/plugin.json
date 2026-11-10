@@ -1,7 +1,7 @@
 {
   "name": "mcp-atlassian-extended",
   "displayName": "Atlassian Extended",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "description": "Jira/Confluence MCP server (MCP 2026-07-28): sprints, boards, attachments; writes or read-only",
   "author": {
     "name": "vish288"
