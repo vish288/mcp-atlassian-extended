@@ -13,6 +13,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 from mcp.types import Icon
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from ..clients.confluence import ConfluenceExtendedClient
 from ..clients.jira import JiraExtendedClient
@@ -221,6 +223,20 @@ mcp = FastMCP(
     cache_ttl=300,
     cache_scope="private",
 )
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health(_request: Request) -> JSONResponse:
+    """Unauthenticated liveness probe for container and remote (HTTP transport) deployments.
+
+    Registered on the one FastMCP instance the CLI serves — the Jira and Confluence tools
+    both live here. FastMCP's auth guards ``/mcp``, not custom routes, so this stays
+    reachable with no credentials; it returns only the server name and package version —
+    no config, no secrets, no upstream call.
+    """
+    return JSONResponse(
+        {"status": "ok", "name": mcp.name, "version": version("mcp-atlassian-extended")}
+    )
 
 
 def _register_tools() -> None:
