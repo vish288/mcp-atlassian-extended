@@ -195,7 +195,9 @@ async def jira_list_fields(
 
 
 @mcp.tool(
-    tags={"jira", "metadata", "read"},
+    # Tagged `agile`, not `metadata`: the backlog is a sprint/board read, so it belongs to the
+    # `agile` toolset group (workbench-backlog#160), not the always-on `core` metadata set.
+    tags={"jira", "agile", "read"},
     annotations={"readOnlyHint": True, "idempotentHint": True, "openWorldHint": True},
 )
 @tool_result

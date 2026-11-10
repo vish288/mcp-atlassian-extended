@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import version
@@ -58,6 +59,69 @@ def _lock_read_only(server: FastMCP, *, names: set[str], sources: list[str]) -> 
     _log.info("read-only: LOCKED%s — write tools and prompts hidden", named)
 
 
+# MCP_TOOLSETS: coarse tool groups (workbench-backlog#160). A group is a named set of the
+# raw domain tags the tools already carry; selecting one or more (MCP_TOOLSETS, a comma
+# list, or --toolsets) switches tools/list to an allowlist of just those tools. `core`
+# (users + metadata) is unioned into every selection — assignee lookup and custom-field
+# discovery are prerequisites for both `issues` and `agile`; naming it explicitly is
+# accepted but adds nothing. `release` names the Jira versions surface, the same job name
+# as the sibling servers use; `calendars` is the whole Confluence surface today. Unset or
+# `all` lists every tool; MCP_READ_ONLY still applies after the allowlist and only ever
+# removes tools.
+TOOLSET_GROUPS: dict[str, frozenset[str]] = {
+    "issues": frozenset({"issues", "links", "attachments"}),
+    "agile": frozenset({"agile"}),
+    "release": frozenset({"versions"}),
+    "calendars": frozenset({"calendars", "time_off"}),
+}
+CORE_TAGS: frozenset[str] = frozenset({"users", "metadata"})
+
+
+class UnknownToolsetError(ValueError):
+    """MCP_TOOLSETS named a group this server does not define."""
+
+
+def parse_toolsets(raw: str | None) -> set[str] | None:
+    """Resolve MCP_TOOLSETS / --toolsets to the set of raw tags to allowlist.
+
+    None, empty/whitespace, or a list containing ``all`` returns ``None`` — no filtering,
+    every tool listed (today's default). Names are lowercase, comma-separated, trimmed;
+    ``core`` is accepted (its tags are always included anyway). An unknown name raises
+    ``UnknownToolsetError`` naming the offenders and every valid group.
+    """
+    if not raw or not raw.strip():
+        return None
+    names = [n.strip().lower() for n in raw.split(",") if n.strip()]
+    if not names or "all" in names:
+        return None
+    valid = {*TOOLSET_GROUPS, "core"}
+    unknown = [n for n in names if n not in valid]
+    if unknown:
+        valid_list = ", ".join([*sorted(TOOLSET_GROUPS), "core", "all"])
+        msg = f"Unknown MCP_TOOLSETS group(s): {', '.join(unknown)}. Valid groups: {valid_list}"
+        raise UnknownToolsetError(msg)
+    tags: set[str] = set(CORE_TAGS)
+    for name in names:
+        tags |= TOOLSET_GROUPS.get(name, frozenset())
+    return tags
+
+
+def _apply_toolsets(server: FastMCP, raw: str | None) -> None:
+    """Allowlist tools for the selected toolsets, keeping every resource and prompt.
+
+    fastmcp 4.1.6: ``enable(tags=..., only=True)`` switches to allowlist mode over *all*
+    component types, so resources and prompts would vanish; the chained
+    ``enable(components=...)`` re-lists every resource/template/prompt. This runs before the
+    read-only ``disable`` so the lock stays the last word — an allowlisted group still
+    carries its write tools until the lock removes them. A no-op when no toolset is
+    selected, so the default server is untouched.
+    """
+    tags = parse_toolsets(raw)
+    if tags is None:
+        return
+    server.enable(tags=tags, only=True).enable(components={"resource", "template", "prompt"})
+
+
 # Configs the lifespan uses. The CLI (``__init__.main``) injects pre-built,
 # CLI-overridden configs here so the values reach the lifespan directly instead
 # of round-tripping through ``os.environ``. Left unset, the lifespan reads the
@@ -98,6 +162,8 @@ async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
         jira_config.upload_dir or str(Path.cwd()),
         jira_config.download_dir or str(Path.cwd() / "atlassian-downloads"),
     )
+
+    _apply_toolsets(server, os.getenv("MCP_TOOLSETS"))
 
     names: set[str] = set()
     if jira_config.read_only:

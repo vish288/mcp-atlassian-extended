@@ -29,7 +29,7 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
 | `src/mcp_atlassian_extended/clients/` | `JiraExtendedClient`, `ConfluenceExtendedClient` (httpx); `clients/_http.py` holds the shared `_send` (R2 transport) + response handling |
 | `src/mcp_atlassian_extended/servers/__init__.py` | `FastMCP` instance, `lifespan`, `_register_tools()` |
 | `src/mcp_atlassian_extended/servers/_helpers.py` | shared `_get_jira`, `_get_confluence`, `_check_write`, `_ok`, `_err`, `_paginated`, `_load_file`, Jira URL parsers |
-| `src/mcp_atlassian_extended/servers/jira_extended.py` | 11 tools — attachments, users, metadata, versions, backlog |
+| `src/mcp_atlassian_extended/servers/jira_extended.py` | 11 tools — attachments, users, metadata, versions, backlog (tagged agile) |
 | `src/mcp_atlassian_extended/servers/jira_agile.py` | 4 tools — boards, sprints |
 | `src/mcp_atlassian_extended/servers/jira_issues.py` | 4 tools — issues, links |
 | `src/mcp_atlassian_extended/servers/confluence_extended.py` | 4 tools — calendars, calendar events, time off, capacity |
@@ -188,10 +188,35 @@ Never leak stack traces, tokens, or internal paths in error text.
 | Jira Links | 2 | `jira_create_link`, `jira_delete_link` |
 | Jira Attachments | 4 | `jira_get_attachments`, `jira_upload_attachment`, `jira_download_attachment`, `jira_delete_attachment` |
 | Jira Users | 1 | `jira_search_users` |
-| Jira Metadata | 3 | `jira_list_projects`, `jira_list_fields`, `jira_backlog` |
-| Jira Agile | 4 | `jira_get_board`, `jira_board_config`, `jira_get_sprint`, `jira_move_to_sprint` |
+| Jira Metadata | 2 | `jira_list_projects`, `jira_list_fields` |
+| Jira Agile | 5 | `jira_get_board`, `jira_board_config`, `jira_get_sprint`, `jira_move_to_sprint`, `jira_backlog` |
 | Jira Versions | 3 | `jira_get_project_versions`, `jira_create_version`, `jira_update_version` |
 | Confluence Calendars | 4 | `confluence_list_calendars` (type/search/`space_key` filter), `confluence_get_calendar_events` (any event type; date range, `space_key`, `calendar`, `time_zone`, `max_calendars`), `confluence_get_time_off` (date range, optional `person`, `max_calendars`), `confluence_sprint_capacity` |
+
+### Tool surface (MCP_TOOLSETS)
+
+`MCP_TOOLSETS` (or `--toolsets`) switches `tools/list` to an allowlist of coarse groups — named
+sets of the raw domain tags the tools already carry — so a client with a tool budget sees fewer.
+The `core` tags (users + metadata) are unioned into every selection — assignee lookup and
+custom-field discovery are prerequisites for both `issues` and `agile`; naming `core` explicitly
+is accepted but adds nothing. Resources and prompts stay listed regardless (fastmcp
+`enable(components=...)` re-lists them after the `enable(tags=..., only=True)` allowlist), and the
+read-only lock runs after the allowlist so it only ever removes more tools. Unset or `all` lists
+every tool; an unknown name exits 2.
+
+| Group | Raw tags | Tools | Read-only |
+|---|---|---|---|
+| `issues` | issues, links, attachments | 11 | 4 |
+| `agile` | agile | 8 | 7 |
+| `release` | versions | 6 | 4 |
+| `calendars` | calendars, time_off | 7 | 7 |
+| `core` | users, metadata | always included | 3 |
+| `all` (default) | every tag | 23 | 13 |
+
+The map is `TOOLSET_GROUPS` (+ `CORE_TAGS`) in `servers/__init__.py`; `_apply_toolsets` runs in
+the lifespan before `_lock_read_only`. A test asserts every tool's one domain tag belongs to
+exactly one group or `core`. `jira_backlog` is tagged `agile` (a sprint/backlog read), not
+`metadata`, so it is part of the `agile` group.
 
 ### Upstream APIs
 
@@ -269,6 +294,7 @@ bodies use `$name` placeholders. An unmatched `$` stays intact and does not rais
 | `CONFLUENCE_LEAVE_KEYWORDS` | Comma-separated extra leave-calendar name keywords (lower-cased), added to the built-in English ones |
 | `MCP_READ_ONLY` | Same as `ATLASSIAN_READ_ONLY`; shared name across the mcp-* servers. Either being truthy locks read-only; nothing unlocks it at runtime |
 | `ATLASSIAN_READ_ONLY` | Truthy (anything but `false`/`0`/`no`/`off`/empty) locks writes; read by both configs |
+| `MCP_TOOLSETS` | Comma list of tool groups (`issues`, `agile`, `release`, `calendars`); unset or `all` lists every tool. `core` (users + metadata) is always included. Validated at startup (unknown name exits 2); `MCP_READ_ONLY` applies after the selection |
 | `ATLASSIAN_UPLOAD_DIR` | Upload root for `jira_upload_attachment`; default the working directory. Relative values resolve against cwd |
 | `ATLASSIAN_DOWNLOAD_DIR` | Download directory for `jira_download_attachment`; default `./atlassian-downloads/`, created on first use |
 

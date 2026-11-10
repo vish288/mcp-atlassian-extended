@@ -15,7 +15,7 @@ MCP server that complements mcp-atlassian with zero tool overlap. It provides is
 - **Required env vars** (Jira Cloud): `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 - **Required env vars** (Jira DC): `JIRA_URL`, `JIRA_PAT`
 - **Optional env vars** (Confluence): `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` (or `CONFLUENCE_PAT` for DC)
-- **Optional env vars**: `MCP_READ_ONLY` / `ATLASSIAN_READ_ONLY` (lock read-only), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`, `CONFLUENCE_LEAVE_KEYWORDS` (extra leave-calendar name keywords)
+- **Optional env vars**: `MCP_READ_ONLY` / `ATLASSIAN_READ_ONLY` (lock read-only), `MCP_TOOLSETS` (comma list of tool groups: issues, agile, release, calendars; unset = all), `ATLASSIAN_UPLOAD_DIR` (upload root; default cwd), `ATLASSIAN_DOWNLOAD_DIR` (download dir; default `./atlassian-downloads/`), `JIRA_TIMEOUT`, `CONFLUENCE_TIMEOUT`, `JIRA_SSL_VERIFY`, `CONFLUENCE_SSL_VERIFY`, `CONFLUENCE_LEAVE_KEYWORDS` (extra leave-calendar name keywords)
 
 ## Documentation
 
@@ -243,7 +243,7 @@ Parameters:
 Tags: jira, users, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
-### Jira Metadata (3)
+### Jira Metadata (2)
 
 #### `jira_list_projects`
 List all accessible Jira projects.
@@ -263,19 +263,7 @@ Parameters:
 Tags: jira, metadata, read
 Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
-#### `jira_backlog`
-Get backlog issues for a board. Returns a compact field set by default
-(summary, status, issuetype, priority, assignee, labels) to keep responses small.
-
-Parameters:
-- `board_id` (int, required, >=1): Board ID
-- `max_results` (int, default 50, range 1-100): Maximum results
-- `fields` (str, default compact set): Comma-separated Jira fields; pass `*all` for every field
-
-Tags: jira, metadata, read
-Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
-
-### Jira Agile (4)
+### Jira Agile (5)
 
 #### `jira_get_board`
 Get details of a Jira agile board.
@@ -313,6 +301,18 @@ Parameters:
 
 Tags: jira, agile, write
 Annotations: readOnlyHint=false, openWorldHint=true
+
+#### `jira_backlog`
+Get backlog issues for a board. Returns a compact field set by default
+(summary, status, issuetype, priority, assignee, labels) to keep responses small.
+
+Parameters:
+- `board_id` (int, required, >=1): Board ID
+- `max_results` (int, default 50, range 1-100): Maximum results
+- `fields` (str, default compact set): Comma-separated Jira fields; pass `*all` for every field
+
+Tags: jira, agile, read
+Annotations: readOnlyHint=true, idempotentHint=true, openWorldHint=true
 
 ### Jira Versions (3)
 

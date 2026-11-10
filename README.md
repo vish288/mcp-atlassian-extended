@@ -214,6 +214,7 @@ All Confluence calendar tools require the **Team Calendars** add-on
 |----------|---------|-------------|
 | `MCP_READ_ONLY` | `false` | Shared name across the mcp-* servers. Any value other than `false`/`0`/`no`/`off`/empty locks the server read-only: the 10 write tools and write-workflow prompts are not listed, and nothing can turn it back off at runtime |
 | `ATLASSIAN_READ_ONLY` | `false` | Per-server alias for `MCP_READ_ONLY`; either one locks the server read-only. `--read-only` can only raise the lock |
+| `MCP_TOOLSETS` | all | Comma list of tool groups to expose (see Toolsets); unset or `all` lists every tool. `MCP_READ_ONLY` still applies after the selection |
 | `ATLASSIAN_HTTP_BEARER_TOKEN` | - | Bearer token (min 16 chars) required to bind an HTTP transport to a non-loopback host; clients send `Authorization: Bearer <token>` |
 | `ATLASSIAN_UPLOAD_DIR` | working directory | Only files under this directory may be uploaded (`jira_upload_attachment`). A relative value is resolved against the working directory. |
 | `ATLASSIAN_DOWNLOAD_DIR` | `./atlassian-downloads` | Where `jira_download_attachment` writes. Created on first download. |
@@ -222,6 +223,28 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | `CONFLUENCE_TIMEOUT` | `30` | HTTP request timeout for Confluence in seconds |
 | `CONFLUENCE_SSL_VERIFY` | `true` | Set to `false` to skip SSL verification for Confluence |
 | `CONFLUENCE_LEAVE_KEYWORDS` | - | Comma-separated extra calendar-name keywords that mark a leave calendar for `confluence_get_time_off` / `confluence_sprint_capacity`, on top of the built-in English ones (e.g. `abwesenheit,ferien`) |
+
+### Toolsets
+
+Clients cap how many tools they forward (Cursor warns past 40, across all servers). `MCP_TOOLSETS`
+(or `--toolsets`) shrinks `tools/list` to one or more named groups; unset or `all` lists every
+tool. Names are lowercase and comma-separated; an unknown name exits 2 with the valid list.
+`core` (users + metadata) is always included, and naming it is accepted but adds nothing.
+`MCP_READ_ONLY` still applies afterward and only ever removes more tools (the read-only column).
+
+| Group | Raw tags | Tools | Read-only |
+|-------|----------|-------|-----------|
+| `issues` | issues, links, attachments | 11 | 4 |
+| `agile` | agile (incl. backlog) | 8 | 7 |
+| `release` | versions | 6 | 4 |
+| `calendars` | calendars, time_off | 7 | 7 |
+| `core` | users, metadata | always included | 3 |
+| `all` (default) | every tag | 23 | 13 |
+
+```bash
+MCP_TOOLSETS=issues,agile uvx mcp-atlassian-extended   # ticket and sprint work only
+uvx mcp-atlassian-extended --toolsets calendars        # Confluence calendars and time off
+```
 
 ## Compatibility
 
@@ -242,8 +265,8 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | **Jira Links** | 2 | create link, delete link |
 | **Jira Attachments** | 4 | get, upload, download, delete |
 | **Jira Users** | 1 | search by name/email |
-| **Jira Metadata** | 3 | list projects, list fields, backlog |
-| **Jira Agile** | 4 | get board, board config, get sprint, move to sprint |
+| **Jira Metadata** | 2 | list projects, list fields |
+| **Jira Agile** | 5 | get board, board config, get sprint, move to sprint, backlog |
 | **Jira Versions** | 3 | get project versions, create version, update version |
 | **Confluence Calendars** | 4 | list (type/search/space filter), events of any type (date range, space, calendar), time-off (date range, per-person), sprint capacity |
 
@@ -280,7 +303,6 @@ All Confluence calendar tools require the **Team Calendars** add-on
 |------|-------------|
 | `jira_list_projects` | List all accessible projects |
 | `jira_list_fields` | List fields (with search/custom filter) |
-| `jira_backlog` | Get backlog issues for a board |
 
 ### Jira Agile
 | Tool | Description |
@@ -289,6 +311,7 @@ All Confluence calendar tools require the **Team Calendars** add-on
 | `jira_board_config` | Get board column configuration |
 | `jira_get_sprint` | Get sprint details |
 | `jira_move_to_sprint` | Move issues to a sprint |
+| `jira_backlog` | Get backlog issues for a board |
 
 ### Jira Versions
 | Tool | Description |

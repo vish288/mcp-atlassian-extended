@@ -260,7 +260,7 @@ async def test_guard_still_refuses_when_not_hidden(tool_name):
 @pytest.mark.parametrize(
     "pattern",
     [
-        r"\.enable\(",
+        r"\.enable\([^)]*['\"]write['\"]",
         r"enable_components\(",
         r"disable_components\(",
         r"reset_visibility\(",
@@ -274,3 +274,14 @@ def test_src_has_no_runtime_toggle_or_unlock(pattern):
     for path in _SRC.rglob("*.py"):
         for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             assert not rx.search(line), f"{path}:{i} matches {pattern!r}: {line.strip()}"
+
+
+def test_toolset_allowlist_applied_before_read_only_lock():
+    """The MCP_TOOLSETS allowlist must run before the read-only lock, so read-only still
+    removes every write tool from an allowlisted group (the lock is the last visibility
+    transform). The ``.enable(`` the src-scan now permits is this allowlist, which never
+    names the ``write`` tag."""
+    src = (_SRC / "servers" / "__init__.py").read_text(encoding="utf-8")
+    body = src.split("async def lifespan", 1)[1]
+    assert "_apply_toolsets(" in body
+    assert body.index("_apply_toolsets(") < body.index("_lock_read_only(")

@@ -72,6 +72,12 @@
       "sensitive": false
     },
     {
+      "name": "MCP_TOOLSETS",
+      "description": "Comma list of tool groups to expose (issues, agile, release, calendars); unset or 'all' lists every tool. Shrinks tools/list for clients with a tool budget; MCP_READ_ONLY still applies after the selection",
+      "required": false,
+      "sensitive": false
+    },
+    {
       "name": "ATLASSIAN_HTTP_BEARER_TOKEN",
       "description": "Bearer token (min 16 chars) required to bind an HTTP transport to a non-loopback host; clients send it as 'Authorization: Bearer <token>'",
       "required": false,
