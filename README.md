@@ -50,6 +50,13 @@ There is no tool overlap — this server only implements tools that mcp-atlassia
 
 ## 1-Click Installation
 
+**Claude Code plugin** — one command adds the fleet marketplace, the next installs the server, prompts for the Atlassian URL and token (the secrets are stored in the credential store, never written to a config file), and keeps it updated:
+
+```bash
+claude plugin marketplace add vish288/.github
+claude plugin install mcp-atlassian-extended@vish288-mcp
+```
+
 [![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended&install=cursor)
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended&install=vscode) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Server-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vish288.github.io/mcp-install?server=mcp-atlassian-extended&install=vscode-insiders)
@@ -496,6 +503,28 @@ The `--jira-token`, `--jira-api-token`, `--confluence-token` and `--confluence-a
 The server loads `.env` files from the working directory automatically via `python-dotenv`.
 
 **Partial configuration**: You configure Jira and Confluence independently. Set either or both. The server always advertises all 23 tools. A tool for an unconfigured product returns a "not configured" error that names the variables to set. The server does not fail at startup.
+
+### Observability
+
+An HTTP transport exposes `GET /health`, an unauthenticated liveness probe that returns the
+server name and version (no config, no secrets) for container and load-balancer checks:
+
+```bash
+curl -s http://127.0.0.1:9000/health
+# {"status":"ok","name":"Atlassian Extended MCP Server","version":"0.19.0"}
+```
+
+FastMCP emits OpenTelemetry spans for `tools/call` and propagates trace context by default — no
+opt-in needed. Point it at a collector with the standard OTel environment and launch under the
+auto-instrumentation wrapper:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317 \
+  opentelemetry-instrument uvx mcp-atlassian-extended --transport streamable-http --port 9000
+```
+
+Set `FASTMCP_TELEMETRY_MODE=off` to disable tracing entirely (`propagation_only` keeps trace-context
+propagation without emitting spans).
 
 ## Docker
 

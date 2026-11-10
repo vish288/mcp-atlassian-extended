@@ -20,6 +20,17 @@ capacity planning. Built on FastMCP + httpx + Pydantic.
   The 2026-07-28 deprecations do not affect it.
 - Built on FastMCP 4.x and the MCP Python SDK 2.x.
 
+## Observability
+
+HTTP transports expose `GET /health` (a `@mcp.custom_route` in `servers/__init__.py`): an
+unauthenticated liveness probe returning `{"status", "name", "version"}` and nothing else —
+FastMCP's auth guards `/mcp`, not custom routes, so it carries no config or secrets. The route
+is registered on the combined server the CLI entry point serves, which carries both the Jira
+and Confluence tools. FastMCP 4 emits OpenTelemetry spans for `tools/call` and propagates trace
+context by default; `OTEL_EXPORTER_OTLP_ENDPOINT` with `opentelemetry-instrument` exports them,
+and `FASTMCP_TELEMETRY_MODE=off` disables it. Tested via
+`httpx.ASGITransport(mcp.http_app())`.
+
 ## Layout
 
 | Path | Contents |
