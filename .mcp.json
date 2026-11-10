@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "atlassian-extended": {
+      "command": "uvx",
+      "args": [
+        "mcp-atlassian-extended@0.19.0"
+      ],
+      "env": {
+        "JIRA_URL": "${user_config.jira_url}",
+        "JIRA_API_TOKEN": "${user_config.jira_api_token}",
+        "JIRA_PAT": "${user_config.jira_pat}",
+        "CONFLUENCE_API_TOKEN": "${user_config.confluence_api_token}",
+        "CONFLUENCE_PAT": "${user_config.confluence_pat}",
+        "MCP_READ_ONLY": "${user_config.mcp_read_only}"
+      }
+    }
+  }
+}

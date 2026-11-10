@@ -1,0 +1,56 @@
+{
+  "name": "mcp-atlassian-extended",
+  "displayName": "Atlassian Extended",
+  "version": "0.19.0",
+  "description": "Jira/Confluence MCP server (MCP 2026-07-28): sprints, boards, attachments; writes or read-only",
+  "author": {
+    "name": "vish288"
+  },
+  "homepage": "https://vish288.github.io/mcp-install?server=mcp-atlassian-extended",
+  "repository": "https://github.com/vish288/mcp-atlassian-extended",
+  "license": "MIT",
+  "userConfig": {
+    "jira_url": {
+      "type": "string",
+      "title": "JIRA_URL",
+      "description": "Jira instance URL (e.g. https://your-domain.atlassian.net)",
+      "required": true,
+      "sensitive": false
+    },
+    "jira_api_token": {
+      "type": "string",
+      "title": "JIRA_API_TOKEN",
+      "description": "Jira Cloud API token, used with JIRA_USERNAME (basic auth)",
+      "required": false,
+      "sensitive": true
+    },
+    "jira_pat": {
+      "type": "string",
+      "title": "JIRA_PAT",
+      "description": "Jira personal access token for Data Center (aliases: JIRA_PERSONAL_TOKEN, JIRA_TOKEN). Ignored when JIRA_USERNAME and JIRA_API_TOKEN are both set.",
+      "required": false,
+      "sensitive": true
+    },
+    "confluence_api_token": {
+      "type": "string",
+      "title": "CONFLUENCE_API_TOKEN",
+      "description": "Confluence Cloud API token, used with CONFLUENCE_USERNAME (basic auth)",
+      "required": false,
+      "sensitive": true
+    },
+    "confluence_pat": {
+      "type": "string",
+      "title": "CONFLUENCE_PAT",
+      "description": "Confluence personal access token for Data Center (aliases: CONFLUENCE_PERSONAL_TOKEN, CONFLUENCE_TOKEN). Confluence tools also require the Team Calendars add-on.",
+      "required": false,
+      "sensitive": true
+    },
+    "mcp_read_only": {
+      "type": "string",
+      "title": "MCP_READ_ONLY",
+      "description": "Locks the server read-only: write tools and write-workflow prompts are not listed and nothing lifts the lock at runtime. Shared name across the mcp-* servers; set it in the deployer's env",
+      "required": false,
+      "sensitive": false
+    }
+  }
+}
