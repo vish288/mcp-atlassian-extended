@@ -528,17 +528,26 @@ propagation without emitting spans).
 
 ## Docker
 
-A minimal non-root image is provided. The image defaults to locked read-only (`MCP_READ_ONLY=true`); pass `-e MCP_READ_ONLY=false` to allow writes.
+A minimal non-root image is published to GHCR for linux/amd64 and linux/arm64. It defaults to locked read-only (`MCP_READ_ONLY=true`); pass `-e MCP_READ_ONLY=false` to allow writes.
 
 ```bash
-docker build -t mcp-atlassian-extended .
+# stdio, locked read-only (the image default)
 docker run --rm -i \
   -e JIRA_URL=https://your-company.atlassian.net \
   -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token \
-  mcp-atlassian-extended
+  ghcr.io/vish288/mcp-atlassian-extended:0.21.0
 ```
 
 The entry point is the `mcp-atlassian-extended` command; pass CLI flags after the image name. For an HTTP transport on a published port, also set `ATLASSIAN_HTTP_BEARER_TOKEN` and run with `--transport streamable-http --host 0.0.0.0`.
+
+Verify the build provenance before you run it. The attestation is signed by the shared
+publish workflow in `vish288/.github`, not by this repo, hence `--signer-repo`:
+
+```bash
+gh attestation verify oci://ghcr.io/vish288/mcp-atlassian-extended:0.21.0 -R vish288/mcp-atlassian-extended --signer-repo vish288/.github
+```
+
+To build from source instead, run `docker build -t mcp-atlassian-extended .` and use `mcp-atlassian-extended` as the image name.
 
 ## FAQ
 
