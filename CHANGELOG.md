@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.0] - 2026-11-23
+
+### Chores
+- chore(fleet): template v1.6.2 (e76f951)
+
+
 ## [0.20.0] - 2026-11-10
 
 ### Features
