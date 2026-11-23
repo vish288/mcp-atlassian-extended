@@ -535,7 +535,7 @@ A minimal non-root image is published to GHCR for linux/amd64 and linux/arm64. I
 docker run --rm -i \
   -e JIRA_URL=https://your-company.atlassian.net \
   -e JIRA_USERNAME=your.email@company.com -e JIRA_API_TOKEN=your_api_token \
-  ghcr.io/vish288/mcp-atlassian-extended:0.21.0
+  ghcr.io/vish288/mcp-atlassian-extended:0.21.1
 ```
 
 The entry point is the `mcp-atlassian-extended` command; pass CLI flags after the image name. For an HTTP transport on a published port, also set `ATLASSIAN_HTTP_BEARER_TOKEN` and run with `--transport streamable-http --host 0.0.0.0`.
@@ -544,7 +544,7 @@ Verify the build provenance before you run it. The attestation is signed by the 
 publish workflow in `vish288/.github`, not by this repo, hence `--signer-repo`:
 
 ```bash
-gh attestation verify oci://ghcr.io/vish288/mcp-atlassian-extended:0.21.0 -R vish288/mcp-atlassian-extended --signer-repo vish288/.github
+gh attestation verify oci://ghcr.io/vish288/mcp-atlassian-extended:0.21.1 -R vish288/mcp-atlassian-extended --signer-repo vish288/.github
 ```
 
 To build from source instead, run `docker build -t mcp-atlassian-extended .` and use `mcp-atlassian-extended` as the image name.

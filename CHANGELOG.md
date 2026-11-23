@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.21.1] - 2026-11-23
+
+### Features
+- feat(release): list the GHCR image in the MCP registry (26b75b8)
+
+### Tests
+- test: compare URL hosts exactly instead of substring matching (881f961)
+
+
 ## [0.21.0] - 2026-11-23
 
 ### Chores

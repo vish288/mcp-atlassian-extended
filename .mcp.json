@@ -3,7 +3,7 @@
     "atlassian-extended": {
       "command": "uvx",
       "args": [
-        "mcp-atlassian-extended@0.21.0"
+        "mcp-atlassian-extended@0.21.1"
       ],
       "env": {
         "JIRA_URL": "${user_config.jira_url}",
