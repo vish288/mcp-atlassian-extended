@@ -368,7 +368,7 @@ async def test_network_error_is_a_result(tool_client, caplog):
     assert result.is_error is True
     assert result.structured_content is None
     assert "cannot reach" in parsed["hint"].lower()
-    assert "jira.example.com" in parsed["hint"]
+    assert parsed["hint"].startswith("Cannot reach https://jira.example.com. ")
     assert caplog.records == []
 
 
