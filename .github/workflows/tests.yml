@@ -5,6 +5,8 @@ permissions:
   contents: read
 jobs:
   test:
-    uses: vish288/.github/.github/workflows/tests.yml@32162d0f696f22bb25ba61c0d9f74ea4d5c5b8a7 # v1.5.0
+    uses: vish288/.github/.github/workflows/tests.yml@dc5dc3596ee1ad2931a147da13148c7b80437e24 # v1.6.2
     with:
       coverage_min: 95
+      service: mcp-atlassian-extended
+      conformance: true
